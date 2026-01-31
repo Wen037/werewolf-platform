@@ -1,0 +1,40 @@
+# ===========================
+# MASTER GITIGNORE
+# ===========================
+
+# --- Dependencies (Ignores server/node_modules too) ---
+node_modules/
+
+# --- Database Data (CRITICAL: Do not upload) ---
+mongo-data/
+dump/
+
+# --- Build Outputs ---
+dist/
+build/
+out/
+
+# --- Environment Variables (Secrets) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# --- IDE Settings (VS Code / JetBrains) ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
