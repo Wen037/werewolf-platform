@@ -1,0 +1,4 @@
+docker-compose up -d
+docker-compose start
+docker-compose stop
+npm run dev

@@ -1,44 +1,25 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-    // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
+    /* 1. File Layout (CRITICAL: Uncomment these to keep project clean) */
+    "rootDir": "./src",
+    "outDir": "./dist",
 
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
-    "target": "esnext",
-    "types": [],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    /* 2. Environment (Changed for Backend Stability) */
+    "module": "commonjs",       /* Standard for Node.js backend */
+    "target": "es2020",         /* Stable version for Node 20+ */
+    "types": ["node"],          /* Enable Node.js global types */
+    "esModuleInterop": true,    /* Allows importing CommonJS modules cleanly */
 
-    // Other Outputs
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
-
-    // Stricter Typechecking Options
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-
-    // Style Options
-    // "noImplicitReturns": true,
-    // "noImplicitOverride": true,
-    // "noUnusedLocals": true,
-    // "noUnusedParameters": true,
-    // "noFallthroughCasesInSwitch": true,
-    // "noPropertyAccessFromIndexSignature": true,
-
-    // Recommended Options
+    /* 3. Strictness (Your Advanced Settings - KEEP THESE) */
     "strict": true,
-    "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
-    "moduleDetection": "force",
-    "skipLibCheck": true,
-  }
+    "noUncheckedIndexedAccess": true, /* Prevents crashing on array access */
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,             /* Speeds up compilation */
+
+    /* 4. Formatting */
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true        /* Allows importing .json files */
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
