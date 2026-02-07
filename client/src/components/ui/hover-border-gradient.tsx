@@ -67,7 +67,8 @@ export function HoverBorderGradient({
     >
       <div
         className={cn(
-          "w-auto text-white z-10 bg-black px-4 py-2 rounded-[inherit]",
+          "w-auto z-10 bg-black px-4 py-2 rounded-[inherit] transition-colors duration-300",
+          hovered ? "text-red-500" : "text-white",
           className
         )}
       >
@@ -75,7 +76,7 @@ export function HoverBorderGradient({
       </div>
       <motion.div
         className={cn(
-          "flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit]"
+          "flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit]",
         )}
         style={{
           filter: "blur(2px)",

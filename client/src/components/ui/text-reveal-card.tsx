@@ -16,36 +16,22 @@ export const TextRevealCard = ({
   className?: string;
 }) => {
   const [widthPercentage, setWidthPercentage] = useState(0);
-  const cardRef = useRef<HTMLDivElement >(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [left, setLeft] = useState(0);
   const [localWidth, setLocalWidth] = useState(0);
   const [isMouseOver, setIsMouseOver] = useState(false);
 
-  // UPDATED useEffect to handle window resizing
   useEffect(() => {
-    function updatePosition() {
-      if (cardRef.current) {
-        const { left, width } = cardRef.current.getBoundingClientRect();
-        setLeft(left);
-        setLocalWidth(width);
-      }
+    if (cardRef.current) {
+      const { left, width: localWidth } =
+        cardRef.current.getBoundingClientRect();
+      setLeft(left);
+      setLocalWidth(localWidth);
     }
-
-    // 1. Calculate position immediately
-    updatePosition();
-
-    // 2. Recalculate whenever the window resizes (Fixes full screen issue)
-    window.addEventListener("resize", updatePosition);
-
-    // 3. Cleanup listener when component is removed
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-    };
   }, []);
 
   function mouseMoveHandler(event: React.MouseEvent<HTMLDivElement>) {
     event.preventDefault();
-
     const { clientX } = event;
     if (cardRef.current) {
       const relativeX = clientX - left;
@@ -70,6 +56,7 @@ export const TextRevealCard = ({
   }
 
   const rotateDeg = (widthPercentage - 40) * 0.1;
+  
   return (
     <div
       onMouseEnter={mouseEnterHandler}
@@ -79,8 +66,9 @@ export const TextRevealCard = ({
       onTouchEnd={mouseLeaveHandler}
       onTouchMove={touchMoveHandler}
       ref={cardRef}
+      // CHANGE 1: Removed bg-[#1d1c20] and border. Set to bg-transparent.
       className={cn(
-        "bg-[#1d1c20] border border-white/[0.08] w-[40rem] rounded-lg p-8 relative overflow-hidden",
+        "bg-transparent w-[40rem] rounded-lg p-8 relative overflow-hidden",
         className
       )}
     >
@@ -88,7 +76,7 @@ export const TextRevealCard = ({
 
       <div className="h-40 relative flex items-center overflow-hidden">
         
-        {/* --- 1. THE REVEAL TEXT (Survive the vote) --- */}
+        {/* --- REVEAL LAYER (RED) --- */}
         <motion.div
           style={{
             width: "100%",
@@ -104,24 +92,21 @@ export const TextRevealCard = ({
                 }
           }
           transition={isMouseOver ? { duration: 0 } : { duration: 0.4 }}
-          className="absolute bg-black z-20 will-change-transform"
+          // CHANGE 2: Removed "bg-black". It is now transparent.
+          className="absolute z-20 will-change-transform"
         >
           <p
             style={{
-              fontFamily: "'Special Elite', system-ui",
-              // Optional: Add a glow effect here
-              textShadow: "4px 4px 15px rgba(220, 38, 38, 0.5)", 
+              fontFamily: '"Special Elite", cursive', // Your font
+              textShadow: "4px 4px 15px rgba(220, 38, 38, 0.5)",
             }}
-            // UPDATED:
-            // 1. Changed size: sm:text-[3rem] -> sm:text-[2.4rem] (80% size)
-            // 2. Changed color: text-red-600 (Red for danger/reveal)
-            className="text-base text-center w-full sm:text-[3rem] py-10 font-bold text-red-600 bg-clip-text text-transparent bg-gradient-to-b from-red-500 to-red-800"
+            className="text-center w-full text-base sm:text-[2.4rem] py-10 font-bold text-red-600 bg-clip-text text-transparent bg-gradient-to-b from-red-500 to-red-800"
           >
             {revealText}
           </p>
         </motion.div>
 
-        {/* The Reveal Line Animation */}
+        {/* The Reveal Line (Separator) */}
         <motion.div
           animate={{
             left: `${widthPercentage}%`,
@@ -132,24 +117,39 @@ export const TextRevealCard = ({
           className="h-40 w-[8px] bg-gradient-to-b from-transparent via-neutral-800 to-transparent absolute z-50 will-change-transform"
         ></motion.div>
 
-        {/* --- 2. THE HIDDEN TEXT (Trust no one) --- */}
-        <div className="overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,white,transparent)]">
+        {/* --- HIDDEN LAYER (GREY) --- */}
+        {/* CHANGE 3: Added motion.div wrapper with INVERSE clip-path */}
+        {/* This hides the grey text as the red text appears, preventing overlap */}
+        <motion.div 
+            className="overflow-hidden w-full"
+            animate={
+                isMouseOver
+                  ? {
+                      // Hides the LEFT side as mouse moves right
+                      clipPath: `inset(0 0 0 ${widthPercentage}%)`,
+                    }
+                  : {
+                      clipPath: `inset(0 0 0 ${widthPercentage}%)`,
+                    }
+              }
+            transition={isMouseOver ? { duration: 0 } : { duration: 0.4 }}
+        >
           <p 
-            // UPDATED:
-            // 1. Changed size: sm:text-[3rem] -> sm:text-[2.4rem] (80% size)
-            // 2. Changed color: text-gray-500 (Dimmed color for unrevealed state)
-            className="text-base sm:text-[2.4rem] py-10 font-bold bg-clip-text text-transparent bg-[#323238]"
+            style={{ 
+                fontFamily: '"Special Elite", cursive', // Your font
+                textShadow: "4px 4px 15px rgba(200, 19, 224, 0.5)", 
+            }} 
+            className="text-center w-full text-base sm:text-[2.4rem] py-10 font-bold bg-clip-text text-transparent bg-[#E6DEDC]"
           >
             {text}
           </p>
-          
-    
-        </div>
+        </motion.div>
       </div>
     </div>
   );
 };
 
+// ... Title and Description exports (Unchanged)
 export const TextRevealCardTitle = ({
   children,
   className,
@@ -175,5 +175,3 @@ export const TextRevealCardDescription = ({
     <p className={twMerge("text-[#a9a9a9] text-sm", className)}>{children}</p>
   );
 };
-
-// REMOVED: Stars component definition was here

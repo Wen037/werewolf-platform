@@ -4,12 +4,13 @@ import { HoverBorderGradient } from "../components/ui/hover-border-gradient";
 import { TextRevealCard } from "../components/ui/text-reveal-card";
 import { AuthModal } from "../components/AuthModal";
 import { useState } from 'react';
+import { useNavigate } from "react-router-dom";
 
 export default function HomePage() {
   // 1. State for the Modal
   const [isAuthOpen, setAuthOpen] = useState(false);
   const [authView, setAuthView] = useState<"login" | "register">("login");
-
+  const navigate = useNavigate();
   // Helper to open specific view
   const openAuth = (view: "login" | "register") => {
     setAuthView(view);
@@ -62,8 +63,8 @@ export default function HomePage() {
           </h2>
           
           {/* TEXT REVEAL CARD */}
-          <div className="flex items-center mx-auto justify-center bg-transparent h-[8rem] rounded-2xl w-full max-w-lg mb-8">            
-            <TextRevealCard
+          <div className="relative z-10 flex items-center justify-center bg-transparent h-[7.2rem] rounded-2xl w-full max-w-lg mb-8 mx-auto">
+              <TextRevealCard
               text="Survive the vote"
               revealText="Trust no one ."
               className="bg-transparent border-none" 
@@ -78,21 +79,28 @@ export default function HomePage() {
               containerClassName="rounded-full"
               as="button"
               duration={1}
-              className="bg-black text-white flex items-center space-x-2 px-6 py-3"
+              className="bg-black flex items-center space-x-2 px-6 py-3" 
               onClick={() => openAuth('register')} // <--- FIX: Opens Modal
             >
-              <span>Login/Register</span>
+              
+              <span>
+                Login/Register</span>
             </HoverBorderGradient>
 
-            {/* Button 2: Triggers Modal (Login) or Placeholder */}
-            <HoverBorderGradient
-              containerClassName="rounded-full"
-              as="button"
-              className="bg-black text-white flex items-center space-x-2 px-6 py-3"
-              onClick={() => openAuth('login')} // <--- FIX: Opens Modal
-            >
-              <span>Find a Game</span>
-            </HoverBorderGradient>
+            {/* Button 2: Find a Game */}
+              <HoverBorderGradient
+                containerClassName="rounded-full"
+                
+                // Keep it as a button! It works best this way.
+                as="button" 
+                
+                className="bg-black flex items-center space-x-2 px-6 py-3"
+                
+                // 3. ADD NAVIGATION HERE
+                onClick={() => navigate("/lobby")}
+              >
+                <span>Find a Game</span>
+              </HoverBorderGradient>
 
           </div>
         </div>

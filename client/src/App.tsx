@@ -1,18 +1,21 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import HomePage from './pages/HomePage'; // Import it
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import HomePage from "./pages/HomePage";
+import LobbyPage from "./pages/LobbyPage";
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        {/* Route "/" goes to HomePage now */}
+        {/* Route 1: Landing Page (No Sidebar) */}
         <Route path="/" element={<HomePage />} />
+
+        {/* Route 2: The Game App (Has Sidebar) */}
+        <Route path="/lobby" element={<LobbyPage />} />
         
-        
-        {/* Placeholder for Game Dashboard */}
-        <Route path="/game" element={<div className="text-white p-10">Game Dashboard (Coming Soon)</div>} />
+        {/* You can add more app pages here later, e.g.: */}
+        {/* <Route path="/profile" element={<ProfilePage />} /> */}
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 
