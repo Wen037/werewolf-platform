@@ -33,7 +33,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       label: "Find Games",
       href: "/lobby",
       icon: (
-        <img src="../../public/findGame.png" alt="Wolf" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
+        <img src="/findGame.png" alt="Wolf" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
       ),
       visible: true,
     },
@@ -41,7 +41,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       label: "Game Space",
       href: "/forum",
       icon: (
-        <img src="../../public/Space.png" alt="Village" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
+        <img src="/Space.png" alt="Village" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
       ),
       visible: true,
     },
@@ -49,7 +49,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       label: "My Events",
       href: "/my-events",
       icon: (
-        <img src="../../public/myEvents.png" alt="Scroll" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
+        <img src="/myEvents.png" alt="Scroll" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
       ),
       visible: MOCK_IS_LOGGED_IN,
     },
@@ -57,7 +57,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       label: "My Profile",
       href: "/profile",
       icon: (
-        <img src="../../public/logo_white.png" alt="Profile" className="h-6 w-6 flex-shrink-0 rounded-full" />
+        <img src="/logo_white.png" alt="Profile" className="h-6 w-6 flex-shrink-0 rounded-full" />
       ),
       visible: MOCK_IS_LOGGED_IN,
     },
@@ -71,7 +71,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           "flex flex-col md:flex-row overflow-hidden",
           "rounded-3xl border border-white/10",
           "bg-black/40 backdrop-blur-md shadow-2xl mx-auto",
-          "bg-transparent" 
+          "bg-transparent relative top-[7vh]" 
         )}
       >
         <Sidebar open={open} setOpen={setOpen}>
@@ -103,32 +103,30 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {/* --- MAIN CONTENT AREA --- */}
         <div className="flex flex-1 flex-col h-full relative">
           
-
+          {/* HEADER */}
           <div className="w-full h-16 border-b border-white/5 flex items-center justify-between px-6 bg-black/20 backdrop-blur-sm z-20">
               
-   
+              {/* Title & Rotating Logo */}
               <h1 className="text-white text-xl font-bold tracking-tight text-shadow-sm flex items-center gap-2">
-                {/* --- ADD THIS BLOCK --- */}
                   <motion.img
-                    src="/logo_red.png"   // Make sure you have this image in /public
+                    src="/logo_red.png"   
                     alt="Rotating Logo"
-                    className="h-8 w-8"   // Adjust size here (h-8 is 32px)
+                    className="h-8 w-8"   
                     animate={{ rotate: 360 }}
                     transition={{ 
-                      duration: 20,       // Time for one full spin (20s = slow & elegant)
-                      repeat: Infinity,   // Spin forever
-                      ease: "linear"      // Smooth constant speed
+                      duration: 20,       
+                      repeat: Infinity,   
+                      ease: "linear"      
                     }}
-  />
-
-                <span className="text-neutral font-extrabold">Werewolf SG</span> 
-                <span className="text-neutral-500"> - </span> 
-                <span>{currentTitle}</span>
+                  />
+                  <span className="text-neutral font-extrabold hidden md:inline">Werewolf SG</span> 
+                  <span className="text-neutral-500 hidden md:inline"> - </span> 
+                  <span>{currentTitle}</span>
               </h1>
 
-    
+              {/* User Info */}
               <div className="flex items-center gap-3">
-                <span className="text-neutral-300 text-sm">
+                <span className="text-neutral-300 text-sm hidden md:inline">
                     {MOCK_IS_LOGGED_IN ? (
                       <>Welcome back, <span className="text-white font-medium">{MOCK_USER_NAME}</span></>
                     ) : (
@@ -143,8 +141,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
           </div>
 
-    
-          <div className="p-2 md:p-10 flex flex-col gap-2 flex-1 w-full h-full overflow-y-auto">
+          {/* PAGE CONTENT SLOT */}
+          <div className="p-0 flex flex-col flex-1 w-full h-full overflow-hidden relative">
             {children}
           </div>
         </div>
