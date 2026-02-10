@@ -19,7 +19,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const getPageTitle = (path: string) => {
     switch (path) {
       case "/lobby": return "Game Map";
-      case "/forum": return "Game Space";
+      case "/gamespace": return "Game Space";
       case "/my-events": return "My Events";
       case "/profile": return "My Profile";
       default: return "Dashboard"; 
@@ -39,7 +39,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     },
     {
       label: "Game Space",
-      href: "/forum",
+      href: "/gamespace",
       icon: (
         <img src="/Space.png" alt="Village" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
       ),
@@ -47,7 +47,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     },
     {
       label: "My Events",
-      href: "/my-events",
+      href: "/myevents",
       icon: (
         <img src="/myEvents.png" alt="Scroll" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
       ),
@@ -55,7 +55,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     },
     {
       label: "My Profile",
-      href: "/profile",
+      href: "/myprofile",
       icon: (
         <img src="/logo_white.png" alt="Profile" className="h-6 w-6 flex-shrink-0 rounded-full" />
       ),

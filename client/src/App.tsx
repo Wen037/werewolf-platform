@@ -1,7 +1,10 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import LobbyPage from "./pages/LobbyPage";
-
+import GameSpacePage from './pages/GameSpacePage';
+import VenueDetailPage from './pages/VenueDetailPage';
+import MyEventsPage from './pages/MyEventsPage';
+import MyProfilePage from './pages/MyProfilePage';
 function App() {
   return (
     <Router>
@@ -11,9 +14,11 @@ function App() {
 
         {/* Route 2: The Game App (Has Sidebar) */}
         <Route path="/lobby" element={<LobbyPage />} />
-        
-        {/* You can add more app pages here later, e.g.: */}
-        {/* <Route path="/profile" element={<ProfilePage />} /> */}
+        <Route path="/gamespace" element={<GameSpacePage />} />
+        <Route path="/gamespace/:id" element={<VenueDetailPage />} />
+        <Route path="/myevents" element={<MyEventsPage />} />
+        <Route path="/myprofile" element={<MyProfilePage />} />
+
       </Routes>
     </Router>
   );

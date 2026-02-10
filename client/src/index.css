@@ -34,3 +34,56 @@ input:-webkit-autofill:active{
     -webkit-box-shadow: 0 0 0 30px #171717 inset !important; /* Matches slate-900 */
     -webkit-text-fill-color: white !important;
 }
+
+/* Google Maps Style User Location Dot */
+.user-location-dot {
+  width: 16px;
+  height: 16px;
+  background-color: #4285F4; /* Google Blue */
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.3); /* Initial Halo */
+  animation: pulse-blue 2s infinite;
+}
+
+@keyframes pulse-blue {
+  0% {
+    box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(66, 133, 244, 0); /* Exploding Halo */
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
+  }
+}
+
+.leaflet-layer {
+  filter: grayscale(0%) hue-rotate(-70deg) saturate(120%) contrast(90%) brightness(0.8);
+}
+
+/* --- Dark Scrollbar Theme (全局深色滚动条) --- */
+::-webkit-scrollbar {
+  width: 8px;  /* 滚动条宽度 */
+  height: 8px; /* 横向滚动条高度 */
+}
+
+/* 轨道 (背景) - 设为透明或深黑 */
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+
+/* 滑块 (拖动条) - 深灰色圆角 */
+::-webkit-scrollbar-thumb {
+  background: #404040; /* neutral-700 */
+  border-radius: 10px;
+  border: 2px solid transparent; /* 增加一点边距感 */
+  background-clip: content-box;
+}
+
+/* 鼠标悬停时变亮 */
+::-webkit-scrollbar-thumb:hover {
+  background: #737373; /* neutral-500 */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
