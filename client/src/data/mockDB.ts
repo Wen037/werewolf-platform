@@ -77,6 +77,7 @@ export const MOCK_VENUES: GameVenue[] = [
     amenities: ["Food", "Private Room", "Board Games", "WiFi"],
     averageRating: 4.8,
     totalLikes: 1240,
+    isVerified: true,
     totalSubscribers: 56
   },
   {
@@ -90,6 +91,7 @@ export const MOCK_VENUES: GameVenue[] = [
     amenities: ["Snacks", "Tournaments", "Aircon"],
     averageRating: 4.5,
     totalLikes: 890,
+    isVerified: false,
     totalSubscribers: 30
   },
   {
@@ -103,6 +105,7 @@ export const MOCK_VENUES: GameVenue[] = [
     amenities: ["Console Games", "Drinks", "Student Discount"],
     averageRating: 4.2,
     totalLikes: 450,
+    isVerified: true,
     totalSubscribers: 12
   },
   {
@@ -116,6 +119,7 @@ export const MOCK_VENUES: GameVenue[] = [
     amenities: ["Alcohol", "Private Room", "Late Night"],
     averageRating: 4.6,
     totalLikes: 600,
+    isVerified: true,
     totalSubscribers: 45
   },
   {
@@ -129,6 +133,7 @@ export const MOCK_VENUES: GameVenue[] = [
     amenities: ["Cocktails", "Full Menu", "Date Night"],
     averageRating: 4.9,
     totalLikes: 1500,
+    isVerified: false,
     totalSubscribers: 120
   },
   {
@@ -142,6 +147,7 @@ export const MOCK_VENUES: GameVenue[] = [
     amenities: ["Cheap", "Quiet", "Tabletop"],
     averageRating: 4.0,
     totalLikes: 200,
+    isVerified: true,
     totalSubscribers: 5
   },
   {
@@ -155,6 +161,7 @@ export const MOCK_VENUES: GameVenue[] = [
     amenities: ["Community Events", "Snacks"],
     averageRating: 4.3,
     totalLikes: 330,
+    isVerified: false,
     totalSubscribers: 20
   },
   {
@@ -168,6 +175,7 @@ export const MOCK_VENUES: GameVenue[] = [
     amenities: ["Retail Shop", "Tournaments"],
     averageRating: 4.1,
     totalLikes: 250,
+    isVerified: false,
     totalSubscribers: 8
   },
   {
@@ -180,6 +188,7 @@ export const MOCK_VENUES: GameVenue[] = [
     pricePerHour: 6,
     amenities: ["Dark Room", "Costumes", "Sound Effects"],
     averageRating: 4.7,
+    isVerified: false,
     totalLikes: 2020,
     totalSubscribers: 300
   }
@@ -266,9 +275,9 @@ export const MOCK_SESSION_INTERACTIONS: SessionInteraction[] = [
   { userId: "u1", sessionId: "g1", status: "registered", isLiked: true },
   
   // Attended Past
-  { userId: "u1", sessionId: "g3", status: "attended", isLiked: true, myRating: 5, result: "win" }, // Yishun Chaos
-  { userId: "u1", sessionId: "g4", status: "attended", isLiked: false, myRating: 4, result: "loss" }, // My own game
-  { userId: "u1", sessionId: "g5", status: "attended", isLiked: true, myRating: 5, result: "win" }  // Silent Mode
+  { userId: "u1", sessionId: "g3", status: "attended", isLiked: true, myRating: 5, punctuality: "late" }, // Yishun Chaos
+  { userId: "u1", sessionId: "g4", status: "attended", isLiked: false, myRating: 4, punctuality: "punctual" }, // My own game
+  { userId: "u1", sessionId: "g5", status: "attended", isLiked: true, myRating: 5, punctuality: "punctual" }  // Silent Mode
 ];
 
 // ==========================================

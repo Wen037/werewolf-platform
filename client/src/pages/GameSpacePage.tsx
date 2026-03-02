@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { GameService } from "../services/game.service";
 import type { GameVenue } from "../types";
 import { motion } from "framer-motion";
-import { MapPin, Star, Heart, Search } from "lucide-react";
+import { MapPin, Star, Heart, Search, Plus } from "lucide-react";
 import { AppLayout } from "../components/layout/AppLayout";
+import { CreateSpaceModal } from "../components/CreateSpaceModal";
 
 export default function GameSpacePage() {
   const [venues, setVenues] = useState<GameVenue[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,25 +18,35 @@ export default function GameSpacePage() {
 
   return (
     <AppLayout>
-      <div className="h-full w-full overflow-y-auto p-6 md:p-10">
+      <div className="h-full w-full overflow-y-auto p-6 md:p-10 relative">
         
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Game Venues</h1>
             <p className="text-neutral-400">Discover the best places to hunt in Singapore.</p>
           </div>
           
-          {/* Search Bar */}
-          <div className="relative group w-full md:w-64">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={16} className="text-neutral-500 group-focus-within:text-white transition-colors"/>
-             </div>
-             <input 
-               type="text" 
-               placeholder="Search places..." 
-               className="w-full bg-neutral-900/50 border border-neutral-700 text-white rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:border-neutral-500 focus:bg-neutral-800 transition-all"
-             />
+          <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
+            {/* Search Bar */}
+            <div className="relative group w-full md:w-64">
+               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-neutral-500 group-focus-within:text-white transition-colors"/>
+               </div>
+               <input 
+                 type="text" 
+                 placeholder="Search places..." 
+                 className="w-full bg-neutral-900/50 border border-neutral-700 text-white rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:border-neutral-500 focus:bg-neutral-800 transition-all"
+               />
+            </div>
+            
+            {/* Create Space Button */}
+            <button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg active:scale-95 whitespace-nowrap"
+            >
+              <Plus size={18} /> Add Venue
+            </button>
           </div>
         </div>
 
@@ -47,7 +59,7 @@ export default function GameSpacePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
-              onClick={() => navigate(`/gamespace/${venue.id}`)} // 点击整个卡片跳转
+              onClick={() => navigate(`/gamespace/${venue.id}`)}
               className="bg-neutral-900/40 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden cursor-pointer group hover:border-white/30 transition-all shadow-lg hover:shadow-xl"
             >
               {/* Image */}
@@ -67,6 +79,9 @@ export default function GameSpacePage() {
               <div className="p-5">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{venue.name}</h3>
+                  <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${venue.isVerified ? "bg-green-500/20 text-green-500 border border-green-500/30" : "bg-neutral-500/20 text-neutral-500 border border-neutral-500/30"}`}>
+                    {venue.isVerified ? "Verified" : "Not Verified"}
+                  </span>
                 </div>
                 
                 <p className="text-neutral-500 text-sm mb-4 flex items-center gap-1 truncate">
@@ -82,7 +97,7 @@ export default function GameSpacePage() {
                   {venue.amenities.length > 3 && <span className="text-[10px] text-neutral-500 py-1">+{venue.amenities.length - 3}</span>}
                 </div>
 
-                {/* Footer: 只保留 Likes，去掉了 Details 按钮 */}
+                {/* Footer: Likes */}
                 <div className="border-t border-white/5 pt-4 mt-2">
                    <div className="flex items-center gap-1.5 text-xs text-neutral-400 group-hover:text-neutral-200 transition-colors">
                       <Heart size={14} className="text-red-500/50 group-hover:text-red-500 group-hover:fill-red-500 transition-all"/>
@@ -94,6 +109,11 @@ export default function GameSpacePage() {
           ))}
         </div>
 
+        {/* Create Space Modal */}
+        <CreateSpaceModal 
+          isOpen={isCreateModalOpen} 
+          onClose={() => setIsCreateModalOpen(false)} 
+        />
       </div>
     </AppLayout>
   );

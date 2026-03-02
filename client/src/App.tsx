@@ -5,6 +5,7 @@ import GameSpacePage from './pages/GameSpacePage';
 import VenueDetailPage from './pages/VenueDetailPage';
 import MyEventsPage from './pages/MyEventsPage';
 import MyProfilePage from './pages/MyProfilePage';
+
 function App() {
   return (
     <Router>
@@ -18,7 +19,6 @@ function App() {
         <Route path="/gamespace/:id" element={<VenueDetailPage />} />
         <Route path="/myevents" element={<MyEventsPage />} />
         <Route path="/myprofile" element={<MyProfilePage />} />
-
       </Routes>
     </Router>
   );

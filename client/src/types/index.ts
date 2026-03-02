@@ -1,6 +1,3 @@
-// ==========================================
-// 1. 基础实体 (对应数据库表 Public Entities)
-// ==========================================
 
 export interface User {
   id: string;
@@ -9,7 +6,6 @@ export interface User {
   avatarUrl?: string;
   role: "player" | "admin";
   isVerified: boolean;
-  // 统计数据 (非必须，但通常会有)
   followersCount?: number;
   followingCount?: number;
   skillLevel?: "Beginner" | "Intermediate" | "Advanced" | "Expert"; 
@@ -27,9 +23,9 @@ export interface GameVenue {
     lat: number;
     lng: number;
   };
+  isVerified: boolean;
   pricePerHour: number;
   amenities: string[];
-  // 公共统计数据 (Global Stats)
   averageRating: number;
   totalLikes: number;
   totalSubscribers: number;
@@ -68,7 +64,7 @@ export interface SessionInteraction {
   status: "registered" | "attended" | "no-show" | "cancelled";
   isLiked: boolean;       // 是否点赞
   myRating?: number;      // 我的评分 (0-5)
-  result?: "win" | "loss" | "draw"; // 只有 attended & finished 才有
+  punctuality?: "punctual" | "late"; 
 }
 
 // 用户 -> 用户的交互 (User <-> User)
