@@ -4,7 +4,8 @@ import { GameService } from "../services/game.service";
 import type { GameSessionDTO } from "../types";
 import { MOCK_VENUES, MOCK_USERS } from "../data/mockDB"; 
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, MapPin, Clock, Share2, Star, Heart, Copy, Check, User } from "lucide-react";
+import { Calendar, MapPin, Clock, Share2, Star, Heart, Copy, Check, User, Plus } from "lucide-react";
+import { CreateEventModal } from "../components/CreateEventModal";
 
 // --- COMPONENT: Share Button ---
 const ShareButton = ({ platform, text, url }: { platform: 'whatsapp' | 'telegram' | 'wechat', text: string, url: string }) => {
@@ -70,6 +71,7 @@ const formatDate = (dateStr: string) => {
 export default function MyEventsPage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
   const [events, setEvents] = useState<GameSessionDTO[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
   useEffect(() => {
     GameService.getMyEvents().then(setEvents);
@@ -116,26 +118,36 @@ export default function MyEventsPage() {
 
   return (
     <AppLayout>
-      <div className="h-full w-full overflow-y-auto p-6 md:p-10">
+      <div className="h-full w-full overflow-y-auto p-6 md:p-10 relative">
         
         {/* Header & Tabs */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <h1 className="text-3xl font-bold text-white">My Events</h1>
           
-          <div className="bg-neutral-900/80 p-1 rounded-xl flex gap-1 border border-white/10 backdrop-blur-sm">
-            {(["upcoming", "history"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-2 rounded-lg text-sm font-bold capitalize transition-all ${
-                  activeTab === tab 
-                  ? "bg-red-600 text-white shadow-lg" 
-                  : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+          <div className="flex flex-col-reverse sm:flex-row items-center gap-4 w-full md:w-auto">
+            <div className="bg-neutral-900/80 p-1 rounded-xl flex gap-1 border border-white/10 backdrop-blur-sm w-full sm:w-auto">
+              {(["upcoming", "history"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold capitalize transition-all ${
+                    activeTab === tab 
+                    ? "bg-red-600 text-white shadow-lg" 
+                    : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Create Event Button */}
+            <button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex w-full sm:w-auto items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg active:scale-95 whitespace-nowrap"
+            >
+              <Plus size={18} /> Host Event
+            </button>
           </div>
         </div>
 
@@ -148,6 +160,7 @@ export default function MyEventsPage() {
               // Safe access to interaction properties
               const isLiked = event.myInteraction?.isLiked || false;
               const myRating = event.myInteraction?.myRating || 0;
+              const punctuality = event.myInteraction?.punctuality; // Extract new punctuality field
 
               return (
                 <motion.div
@@ -214,24 +227,33 @@ export default function MyEventsPage() {
 
                   {/* --- HISTORY: Rate & Host Info (带金框) --- */}
                   {activeTab === "history" && (
-                    <div className="border-t border-white/10 pt-4 flex justify-between items-center mt-4">
-                      {/* Left: Star Rating */}
-                      <div>
-                        <div className="text-[10px] text-neutral-500 mb-1 font-bold uppercase tracking-wider">Your Rating</div>
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button 
-                              key={star}
-                              onClick={() => handleRate(event.id, star)}
-                              className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
-                            >
-                              <Star 
-                                size={18} 
-                                className={`${myRating >= star ? "text-yellow-400 fill-yellow-400" : "text-neutral-700"}`} 
-                              />
-                            </button>
-                          ))}
+                    <div className="border-t border-white/10 pt-4 flex justify-between items-end mt-4">
+                      {/* Left: Star Rating and Punctuality Badge */}
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <div className="text-[10px] text-neutral-500 mb-1 font-bold uppercase tracking-wider">Your Rating</div>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button 
+                                key={star}
+                                onClick={() => handleRate(event.id, star)}
+                                className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                              >
+                                <Star 
+                                  size={18} 
+                                  className={`${myRating >= star ? "text-yellow-400 fill-yellow-400" : "text-neutral-700"}`} 
+                                />
+                              </button>
+                            ))}
+                          </div>
                         </div>
+                        
+                        {/* New Punctuality Badge */}
+                        {punctuality && (
+                          <span className={`w-fit text-[10px] px-2 py-1 rounded-md font-bold border uppercase tracking-wider ${punctuality === 'punctual' ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-orange-400 bg-orange-400/10 border-orange-400/20'}`}>
+                            {punctuality === 'punctual' ? '● On Time' : '● Late'}
+                          </span>
+                        )}
                       </div>
 
                       {/* Right: Host Name with Golden Border Style */}
@@ -255,6 +277,12 @@ export default function MyEventsPage() {
             </div>
           )}
         </div>
+
+        {/* Create Event Modal */}
+        <CreateEventModal 
+          isOpen={isCreateModalOpen} 
+          onClose={() => setIsCreateModalOpen(false)} 
+        />
       </div>
     </AppLayout>
   );
