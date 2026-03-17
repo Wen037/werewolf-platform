@@ -64,7 +64,7 @@ input:-webkit-autofill:active{
 
 /* --- Dark Scrollbar Theme (全局深色滚动条) --- */
 ::-webkit-scrollbar {
-  width: 8px;  /* 滚动条宽度 */
+  width: 10px;  /* 滚动条宽度 */
   height: 8px; /* 横向滚动条高度 */
 }
 
@@ -83,7 +83,8 @@ input:-webkit-autofill:active{
 
 /* 鼠标悬停时变亮 */
 ::-webkit-scrollbar-thumb:hover {
-  background: #737373; /* neutral-500 */
+  background: #4a0101; /* neutral-500 */
   border: 2px solid transparent;
   background-clip: content-box;
 }
+

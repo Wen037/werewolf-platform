@@ -9,20 +9,43 @@ import { AppLayout } from "../components/layout/AppLayout";
 import { CreateSpaceModal } from "../components/CreateSpaceModal";
 import { ReportModal } from "../components/ReportModal";
 
+// Extend the GameVenue type locally to handle the UI state for likes
+type VenueUI = GameVenue & { isLiked?: boolean };
+
 export default function GameSpacePage() {
-  const [venues, setVenues] = useState<GameVenue[]>([]);
+  const [venues, setVenues] = useState<VenueUI[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [reportData, setReportData] = useState<{ isOpen: boolean; name: string } | null>(null);
   const [showToast, setShowToast] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    GameService.getAllVenues().then(setVenues);
+    GameService.getAllVenues().then(data => {
+      // Initialize with isLiked as false for the UI
+      setVenues(data.map(v => ({ ...v, isLiked: false })));
+    });
   }, []);
 
   const triggerToast = () => {
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleLike = (e: React.MouseEvent, venueId: string) => {
+    e.stopPropagation(); // Prevent navigating to the details page
+    
+    setVenues(prevVenues => prevVenues.map(venue => {
+      if (venue.id === venueId) {
+        const currentlyLiked = venue.isLiked || false;
+        return {
+          ...venue,
+          isLiked: !currentlyLiked,
+          // Increment or decrement total likes based on previous state
+          totalLikes: currentlyLiked ? (venue.totalLikes || 1) - 1 : (venue.totalLikes || 0) + 1
+        };
+      }
+      return venue;
+    }));
   };
 
   return (
@@ -36,24 +59,22 @@ export default function GameSpacePage() {
               initial={{ opacity: 0, y: 50, x: "-50%" }}
               animate={{ opacity: 1, y: 0, x: "-50%" }}
               exit={{ opacity: 0, y: 20, x: "-50%" }}
-              className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl backdrop-blur-md"
+              className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl backdrop-blur-md pointer-events-none"
             >
               <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-white font-bold text-sm tracking-wide">Submitted</span>
+              <span className="text-white font-bold text-sm tracking-wide">Report Submitted</span>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Report Modal */}
-        {reportData && (
-          <ReportModal 
-            isOpen={reportData.isOpen} 
-            onClose={() => setReportData(null)} 
-            onSuccess={triggerToast}
-            targetType="Space"
-            targetName={reportData.name}
-          />
-        )}
+        <ReportModal 
+          isOpen={reportData?.isOpen || false} 
+          onClose={() => setReportData(null)} 
+          onSuccess={triggerToast}
+          targetType="Space"
+          targetName={reportData?.name || ""}
+        />
 
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
@@ -94,7 +115,7 @@ export default function GameSpacePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
-              className="bg-neutral-900/40 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden cursor-pointer group hover:border-white/30 transition-all shadow-lg hover:shadow-xl relative"
+              className="bg-neutral-900/40 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden cursor-pointer group hover:border-white/30 transition-all shadow-lg hover:shadow-xl relative flex flex-col"
             >
               {/* Image */}
               <div className="h-48 overflow-hidden relative" onClick={() => navigate(`/gamespace/${venue.id}`)}>
@@ -110,7 +131,7 @@ export default function GameSpacePage() {
               </div>
 
               {/* Content */}
-              <div className="p-5">
+              <div className="p-5 flex flex-col flex-1">
                 <div className="flex justify-between items-start mb-2">
                   <h3 
                     onClick={() => navigate(`/gamespace/${venue.id}`)}
@@ -125,7 +146,7 @@ export default function GameSpacePage() {
                       e.stopPropagation();
                       setReportData({ isOpen: true, name: venue.name });
                     }}
-                    className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 text-neutral-500 hover:text-red-500 transition-all"
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 text-neutral-500 hover:text-red-500 transition-all shrink-0"
                     title="Report Space"
                   >
                     <IconAlertTriangle size={14} />
@@ -133,10 +154,10 @@ export default function GameSpacePage() {
                 </div>
                 
                 <p className="text-neutral-500 text-sm mb-4 flex items-center gap-1 truncate">
-                  <MapPin size={14} /> {venue.address}
+                  <MapPin size={14} className="shrink-0" /> <span className="truncate">{venue.address}</span>
                 </p>
 
-                <div className="flex gap-2 mb-4">
+                <div className="flex gap-2 mb-4 flex-wrap">
                   {venue.amenities.slice(0, 3).map(am => (
                     <span key={am} className="text-[10px] bg-white/5 border border-white/10 text-neutral-300 px-2 py-1 rounded">
                       {am}
@@ -145,13 +166,30 @@ export default function GameSpacePage() {
                   {venue.amenities.length > 3 && <span className="text-[10px] text-neutral-500 py-1">+{venue.amenities.length - 3}</span>}
                 </div>
 
-                {/* Footer: Likes */}
+                <div className="mt-auto"></div>
+
+                {/* Footer: Interactive Likes */}
                 <div className="border-t border-white/5 pt-4 mt-2">
-                   <div className="flex items-center gap-1.5 text-xs text-neutral-400 group-hover:text-neutral-200 transition-colors">
-                      <Heart size={14} className="text-red-500/50 group-hover:text-red-500 group-hover:fill-red-500 transition-all"/>
-                      {venue.totalLikes || 0} Likes
-                   </div>
+                   <button 
+                     onClick={(e) => handleLike(e, venue.id)}
+                     className={`flex items-center gap-1.5 text-xs font-medium transition-colors p-1.5 -ml-1.5 rounded-lg active:scale-95 ${
+                       venue.isLiked 
+                         ? 'text-red-400 hover:bg-red-500/10' 
+                         : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
+                     }`}
+                   >
+                      <Heart 
+                        size={16} 
+                        className={`transition-all duration-300 ${
+                          venue.isLiked 
+                            ? 'text-red-500 fill-red-500 scale-110' 
+                            : 'text-red-500/50 group-hover:text-red-500'
+                        }`}
+                      />
+                      <span>{venue.totalLikes || 0} Likes</span>
+                   </button>
                 </div>
+
               </div>
             </motion.div>
           ))}
