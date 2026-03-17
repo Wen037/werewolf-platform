@@ -18,22 +18,44 @@ import {
   IconPlus
 } from "@tabler/icons-react";
 
+// Extend the GameVenue type locally to handle the UI state for likes
+type VenueUI = GameVenue & { isLiked?: boolean };
+
 export default function VenueDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [venue, setVenue] = useState<GameVenue | null>(null);
+  const [venue, setVenue] = useState<VenueUI | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     if (id) {
-      GameService.getVenueById(id).then(data => setVenue(data || null));
+      GameService.getVenueById(id).then(data => {
+        if (data) {
+          // Initialize with isLiked state. In a real app, this comes from backend.
+          setVenue({ ...data, isLiked: false });
+        } else {
+          setVenue(null);
+        }
+      });
     }
   }, [id]);
 
   const triggerToast = () => {
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleLike = () => {
+    setVenue(prev => {
+      if (!prev) return prev;
+      const currentlyLiked = prev.isLiked || false;
+      return {
+        ...prev,
+        isLiked: !currentlyLiked,
+        totalLikes: currentlyLiked ? (prev.totalLikes || 1) - 1 : (prev.totalLikes || 0) + 1
+      };
+    });
   };
 
   if (!venue) {
@@ -137,9 +159,28 @@ export default function VenueDetailPage() {
                       <span className="text-3xl font-bold text-white leading-none">{venue.averageRating}</span>
                     </div>
                  </div>
-                 <div className="text-right">
-                    <div className="text-xl font-bold text-white">{venue.totalLikes || 0}</div>
-                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Likes</div>
+                 
+                 {/* INTERACTIVE LIKE SECTION */}
+                 <div className="flex items-center gap-3">
+                    <button 
+                      onClick={handleLike}
+                      className={`p-2 rounded-full transition-all active:scale-90 ${
+                        venue.isLiked 
+                          ? 'bg-red-500/10 border border-red-500/20' 
+                          : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                      }`}
+                    >
+                      <IconHeart 
+                        size={24} 
+                        className={`transition-colors ${
+                          venue.isLiked ? 'text-red-500 fill-red-500' : 'text-neutral-400 hover:text-red-400'
+                        }`} 
+                      />
+                    </button>
+                    <div className="text-right">
+                       <div className="text-xl font-bold text-white">{venue.totalLikes || 0}</div>
+                       <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Likes</div>
+                    </div>
                  </div>
               </div>
 

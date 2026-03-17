@@ -4,8 +4,10 @@ import { GameService } from "../services/game.service";
 import type { GameSessionDTO } from "../types";
 import { MOCK_VENUES, MOCK_USERS } from "../data/mockDB"; 
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, MapPin, Clock, Share2, Star, Heart, Copy, Check, User, Plus } from "lucide-react";
+import { Calendar, MapPin, Clock, Share2, Star, Heart, Copy, Check, User, Plus , CheckCircle } from "lucide-react";
 import { CreateEventModal } from "../components/CreateEventModal";
+import { ReportModal } from "../components/ReportModal";
+import { IconAlertTriangle } from "@tabler/icons-react";
 
 // --- COMPONENT: Share Button ---
 const ShareButton = ({ platform, text, url }: { platform: 'whatsapp' | 'telegram' | 'wechat', text: string, url: string }) => {
@@ -73,9 +75,18 @@ export default function MyEventsPage() {
   const [events, setEvents] = useState<GameSessionDTO[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
+  // --- Report & Toast State ---
+  const [reportData, setReportData] = useState<{ isOpen: boolean; name: string } | null>(null);
+  const [showToast, setShowToast] = useState(false);
+
   useEffect(() => {
     GameService.getMyEvents().then(setEvents);
   }, []);
+
+  const triggerToast = () => {
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
 
   // Helper: Look up Venue Name
   const getVenueName = (vid: string) => MOCK_VENUES.find(v => v.id === vid)?.name || "Unknown Location";
@@ -120,6 +131,30 @@ export default function MyEventsPage() {
     <AppLayout>
       <div className="h-full w-full overflow-y-auto p-6 md:p-10 relative">
         
+        {/* Toast Notification */}
+        <AnimatePresence>
+          {showToast && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: 20, x: "-50%" }}
+              className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl backdrop-blur-md"
+            >
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span className="text-white font-bold text-sm tracking-wide">Report Submitted</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Report Modal */}
+        <ReportModal 
+          isOpen={reportData?.isOpen || false} 
+          onClose={() => setReportData(null)} 
+          onSuccess={triggerToast}
+          targetType="Event"
+          targetName={reportData?.name || ""}
+        />
+
         {/* Header & Tabs */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <h1 className="text-3xl font-bold text-white">My Events</h1>
@@ -177,16 +212,31 @@ export default function MyEventsPage() {
                       <div className="text-2xl font-bold text-white">{dayNum}</div>
                     </div>
                     
-                    <button 
-                      onClick={() => handleLike(event.id)}
-                      className={`p-2 rounded-full transition-all active:scale-90 ${
-                        isLiked 
-                        ? "text-red-500 bg-red-500/10" 
-                        : "text-neutral-600 hover:text-red-500 hover:bg-neutral-800"
-                      }`}
-                    >
-                      <Heart size={20} className={isLiked ? "fill-red-500" : ""} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {/* Report Event Icon Button */}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReportData({ isOpen: true, name: event.title });
+                        }}
+                        className="p-2 text-neutral-500 hover:text-red-400 transition-colors rounded-full hover:bg-white/5"
+                        title="Report Event"
+                      >
+                        <IconAlertTriangle size={18} />
+                      </button>
+
+                      {/* Like Button */}
+                      <button 
+                        onClick={() => handleLike(event.id)}
+                        className={`p-2 rounded-full transition-all active:scale-90 ${
+                          isLiked 
+                          ? "text-red-500 bg-red-500/10" 
+                          : "text-neutral-600 hover:text-red-500 hover:bg-neutral-800"
+                        }`}
+                      >
+                        <Heart size={20} className={isLiked ? "fill-red-500" : ""} />
+                      </button>
+                    </div>
                   </div>
 
                   <h3 className="text-xl font-bold text-white mb-1 group-hover:text-red-500 transition-colors">{event.title}</h3>
@@ -251,7 +301,7 @@ export default function MyEventsPage() {
                         {/* New Punctuality Badge */}
                         {punctuality && (
                           <span className={`w-fit text-[10px] px-2 py-1 rounded-md font-bold border uppercase tracking-wider ${punctuality === 'punctual' ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-orange-400 bg-orange-400/10 border-orange-400/20'}`}>
-                            {punctuality === 'punctual' ? '● On Time' : '● Late'}
+                            {punctuality === 'punctual' ? 'Punctual' : 'Late'}
                           </span>
                         )}
                       </div>

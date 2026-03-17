@@ -6,10 +6,22 @@ import { MOCK_VENUES } from "../data/mockDB";
 import { ReportModal } from "../components/ReportModal";
 import { 
   Mail, Phone, Calendar, 
-  Settings, Shield, Users, Heart, Edit2, LogOut, Save, AlertCircle, CheckCircle 
+  Settings, Shield, Users, Heart, Edit2, LogOut, Save, AlertCircle, CheckCircle, X
 } from "lucide-react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// --- PREDEFINED AVATARS ---
+const PREDEFINED_AVATARS = [
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Alpha",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Beta",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Gamma",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Delta",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Echo",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Leo",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mia"
+];
 
 const SkillBadge = ({ level, onChange }: { level: string, onChange: (l: any) => void }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -50,6 +62,11 @@ export default function MyProfilePage() {
   // --- Toast State ---
   const [showToast, setShowToast] = useState(false);
 
+  // --- Modals State ---
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ email: "", phone: "" });
+
   // --- Bio 编辑状态 ---
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [tempBio, setTempBio] = useState("");
@@ -70,7 +87,7 @@ export default function MyProfilePage() {
   const handleSkillChange = (newLevel: string) => {
     if (!profile) return;
     setProfile({ ...profile, skillLevel: newLevel as any });
-    GameService.updateSkillLevel(newLevel);
+    // GameService.updateSkillLevel(newLevel);
     triggerToast();
   };
 
@@ -88,8 +105,27 @@ export default function MyProfilePage() {
     setBioError(null);
     if (profile) {
       setProfile({ ...profile, bio: tempBio });
-      GameService.updateBio(tempBio);
+      // GameService.updateBio(tempBio);
       setIsEditingBio(false);
+      triggerToast();
+    }
+  };
+
+  // --- Handle Updates ---
+  const handleSelectAvatar = (url: string) => {
+    if (profile) {
+      setProfile({ ...profile, avatarUrl: url });
+      // GameService.updateAvatar(url);
+      setIsAvatarModalOpen(false);
+      triggerToast();
+    }
+  };
+
+  const handleSaveContact = () => {
+    if (profile) {
+      setProfile({ ...profile, email: editForm.email, contactNumber: editForm.phone });
+      // GameService.updateContactInfo(editForm.email, editForm.phone);
+      setIsContactModalOpen(false);
       triggerToast();
     }
   };
@@ -112,7 +148,7 @@ export default function MyProfilePage() {
               className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl backdrop-blur-md"
             >
               <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-white font-bold text-sm tracking-wide">Submitted</span>
+              <span className="text-white font-bold text-sm tracking-wide">Saved successfully</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -126,6 +162,94 @@ export default function MyProfilePage() {
           targetName={profile.username}
         />
 
+        {/* Avatar Selection Modal */}
+        <AnimatePresence>
+          {isAvatarModalOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setIsAvatarModalOpen(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150]"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] w-full max-w-sm bg-neutral-900 border border-white/10 rounded-2xl p-6 shadow-2xl"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-white">Choose Avatar</h3>
+                  <button onClick={() => setIsAvatarModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {PREDEFINED_AVATARS.map((url, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => handleSelectAvatar(url)}
+                      className="aspect-square rounded-full overflow-hidden bg-neutral-800 border-2 border-transparent hover:border-blue-500 transition-all hover:scale-110"
+                    >
+                      <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Edit Contact Modal */}
+        <AnimatePresence>
+          {isContactModalOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setIsContactModalOpen(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150]"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] w-full max-w-sm bg-neutral-900 border border-white/10 rounded-2xl p-6 shadow-2xl"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-white">Contact Settings</h3>
+                  <button onClick={() => setIsContactModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Email Address</label>
+                    <input 
+                      type="email" 
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" 
+                      placeholder="Enter your email" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Phone Number</label>
+                    <input 
+                      type="text" 
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" 
+                      placeholder="Enter your phone number" 
+                    />
+                  </div>
+                  <button 
+                    onClick={handleSaveContact}
+                    className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* --- HEADER SECTION --- */}
         <div className="flex flex-col md:flex-row gap-6 items-start mb-10">
           
@@ -137,7 +261,11 @@ export default function MyProfilePage() {
                 className="w-full h-full object-cover"
               />
             </div>
-            <button className="absolute bottom-0 right-0 p-2 bg-neutral-800 rounded-full border border-neutral-700 text-neutral-400 hover:text-white transition-colors">
+            {/* Avatar Edit Button */}
+            <button 
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="absolute bottom-0 right-0 p-2 bg-neutral-800 rounded-full border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors"
+            >
               <Edit2 size={14} />
             </button>
           </div>
@@ -242,7 +370,15 @@ export default function MyProfilePage() {
           </div>
 
           <div className="flex gap-2">
-            <button className="p-2 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white transition-colors">
+            {/* Settings Button -> Opens Edit Contact Modal */}
+            <button 
+              onClick={() => {
+                setEditForm({ email: profile.email || "", phone: profile.contactNumber || "" });
+                setIsContactModalOpen(true);
+              }}
+              className="p-2 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors"
+              title="Edit Contact Info"
+            >
               <Settings size={20} />
             </button>
             <button className="p-2 rounded-lg bg-neutral-800 text-red-400 hover:bg-red-500/10 transition-colors">
@@ -281,14 +417,11 @@ export default function MyProfilePage() {
                           <div className="text-xs text-neutral-500 truncate">{event.title}</div>
                         </div>
 
-                        {event.myInteraction?.result && (
-                          <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border
-                            ${event.myInteraction.result === 'win' 
-                              ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' 
-                              : 'bg-neutral-800 text-neutral-500 border-neutral-700'}
-                          `}>
-                            {event.myInteraction.result}
-                          </div>
+                        {/* Punctuality logic remains */}
+                        {event.myInteraction?.punctuality && (
+                          <span className={`w-fit text-[10px] px-2 py-1 rounded-md font-bold border uppercase tracking-wider ${event.myInteraction.punctuality === 'punctual' ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-orange-400 bg-orange-400/10 border-orange-400/20'}`}>
+                            {event.myInteraction.punctuality === 'punctual' ? '● On Time' : '● Late'}
+                          </span>
                         )}
                       </div>
                     );

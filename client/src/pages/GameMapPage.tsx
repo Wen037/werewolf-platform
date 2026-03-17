@@ -5,7 +5,9 @@ import "leaflet/dist/leaflet.css";
 import { GameService } from "../services/game.service";
 import type { GameVenue, GameSession } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, X, Navigation, Heart, Bell, Clock } from "lucide-react";
+import { MapPin, X, Navigation, Heart, Bell, Clock, CheckCircle } from "lucide-react";
+import { IconAlertTriangle } from "@tabler/icons-react";
+import { ReportModal } from "../components/ReportModal";
 
 // --- ICONS ---
 const googleUserIcon = new L.DivIcon({
@@ -27,15 +29,13 @@ const placeIcon = new L.Icon({
   popupAnchor: [0, -15]
 });
 
-// --- HELPER: Date Formatter (已更新) ---
-// 格式: 15 Mar 03:00 PM, Sun
+// --- HELPER: Date Formatter ---
 const formatGameTime = (dateString: string) => {
   const date = new Date(dateString);
   const dd = date.getDate().toString().padStart(2, '0');
-  const month = date.toLocaleDateString('en-US', { month: 'short' }); // Mar, Jan
-  const day = date.toLocaleDateString('en-US', { weekday: 'short' }); // Sun, Mon
+  const month = date.toLocaleDateString('en-US', { month: 'short' }); 
+  const day = date.toLocaleDateString('en-US', { weekday: 'short' }); 
   
-  // 获取 12小时制时间 (03:00 PM)
   const time = date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -46,7 +46,7 @@ const formatGameTime = (dateString: string) => {
 };
 
 // --- HELPER: Map Updater ---
-function MapUpdater({ userLoc, venues }: { userLoc: { lat: number, lng: number } | null, venues: GameVenue[] }) {
+function MapUpdater({ userLoc, venues }: { userLoc: { lat: number, lng: number } | null, venues: any[] }) {
   const map = useMap();
   useEffect(() => {
     if (venues.length === 0) return;
@@ -67,18 +67,29 @@ function MapUpdater({ userLoc, venues }: { userLoc: { lat: number, lng: number }
   return null;
 }
 
+// Extend Types Locally for UI State
+type VenueUI = GameVenue & { isLiked?: boolean };
+type GameUI = GameSession & { isLiked?: boolean, venueDetails?: GameVenue };
+
 export default function GameMapPage() {
-  const [venues, setVenues] = useState<GameVenue[]>([]);
-  const [games, setGames] = useState<GameSession[]>([]);
+  const [venues, setVenues] = useState<VenueUI[]>([]);
+  const [games, setGames] = useState<GameUI[]>([]);
   const [mode, setMode] = useState<"places" | "events">("places");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [userLoc, setUserLoc] = useState<{ lat: number, lng: number } | null>(null);
+  const [reportData, setReportData] = useState<{ isOpen: boolean; name: string, type: "Space" | "Event" } | null>(null);
+  const [showToast, setShowToast] = useState(false);
+
+  const triggerToast = () => {
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
 
   useEffect(() => {
     Promise.all([GameService.getAllVenues(), GameService.getActiveGames()])
       .then(([vData, gData]) => {
-        setVenues(vData);
-        setGames(gData);
+        setVenues(vData.map(v => ({ ...v, isLiked: false })));
+        setGames(gData.map(g => ({ ...g, isLiked: false })));
       });
 
     if (navigator.geolocation) {
@@ -90,18 +101,62 @@ export default function GameMapPage() {
   }, []);
 
   const openGoogleMaps = (lat: number, lng: number) => {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank");
+    window.open(`https://www.google.com/maps?q=${lat},${lng}`, "_blank");
   };
 
   const getVenueForGame = (venueId: string) => venues.find(v => v.id === venueId);
 
+  // --- LIKE HANDLERS ---
+  const handleLikeVenue = (e: React.MouseEvent, venueId: string) => {
+    e.stopPropagation();
+    setVenues(prev => prev.map(v => {
+      if (v.id === venueId) {
+        const updated = {
+          ...v,
+          isLiked: !v.isLiked,
+          totalLikes: v.isLiked ? (v.totalLikes || 1) - 1 : (v.totalLikes || 0) + 1
+        };
+        if (selectedItem?.id === venueId) setSelectedItem(updated);
+        return updated;
+      }
+      return v;
+    }));
+  };
+
+  const handleLikeEvent = (e: React.MouseEvent, gameId: string) => {
+    e.stopPropagation();
+    setGames(prev => prev.map(g => {
+      if (g.id === gameId) {
+        const updated = {
+          ...g,
+          isLiked: !g.isLiked,
+          totalLikes: g.isLiked ? (g.totalLikes || 1) - 1 : (g.totalLikes || 0) + 1
+        };
+        if (selectedItem?.id === gameId) setSelectedItem(updated);
+        return updated;
+      }
+      return g;
+    }));
+  };
+
   return (
     <div className="w-full h-full relative p-4 bg-transparent"> 
       
-      {/* Map Wrapper */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 20, x: "-50%" }}
+            className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl backdrop-blur-md pointer-events-none"
+          >
+            <CheckCircle className="w-5 h-5 text-green-500" />
+            <span className="text-white font-bold text-sm tracking-wide">Report Submitted</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="w-full h-full relative rounded-3xl overflow-hidden shadow-xl border border-neutral-200">
-        
-        {/* Toggle Controls */}
         <div className="absolute top-4 left-4 z-[500] bg-white/50 backdrop-blur-md rounded-xl shadow-lg p-1.5 flex border border-neutral-200">
           <button 
             onClick={() => { setMode("places"); setSelectedItem(null); }}
@@ -117,7 +172,6 @@ export default function GameMapPage() {
           </button>
         </div>
 
-        {/* MAP */}
         <MapContainer 
           center={[1.3521, 103.8198]} 
           zoom={11} 
@@ -128,11 +182,8 @@ export default function GameMapPage() {
             attribution='© CARTO'
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
-
           <MapUpdater userLoc={userLoc} venues={venues} />
-          
           <ZoomControl position="bottomleft" />
-
           {userLoc && <Marker position={[userLoc.lat, userLoc.lng]} icon={googleUserIcon} />}
 
           {mode === "places" && venues.map(venue => (
@@ -155,7 +206,6 @@ export default function GameMapPage() {
         </MapContainer>
       </div>
 
-      {/* --- DETAILS CARD --- */}
       <AnimatePresence>
         {selectedItem && (
           <motion.div 
@@ -165,16 +215,10 @@ export default function GameMapPage() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="absolute top-4 right-4 bottom-4 w-full md:w-80 z-[600] pointer-events-none flex flex-col justify-end md:justify-start"
           >
-            {/* 半透明毛玻璃背景 */}
             <div className={`
                 pointer-events-auto rounded-2xl shadow-2xl border overflow-hidden flex flex-col h-full md:h-auto md:max-h-full backdrop-blur-xl transition-colors duration-300
-                ${mode === 'places' 
-                  ? 'bg-white/10 border-white/40'     
-                  : 'bg-black/15 border-white/10'     
-                }
+                ${mode === 'places' ? 'bg-white/10 border-white/40' : 'bg-black/15 border-white/10'}
             `}>
-                
-                {/* Header Image */}
                 <div className="h-32 relative shrink-0 group">
                   <button 
                     onClick={() => setSelectedItem(null)}
@@ -190,95 +234,86 @@ export default function GameMapPage() {
                   <div className={`absolute inset-0 bg-gradient-to-t ${mode === 'places' ? 'from-white/75' : 'from-black/75'} to-transparent`}></div>
                 </div>
 
-                {/* Content Area */}
                 <div className={`p-4 flex-1 overflow-y-auto ${mode === 'places' ? 'text-neutral-900' : 'text-neutral-100'}`}>
                   
                   {mode === "places" ? (
-                    // --- VENUE DETAILS ---
                     <>
                       <div className="flex justify-between items-start mb-1">
-                        <h3 className="text-lg font-bold leading-tight text-neutral-900">{selectedItem.name}</h3>
-                        <div className="flex flex-col items-center">
-                          <Heart size={18} className="text-red-500 fill-red-500" />
-                          <span className="text-[10px] font-bold text-neutral-500">{selectedItem.likes || 120}</span>
+                        <h3 className="text-lg font-bold leading-tight text-neutral-900 pr-2">{selectedItem.name}</h3>
+                        <div className="flex items-center gap-0.5 shrink-0 translate-x-2">
+                          <button 
+                            onClick={(e) => handleLikeVenue(e, selectedItem.id)}
+                            className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-neutral-900/5 transition-all group"
+                          >
+                            <Heart size={18} className={`transition-all duration-300 ${selectedItem.isLiked ? 'text-red-500 fill-red-500 scale-110' : 'text-red-400 group-hover:text-red-400'}`} />
+                            <span className="text-xs font-bold text-neutral-500">{selectedItem.totalLikes || 0}</span>
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setReportData({ isOpen: true, name: selectedItem.name, type: "Space" }); }}
+                            className="p-1.5 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/30 text-neutral-500 hover:text-red-500 transition-all"
+                          >
+                            <IconAlertTriangle size={18} />
+                          </button>
                         </div>
                       </div>
-
                       <p className="text-neutral-600 text-xs mb-3 flex items-center gap-1">
-                        <MapPin size={12} /> {selectedItem.address}
+                        <MapPin size={12} className="shrink-0" /> <span className="truncate">{selectedItem.address}</span>
                       </p>
-                      
                       <div className="flex gap-1.5 mb-4 flex-wrap">
                         {selectedItem.amenities?.map((am: string) => (
                           <span key={am} className="text-[10px] bg-white/50 border border-neutral-200 px-1.5 py-0.5 rounded font-medium text-neutral-600 backdrop-blur-sm">{am}</span>
                         ))}
                       </div>
-
                       <div className="space-y-2 mt-auto">
-                        <button className="w-full py-2.5 bg-black/90 hover:bg-black text-white rounded-lg font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors">
-                          <Bell size={14} /> Subscribe
-                        </button>
-                        <button 
-                          onClick={() => openGoogleMaps(selectedItem.coordinates.lat, selectedItem.coordinates.lng)}
-                          className="w-full py-2.5 bg-white/50 border border-neutral-300 text-neutral-800 hover:bg-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors backdrop-blur-sm"
-                        >
-                          <Navigation size={14} /> Google Maps
-                        </button>
+                        <button className="w-full py-2.5 bg-black/90 hover:bg-black text-white rounded-lg font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors"><Bell size={14} /> Subscribe</button>
+                        <button onClick={() => openGoogleMaps(selectedItem.coordinates.lat, selectedItem.coordinates.lng)} className="w-full py-2.5 bg-white/50 border border-neutral-300 text-neutral-800 hover:bg-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"><Navigation size={14} /> Google Maps</button>
                       </div>
                     </>
                   ) : (
-                    // --- EVENT DETAILS ---
                     <>
                       <div className="flex justify-between items-start mb-1">
-                        <div>
-                           <span className="inline-block text-[10px] font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-1.5 py-0.5 rounded mb-1">
-                             RECRUITING
-                           </span>
+                        <div className="pr-2">
+                           <span className="inline-block text-[10px] font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-1.5 py-0.5 rounded mb-1">RECRUITING</span>
                            <h3 className="text-lg font-bold leading-tight text-white">{selectedItem.title}</h3>
                         </div>
-                        <div className="flex flex-col items-center">
-                          <Heart size={18} className="text-red-500 fill-red-500" />
-                          <span className="text-[10px] font-bold text-neutral-400">{selectedItem.likes || 45}</span>
+                        <div className="flex items-center gap-0.5 shrink-0 translate-x-2 mt-4">
+                          <button 
+                            onClick={(e) => handleLikeEvent(e, selectedItem.id)}
+                            className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-neutral-900/5 transition-all group"
+                          >
+                            <Heart size={18} className={`transition-all duration-300 ${selectedItem.isLiked ? 'text-red-500 fill-red-500 scale-110' : 'text-red-500 group-hover:text-red-400'}`} />
+                            <span className="text-xs font-bold text-neutral-500">{selectedItem.totalLikes || 0}</span>
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setReportData({ isOpen: true, name: selectedItem.title, type: "Event" }); }}
+                            className="p-1.5 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/30 text-neutral-500 hover:text-red-500 transition-all"
+                          >
+                            <IconAlertTriangle size={18} />
+                          </button>
                         </div>
                       </div>
-
-                      {/* 时间显示更新 */}
                       <div className="bg-white/10 p-2.5 rounded-lg mb-3 border border-white/5 flex items-center gap-2 backdrop-blur-sm">
                          <div className="bg-black/40 p-1.5 rounded"><Clock size={14} className="text-yellow-400"/></div>
                          <div>
                             <div className="text-[10px] text-neutral-400 uppercase tracking-wider">Game Time</div>
-                            <div className="text-sm font-bold text-white font-mono">
-                              {formatGameTime(selectedItem.date)}
-                            </div>
+                            <div className="text-sm font-bold text-white font-mono">{formatGameTime(selectedItem.date)}</div>
                          </div>
                       </div>
-
                       <div className="bg-white/10 p-2.5 rounded-lg mb-3 border border-white/5 backdrop-blur-sm">
                          <div className="text-[10px] text-neutral-500 mb-0.5 uppercase tracking-wider">Location</div>
                          <div className="font-semibold text-neutral-200 text-xs flex items-center gap-1">
-                            <MapPin size={12} className="text-neutral-400"/> {selectedItem.venueDetails.name}
+                            <MapPin size={12} className="text-neutral-400 shrink-0"/> <span className="truncate">{selectedItem.venueDetails?.name}</span>
                          </div>
                       </div>
-
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex -space-x-1.5">
                           {[1,2,3].map(i => <div key={i} className="h-6 w-6 rounded-full bg-neutral-600 border border-neutral-700"/>)}
                         </div>
-                        <div className="text-xs font-bold text-neutral-400">
-                          <span className="text-white">{selectedItem.currentPlayers}</span>/{selectedItem.maxPlayers}
-                        </div>
+                        <div className="text-xs font-bold text-neutral-400"><span className="text-white">{selectedItem.currentPlayers}</span>/{selectedItem.maxPlayers}</div>
                       </div>
-
                       <div className="space-y-2 mt-auto">
-                        <button className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white rounded-lg font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-colors">
-                          Join Game
-                        </button>
-                        <button 
-                          onClick={() => openGoogleMaps(selectedItem.venueDetails.coordinates.lat, selectedItem.venueDetails.coordinates.lng)}
-                          className="w-full py-2.5 bg-white/20 border border-white/20 text-neutral-200 hover:bg-white/20 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"
-                        >
-                          <Navigation size={14} /> Google Maps
-                        </button>
+                        <button className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white rounded-lg font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-colors">Join Game</button>
+                        <button onClick={() => selectedItem.venueDetails && openGoogleMaps(selectedItem.venueDetails.coordinates.lat, selectedItem.venueDetails.coordinates.lng)} className="w-full py-2.5 bg-white/20 border border-white/20 text-neutral-200 hover:bg-white/20 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"><Navigation size={14} /> Google Maps</button>
                       </div>
                     </>
                   )}
@@ -287,6 +322,13 @@ export default function GameMapPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <ReportModal 
+        isOpen={reportData?.isOpen || false} 
+        onClose={() => setReportData(null)} 
+        onSuccess={triggerToast}
+        targetType={reportData?.type || "Event"}
+        targetName={reportData?.name || ""}
+      />
     </div>
   );
 }
