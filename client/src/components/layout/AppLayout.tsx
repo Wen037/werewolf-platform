@@ -1,11 +1,15 @@
 "use client";
 import React, { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "../ui/sidebar";
-import { IconLogin, IconLogout } from "@tabler/icons-react";
+// 1. IMPORT IconMail for the Contact Us button
+import { IconLogin, IconLogout, IconMail } from "@tabler/icons-react"; 
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { FireflyBackground } from "../ui/firefly-background";
 import { motion } from "framer-motion";
+
+// 2. IMPORT ContactModal
+import { ContactModal } from "../ContactModal";
 
 // Mock Data
 const MOCK_IS_LOGGED_IN = true; 
@@ -13,6 +17,10 @@ const MOCK_USER_NAME = "Hunter_01";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  
+  // 3. ADD STATE for Contact Modal
+  const [isContactOpen, setContactOpen] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -65,6 +73,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <FireflyBackground className="h-screen w-full">
+      
+      {/* 4. RENDER the Contact Modal */}
+      <ContactModal 
+        isOpen={isContactOpen} 
+        onClose={() => setContactOpen(false)} 
+      />
+
       <div
         className={cn(
           "w-[95%] max-w-7xl h-[85vh]",
@@ -85,7 +100,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             
-            <div className="border-t border-white/5 pt-4">
+            {/* 5. ADDED FLEX COLUMN TO STACK LOGOUT & CONTACT US */}
+            <div className="border-t border-white/5 pt-4 flex flex-col gap-2">
                {MOCK_IS_LOGGED_IN ? (
                  <SidebarLink
                    link={{ label: "Logout", href: "#", icon: <IconLogout className="h-6 w-6 text-neutral-200" /> }}
@@ -96,6 +112,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                    link={{ label: "Login", href: "/login", icon: <IconLogin className="h-6 w-6 text-neutral-200" /> }}
                  />
                )}
+               
+               {/* 6. ADDED CONTACT US SIDEBAR LINK */}
+               <SidebarLink
+                 link={{ label: "Contact Us", href: "#", icon: <IconMail className="h-6 w-6 text-neutral-200" /> }}
+                 onClick={(e) => {
+                   e.preventDefault(); // Prevents href="#" from jumping to top of page
+                   setContactOpen(true);
+                 }}
+               />
             </div>
           </SidebarBody>
         </Sidebar>

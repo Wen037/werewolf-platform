@@ -3,14 +3,15 @@ import { AppLayout } from "../components/layout/AppLayout";
 import { GameService } from "../services/game.service";
 import type { FullUserProfileDTO } from "../types";
 import { MOCK_VENUES } from "../data/mockDB"; 
+import { ReportModal } from "../components/ReportModal";
 import { 
-  User as UserIcon, Mail, Phone, MapPin, Calendar, 
-  Settings, Shield, Users, Heart, Edit2, LogOut, Save, X, AlertCircle 
+  Mail, Phone, Calendar, 
+  Settings, Shield, Users, Heart, Edit2, LogOut, Save, AlertCircle, CheckCircle 
 } from "lucide-react";
+import { IconAlertTriangle } from "@tabler/icons-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-// ... SkillBadge 组件保持不变 ...
 const SkillBadge = ({ level, onChange }: { level: string, onChange: (l: any) => void }) => {
-  // ... (保持之前的代码)
   const [isEditing, setIsEditing] = useState(false);
   const levels = ["Beginner", "Intermediate", "Advanced", "Expert"];
   const getColor = (l: string) => {
@@ -44,7 +45,11 @@ const SkillBadge = ({ level, onChange }: { level: string, onChange: (l: any) => 
 
 export default function MyProfilePage() {
   const [profile, setProfile] = useState<FullUserProfileDTO | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   
+  // --- Toast State ---
+  const [showToast, setShowToast] = useState(false);
+
   // --- Bio 编辑状态 ---
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [tempBio, setTempBio] = useState("");
@@ -53,36 +58,39 @@ export default function MyProfilePage() {
   useEffect(() => {
     GameService.getMyFullProfile().then(data => {
       setProfile(data);
-      setTempBio(data.bio || ""); // 初始化编辑内容
+      setTempBio(data.bio || ""); 
     });
   }, []);
+
+  const triggerToast = () => {
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
 
   const handleSkillChange = (newLevel: string) => {
     if (!profile) return;
     setProfile({ ...profile, skillLevel: newLevel as any });
     GameService.updateSkillLevel(newLevel);
+    triggerToast();
   };
 
-  // --- 处理 Bio 保存 ---
   const handleSaveBio = () => {
-    // 1. 安全校验：禁止 HTML 标签关键符号
     if (/[<>]/.test(tempBio)) {
       setBioError("Invalid characters detected (< or >). Please remove them.");
       return;
     }
     
-    // 2. 长度校验 (可选)
     if (tempBio.length > 200) {
       setBioError("Bio is too long (max 200 chars).");
       return;
     }
 
-    // 3. 保存
     setBioError(null);
     if (profile) {
       setProfile({ ...profile, bio: tempBio });
       GameService.updateBio(tempBio);
       setIsEditingBio(false);
+      triggerToast();
     }
   };
 
@@ -92,12 +100,35 @@ export default function MyProfilePage() {
 
   return (
     <AppLayout>
-      <div className="h-full w-full overflow-y-auto p-6 md:p-10">
+      <div className="h-full w-full overflow-y-auto p-6 md:p-10 custom-scrollbar relative">
         
+        {/* Toast Notification */}
+        <AnimatePresence>
+          {showToast && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: 20, x: "-50%" }}
+              className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl backdrop-blur-md"
+            >
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span className="text-white font-bold text-sm tracking-wide">Submitted</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Report Modal */}
+        <ReportModal 
+          isOpen={isReportOpen} 
+          onClose={() => setIsReportOpen(false)} 
+          onSuccess={triggerToast}
+          targetType="User"
+          targetName={profile.username}
+        />
+
         {/* --- HEADER SECTION --- */}
         <div className="flex flex-col md:flex-row gap-6 items-start mb-10">
           
-          {/* Avatar (保持不变) */}
           <div className="relative group shrink-0">
             <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 border-neutral-800 shadow-2xl">
               <img 
@@ -111,14 +142,24 @@ export default function MyProfilePage() {
             </button>
           </div>
 
-          {/* Info Column */}
           <div className="flex-1 w-full">
             <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
               <h1 className="text-3xl font-bold text-white">{profile.username}</h1>
-              <SkillBadge level={profile.skillLevel || "Beginner"} onChange={handleSkillChange} />
+              <div className="flex items-center gap-2">
+                <SkillBadge level={profile.skillLevel || "Beginner"} onChange={handleSkillChange} />
+                
+                {/* Report User Button */}
+                <button 
+                  onClick={() => setIsReportOpen(true)}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 text-neutral-400 hover:text-red-500 transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+                  title="Report User"
+                >
+                  <IconAlertTriangle size={12} />
+                  <span>Report</span>
+                </button>
+              </div>
             </div>
             
-            {/* --- 可编辑的 Bio 区域 --- */}
             <div className="mb-6 max-w-xl">
               {isEditingBio ? (
                 <div className="bg-neutral-900/50 p-3 rounded-xl border border-white/10 animate-in fade-in zoom-in duration-200">
@@ -126,14 +167,12 @@ export default function MyProfilePage() {
                     value={tempBio}
                     onChange={(e) => {
                       setTempBio(e.target.value);
-                      // 实时清除错误提示
                       if (!/[<>]/.test(e.target.value)) setBioError(null);
                     }}
                     placeholder="Tell us about yourself..."
                     className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none resize-none h-20 placeholder:text-neutral-600"
                   />
                   
-                  {/* 错误提示 */}
                   {bioError && (
                     <div className="text-red-400 text-xs flex items-center gap-1 mb-2">
                       <AlertCircle size={12} /> {bioError}
@@ -171,7 +210,6 @@ export default function MyProfilePage() {
               )}
             </div>
 
-            {/* Stats Row */}
             <div className="flex gap-6 border-t border-b border-white/5 py-3 mb-4">
               <div className="text-center">
                 <div className="text-xl font-bold text-white">{profile.followersCount}</div>
@@ -191,7 +229,6 @@ export default function MyProfilePage() {
               </div>
             </div>
 
-            {/* Contact Info */}
             <div className="flex flex-wrap gap-4 text-sm text-neutral-400">
               <div className="flex items-center gap-1.5">
                 <Mail size={14} /> {profile.email}
@@ -204,7 +241,6 @@ export default function MyProfilePage() {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2">
             <button className="p-2 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white transition-colors">
               <Settings size={20} />
@@ -218,7 +254,6 @@ export default function MyProfilePage() {
         {/* --- CONTENT GRID --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
           
-          {/* LEFT: Past Events Timeline */}
           <div className="lg:col-span-2">
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <Calendar size={20} className="text-red-500" /> Match History
@@ -233,15 +268,12 @@ export default function MyProfilePage() {
                     
                     return (
                       <div key={event.id} className="p-4 flex items-center gap-4 hover:bg-white/5 transition-colors group">
-                        {/* Date */}
                         <div className="font-mono text-neutral-500 font-bold text-sm w-16 text-right shrink-0">
                           {dateStr}
                         </div>
                         
-                        {/* Separator */}
                         <div className="text-neutral-600">@</div>
                         
-                        {/* Place & Title */}
                         <div className="flex-1 min-w-0">
                           <div className="text-white font-medium truncate flex items-center gap-2">
                             {getVenueName(event.venueId)}
@@ -249,7 +281,6 @@ export default function MyProfilePage() {
                           <div className="text-xs text-neutral-500 truncate">{event.title}</div>
                         </div>
 
-                        {/* Result Badge */}
                         {event.myInteraction?.result && (
                           <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border
                             ${event.myInteraction.result === 'win' 
@@ -269,10 +300,7 @@ export default function MyProfilePage() {
             </div>
           </div>
 
-          {/* RIGHT: Connections & Favorites */}
           <div className="space-y-8">
-            
-            {/* Following Users */}
             <div>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <Users size={20} className="text-blue-500" /> Following
@@ -298,7 +326,6 @@ export default function MyProfilePage() {
               </div>
             </div>
 
-            {/* Favorite Venues */}
             <div>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <Heart size={20} className="text-red-500" /> Saved Places
@@ -323,7 +350,6 @@ export default function MyProfilePage() {
                  )}
               </div>
             </div>
-
           </div>
         </div>
       </div>
