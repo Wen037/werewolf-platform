@@ -2,24 +2,59 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { GameService } from "../services/game.service";
 import type { GameVenue } from "../types";
-import { motion } from "framer-motion";
-import { MapPin, Star, Heart, Search, Plus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, Star, Heart, Search, Plus, CheckCircle } from "lucide-react";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { CreateSpaceModal } from "../components/CreateSpaceModal";
+import { ReportModal } from "../components/ReportModal";
 
 export default function GameSpacePage() {
   const [venues, setVenues] = useState<GameVenue[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [reportData, setReportData] = useState<{ isOpen: boolean; name: string } | null>(null);
+  const [showToast, setShowToast] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     GameService.getAllVenues().then(setVenues);
   }, []);
 
+  const triggerToast = () => {
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
   return (
     <AppLayout>
-      <div className="h-full w-full overflow-y-auto p-6 md:p-10 relative">
+      <div className="h-full w-full overflow-y-auto p-6 md:p-10 relative custom-scrollbar">
         
+        {/* Toast Notification */}
+        <AnimatePresence>
+          {showToast && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: 20, x: "-50%" }}
+              className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl backdrop-blur-md"
+            >
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span className="text-white font-bold text-sm tracking-wide">Submitted</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Report Modal */}
+        {reportData && (
+          <ReportModal 
+            isOpen={reportData.isOpen} 
+            onClose={() => setReportData(null)} 
+            onSuccess={triggerToast}
+            targetType="Space"
+            targetName={reportData.name}
+          />
+        )}
+
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
           <div>
@@ -59,11 +94,10 @@ export default function GameSpacePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
-              onClick={() => navigate(`/gamespace/${venue.id}`)}
-              className="bg-neutral-900/40 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden cursor-pointer group hover:border-white/30 transition-all shadow-lg hover:shadow-xl"
+              className="bg-neutral-900/40 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden cursor-pointer group hover:border-white/30 transition-all shadow-lg hover:shadow-xl relative"
             >
               {/* Image */}
-              <div className="h-48 overflow-hidden relative">
+              <div className="h-48 overflow-hidden relative" onClick={() => navigate(`/gamespace/${venue.id}`)}>
                 <img 
                   src={venue.imageUrl} 
                   alt={venue.name} 
@@ -78,10 +112,24 @@ export default function GameSpacePage() {
               {/* Content */}
               <div className="p-5">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{venue.name}</h3>
-                  <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${venue.isVerified ? "bg-green-500/20 text-green-500 border border-green-500/30" : "bg-neutral-500/20 text-neutral-500 border border-neutral-500/30"}`}>
-                    {venue.isVerified ? "Verified" : "Not Verified"}
-                  </span>
+                  <h3 
+                    onClick={() => navigate(`/gamespace/${venue.id}`)}
+                    className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors"
+                  >
+                    {venue.name}
+                  </h3>
+                  
+                  {/* Report Venue Icon Button */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setReportData({ isOpen: true, name: venue.name });
+                    }}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 text-neutral-500 hover:text-red-500 transition-all"
+                    title="Report Space"
+                  >
+                    <IconAlertTriangle size={14} />
+                  </button>
                 </div>
                 
                 <p className="text-neutral-500 text-sm mb-4 flex items-center gap-1 truncate">

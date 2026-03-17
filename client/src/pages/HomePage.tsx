@@ -1,16 +1,22 @@
-import { motion } from "framer-motion"; // Note: Use 'framer-motion', not 'motion/react'
+import { motion } from "framer-motion"; 
 import { Vortex } from "../components/ui/vortex";
 import { HoverBorderGradient } from "../components/ui/hover-border-gradient";
 import { TextRevealCard } from "../components/ui/text-reveal-card";
 import { AuthModal } from "../components/AuthModal";
+import { ContactModal } from "../components/ContactModal"; // <-- ADDED IMPORT
 import { useState } from 'react';
 import { useNavigate } from "react-router-dom";
 
 export default function HomePage() {
-  // 1. State for the Modal
+  // 1. State for the Auth Modal
   const [isAuthOpen, setAuthOpen] = useState(false);
   const [authView, setAuthView] = useState<"login" | "register">("login");
+  
+  // <-- ADDED STATE FOR CONTACT MODAL
+  const [isContactOpen, setContactOpen] = useState(false); 
+  
   const navigate = useNavigate();
+  
   // Helper to open specific view
   const openAuth = (view: "login" | "register") => {
     setAuthView(view);
@@ -18,17 +24,33 @@ export default function HomePage() {
   };
 
   return (
-    <div className="w-full h-screen overflow-hidden bg-black">
+    <div className="w-full h-screen overflow-hidden bg-black relative">
       
-      {/* --- 0. THE POPUP MODAL --- */}
+      {/* --- 0. THE POPUP MODALS --- */}
       <AuthModal 
         isOpen={isAuthOpen} 
         onClose={() => setAuthOpen(false)} 
         initialView={authView}
       />
 
+      {/* <-- ADDED CONTACT MODAL */}
+      <ContactModal 
+        isOpen={isContactOpen} 
+        onClose={() => setContactOpen(false)} 
+      />
+
+      {/* <-- ADDED TOP NAVIGATION / CONTACT BUTTON */}
+      <div className="absolute top-0 w-full p-6 flex justify-end z-50 pointer-events-auto">
+        <button 
+          onClick={() => setContactOpen(true)}
+          className="text-neutral-400 hover:text-white font-medium text-sm transition-colors border border-transparent hover:border-white/20 px-4 py-2 rounded-full"
+        >
+          Contact Us
+        </button>
+      </div>
+
       <Vortex
-        backgroundColor="#000000" // Canvas needs Hex, not Tailwind names
+        backgroundColor="#000000" 
         rangeY={800}
         particleCount={200}
         baseRadius={1}
@@ -80,23 +102,16 @@ export default function HomePage() {
               as="button"
               duration={1}
               className="bg-black flex items-center space-x-2 px-6 py-3" 
-              onClick={() => openAuth('register')} // <--- FIX: Opens Modal
+              onClick={() => openAuth('register')} 
             >
-              
-              <span>
-                Login/Register</span>
+              <span>Login/Register</span>
             </HoverBorderGradient>
 
             {/* Button 2: Find a Game */}
               <HoverBorderGradient
                 containerClassName="rounded-full"
-                
-                // Keep it as a button! It works best this way.
                 as="button" 
-                
                 className="bg-black flex items-center space-x-2 px-6 py-3"
-                
-                // 3. ADD NAVIGATION HERE
                 onClick={() => navigate("/lobby")}
               >
                 <span>Find a Game</span>
