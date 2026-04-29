@@ -1,16 +1,89 @@
 "use client";
 import React, { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "../ui/sidebar";
-// 1. IMPORT IconMail for the Contact Us button
-import { IconLogin, IconLogout, IconMail } from "@tabler/icons-react"; 
+import { IconLogin, IconLogout, IconMail } from "@tabler/icons-react";
 import { useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { FireflyBackground } from "../ui/firefly-background";
 import { motion } from "framer-motion";
 
-// 2. IMPORT ContactModal
 import { ContactModal } from "../ContactModal";
+import { AuthModal } from "../AuthModal";
 import { AuthService } from "../../services/auth.service";
+
+// ── Debug mock users (dev only) ───────────────────────────────────────────
+const DEBUG_USERS = [
+  { label: "AlphaWolf (Expert)",       id: "u1",  username: "AlphaWolf",    email: "alpha@wolf.sg",   role: "player" as const, skillLevel: "Expert" as const,       isVerified: true  },
+  { label: "SeerSally (Advanced)",      id: "u2",  username: "SeerSally",    email: "sally@seer.sg",   role: "player" as const, skillLevel: "Advanced" as const,     isVerified: true  },
+  { label: "ModeratorMike (Admin)",     id: "u8",  username: "ModeratorMike",email: "mike@host.sg",    role: "admin"  as const, skillLevel: "Expert" as const,       isVerified: true  },
+  { label: "NoobHunter (Beginner)",     id: "u3",  username: "NoobHunter",   email: "hunter@game.sg",  role: "player" as const, skillLevel: "Beginner" as const,     isVerified: false },
+];
+
+function DebugPanel() {
+  const [open, setOpen] = React.useState(false);
+  if (!import.meta.env.DEV) return null;
+
+  const loginAs = (u: typeof DEBUG_USERS[number]) => {
+    localStorage.setItem("token", "debug-fake-token-" + u.id);
+    localStorage.setItem("user", JSON.stringify({
+      id: u.id, username: u.username, email: u.email,
+      role: u.role, skillLevel: u.skillLevel, isVerified: u.isVerified,
+    }));
+    window.location.reload();
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.reload();
+  };
+
+  const current = AuthService.getCurrentUser();
+
+  return (
+    <div className="fixed bottom-4 right-4 z-[300] flex flex-col items-end gap-2">
+      {open && (
+        <div className="bg-neutral-900 border border-yellow-500/40 rounded-2xl p-4 shadow-2xl w-56 space-y-2">
+          <p className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">🐛 Debug — Quick Login</p>
+          {current && (
+            <p className="text-neutral-400 text-[11px] truncate">
+              Logged in as <span className="text-white font-semibold">{current.username}</span>
+            </p>
+          )}
+          <div className="space-y-1.5">
+            {DEBUG_USERS.map(u => (
+              <button
+                key={u.id}
+                onClick={() => loginAs(u)}
+                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                  current?.id === u.id
+                    ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                    : "bg-white/5 text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                {current?.id === u.id ? "✓ " : ""}{u.label}
+              </button>
+            ))}
+          </div>
+          {current && (
+            <button
+              onClick={logout}
+              className="w-full text-center px-3 py-2 rounded-xl text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors mt-1"
+            >
+              Logout
+            </button>
+          )}
+        </div>
+      )}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="px-3 py-1.5 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-xs font-bold hover:bg-yellow-500/30 transition-colors shadow-lg"
+      >
+        🐛 Debug
+      </button>
+    </div>
+  );
+}
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -18,8 +91,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const currentUser = AuthService.getCurrentUser();
   const userName = currentUser?.username ?? "Guest";
   
-  // 3. ADD STATE for Contact Modal
   const [isContactOpen, setContactOpen] = useState(false);
+  const [isAuthOpen, setAuthOpen] = useState(false);
 
   const location = useLocation();
 
@@ -72,11 +145,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <FireflyBackground className="h-screen w-full">
-      
-      {/* 4. RENDER the Contact Modal */}
-      <ContactModal 
-        isOpen={isContactOpen} 
-        onClose={() => setContactOpen(false)} 
+
+      <DebugPanel />
+
+      <ContactModal
+        isOpen={isContactOpen}
+        onClose={() => setContactOpen(false)}
+      />
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setAuthOpen(false)}
       />
 
       <div
@@ -108,7 +186,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                  />
                ) : (
                  <SidebarLink
-                   link={{ label: "Login", href: "/login", icon: <IconLogin className="h-6 w-6 text-neutral-200" /> }}
+                   link={{ label: "Login", href: "#", icon: <IconLogin className="h-6 w-6 text-neutral-200" /> }}
+                   onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}
                  />
                )}
                

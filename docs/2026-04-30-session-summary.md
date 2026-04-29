@@ -433,6 +433,8 @@ Token 有效期 7 天，所有需要 auth 的请求自动带 `Authorization: Bea
 
 ### 前端（USE_MOCK = true 期间调试）
 - [x] VenueDetailPage：活动抽屉 (Slide-over Drawer) 完成
+- [x] Login 黑屏 Bug 修复
+- [x] 开发调试 Debug Panel 添加
 - [ ] VenueDetailPage：like/subscribe/rate 按钮全部接入（subscribe、rate 尚未实现）
 - [ ] LobbyPage：`getActiveGames()` 展示 + join/leave 按钮接入
 - [ ] GameSpacePage：`getAllVenues()` 展示 + 交互按钮接入
@@ -440,3 +442,40 @@ Token 有效期 7 天，所有需要 auth 的请求自动带 `Authorization: Bea
 - [ ] CreateEventModal：「Create Event」按钮接入 `POST /api/games`
 - [ ] MyProfilePage：LogOut 按钮 UI 接入 `AuthService.logout()`
 - [ ] 全局：未登录用户访问需要 auth 的页面时弹出 AuthModal
+
+---
+
+# Session 4 — 2026-04-30：Bug 修复 + Debug Panel
+
+## Bug 修复
+
+### 1. Login 按钮黑屏
+- **原因**：Login 侧边栏链接 `href="/login"` 跳转到不存在的路由，导致空白页
+- **修复**：改为 `onClick` 弹出 `AuthModal`（与首页行为一致）
+- **文件**：`client/src/components/layout/AppLayout.tsx`
+
+### 2. My Events / My Profile 不显示
+- **原因**：`visible: isLoggedIn`，Login 黑屏导致无法登录，所以看不到
+- **修复**：Login 修好后自动恢复，不需要额外改动
+
+---
+
+## 新增：Debug Panel（开发专用）
+
+**位置**：右下角浮动按钮，仅 `import.meta.env.DEV` 为 true 时渲染（生产 build 自动消失）
+
+**功能**：
+- 点击 `🐛 Debug` 展开面板
+- 一键切换 4 个测试账号，写入假 token + user 到 localStorage，页面刷新生效
+- 显示当前已登录账号（✓ 高亮）
+- Logout 按钮清除 session
+
+**测试账号**：
+| 账号 | 角色 | 技能 |
+|---|---|---|
+| AlphaWolf (u1) | player | Expert |
+| SeerSally (u2) | player | Advanced |
+| ModeratorMike (u8) | admin | Expert |
+| NoobHunter (u3) | player | Beginner |
+
+**文件**：`client/src/components/layout/AppLayout.tsx`（新增 `DebugPanel` 组件 + `<DebugPanel />` 渲染）
