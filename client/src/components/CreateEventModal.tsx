@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Calendar, Clock, MapPin, Users, Activity } from "lucide-react";
-import { useState } from "react";
-import { MOCK_VENUES } from "../data/mockDB";
+import { useState, useEffect } from "react";
+import { GameService } from "../services/game.service";
+import type { GameVenueDTO } from "../types";
 
 interface CreateEventModalProps {
   isOpen: boolean;
@@ -11,6 +12,11 @@ interface CreateEventModalProps {
 export const CreateEventModal = ({ isOpen, onClose }: CreateEventModalProps) => {
   const [selectedVenue, setSelectedVenue] = useState<string>("");
   const [proficiency, setProficiency] = useState<string>("All Welcome");
+  const [venues, setVenues] = useState<GameVenueDTO[]>([]);
+
+  useEffect(() => {
+    if (isOpen) GameService.getAllVenues().then(setVenues).catch(() => {});
+  }, [isOpen]);
 
   const proficiencyLevels = ["All Welcome", "Newbie", "Intermediate", "Advanced"];
 
@@ -140,7 +146,7 @@ export const CreateEventModal = ({ isOpen, onClose }: CreateEventModalProps) => 
                         className="w-full bg-black border border-white/10 rounded-xl p-3.5 text-white appearance-none focus:outline-none focus:border-red-500/50 transition-all pr-10 cursor-pointer"
                       >
                         <option value="" disabled className="bg-neutral-900 text-neutral-500">Select a venue...</option>
-                        {MOCK_VENUES.map((venue) => (
+                        {venues.map((venue) => (
                           <option key={venue.id} value={venue.id} className="bg-neutral-900 text-white">
                             {venue.name} ({venue.address})
                           </option>

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { GameService } from "../services/game.service";
 import type { GameSessionDTO } from "../types";
-import { MOCK_VENUES, MOCK_USERS } from "../data/mockDB"; 
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, MapPin, Clock, Share2, Star, Heart, Copy, Check, User, Plus , CheckCircle } from "lucide-react";
 import { CreateEventModal } from "../components/CreateEventModal";
@@ -87,12 +86,6 @@ export default function MyEventsPage() {
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
-
-  // Helper: Look up Venue Name
-  const getVenueName = (vid: string) => MOCK_VENUES.find(v => v.id === vid)?.name || "Unknown Location";
-
-  // Helper: Look up Host Name
-  const getHostName = (uid: string) => MOCK_USERS.find(u => u.id === uid)?.username || "Unknown Host";
 
   const handleRate = (sessionId: string, rating: number) => {
     setEvents(prev => prev.map(e => {
@@ -247,7 +240,7 @@ export default function MyEventsPage() {
                       <span className="font-mono text-neutral-300">{fullString}</span>
                     </div>
                     <div className="flex items-center gap-2 text-neutral-400 text-sm">
-                      <MapPin size={14} className="text-red-500" /> {getVenueName(event.venueId)}
+                      <MapPin size={14} className="text-red-500" /> {event.venueName || event.venueId}
                     </div>
                   </div>
 
@@ -309,7 +302,7 @@ export default function MyEventsPage() {
                       {/* Right: Host Name with Golden Border Style */}
                       <div className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border shadow-sm bg-yellow-500/10 text-yellow-400 border-yellow-500/30">
                         <User size={14} />
-                        <span>Hosted by <span className="text-yellow-300 font-bold">{getHostName(event.hostId)}</span></span>
+                        <span>Hosted by <span className="text-yellow-300 font-bold">{event.hostName || event.hostId}</span></span>
                       </div>
                     </div>
                   )}

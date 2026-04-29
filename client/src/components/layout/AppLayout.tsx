@@ -3,25 +3,24 @@ import React, { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "../ui/sidebar";
 // 1. IMPORT IconMail for the Contact Us button
 import { IconLogin, IconLogout, IconMail } from "@tabler/icons-react"; 
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { FireflyBackground } from "../ui/firefly-background";
 import { motion } from "framer-motion";
 
 // 2. IMPORT ContactModal
 import { ContactModal } from "../ContactModal";
-
-// Mock Data
-const MOCK_IS_LOGGED_IN = true; 
-const MOCK_USER_NAME = "Hunter_01";
+import { AuthService } from "../../services/auth.service";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const isLoggedIn = AuthService.isLoggedIn();
+  const currentUser = AuthService.getCurrentUser();
+  const userName = currentUser?.username ?? "Guest";
   
   // 3. ADD STATE for Contact Modal
   const [isContactOpen, setContactOpen] = useState(false);
 
-  const navigate = useNavigate();
   const location = useLocation();
 
   const getPageTitle = (path: string) => {
@@ -59,7 +58,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       icon: (
         <img src="/myEvents.png" alt="Scroll" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
       ),
-      visible: MOCK_IS_LOGGED_IN,
+      visible: isLoggedIn,
     },
     {
       label: "My Profile",
@@ -67,7 +66,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       icon: (
         <img src="/logo_white.png" alt="Profile" className="h-6 w-6 flex-shrink-0 rounded-full" />
       ),
-      visible: MOCK_IS_LOGGED_IN,
+      visible: isLoggedIn,
     },
   ];
 
@@ -102,10 +101,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             
             {/* 5. ADDED FLEX COLUMN TO STACK LOGOUT & CONTACT US */}
             <div className="border-t border-white/5 pt-4 flex flex-col gap-2">
-               {MOCK_IS_LOGGED_IN ? (
+               {isLoggedIn ? (
                  <SidebarLink
                    link={{ label: "Logout", href: "#", icon: <IconLogout className="h-6 w-6 text-neutral-200" /> }}
-                   onClick={() => navigate("/")}
+                   onClick={() => AuthService.logout()}
                  />
                ) : (
                  <SidebarLink
@@ -152,15 +151,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               {/* User Info */}
               <div className="flex items-center gap-3">
                 <span className="text-neutral-300 text-sm hidden md:inline">
-                    {MOCK_IS_LOGGED_IN ? (
-                      <>Welcome back, <span className="text-white font-medium">{MOCK_USER_NAME}</span></>
+                    {isLoggedIn ? (
+                      <>Welcome back, <span className="text-white font-medium">{userName}</span></>
                     ) : (
                       "Guest View"
                     )}
                 </span>
-                {MOCK_IS_LOGGED_IN && (
+                {isLoggedIn && (
                   <div className="h-8 w-8 rounded-full bg-red-900/40 border border-red-500/30 flex items-center justify-center text-red-100 text-xs font-bold shadow-[0_0_10px_rgba(220,38,38,0.3)]">
-                      {MOCK_USER_NAME.substring(0, 2).toUpperCase()}
+                      {userName.substring(0, 2).toUpperCase()}
                   </div>
                 )}
               </div>

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { GameService } from "../services/game.service";
 import type { FullUserProfileDTO } from "../types";
-import { MOCK_VENUES } from "../data/mockDB"; 
 import { ReportModal } from "../components/ReportModal";
 import { 
   Mail, Phone, Calendar, 
@@ -87,7 +86,7 @@ export default function MyProfilePage() {
   const handleSkillChange = (newLevel: string) => {
     if (!profile) return;
     setProfile({ ...profile, skillLevel: newLevel as any });
-    // GameService.updateSkillLevel(newLevel);
+    GameService.updateSkillLevel(newLevel);
     triggerToast();
   };
 
@@ -105,7 +104,7 @@ export default function MyProfilePage() {
     setBioError(null);
     if (profile) {
       setProfile({ ...profile, bio: tempBio });
-      // GameService.updateBio(tempBio);
+      GameService.updateBio(tempBio);
       setIsEditingBio(false);
       triggerToast();
     }
@@ -130,7 +129,6 @@ export default function MyProfilePage() {
     }
   };
 
-  const getVenueName = (vid: string) => MOCK_VENUES.find(v => v.id === vid)?.name || "Unknown Place";
 
   if (!profile) return <AppLayout><div className="p-10 text-neutral-500">Loading profile...</div></AppLayout>;
 
@@ -412,7 +410,7 @@ export default function MyProfilePage() {
                         
                         <div className="flex-1 min-w-0">
                           <div className="text-white font-medium truncate flex items-center gap-2">
-                            {getVenueName(event.venueId)}
+                            {event.venueName || event.venueId}
                           </div>
                           <div className="text-xs text-neutral-500 truncate">{event.title}</div>
                         </div>
