@@ -195,7 +195,7 @@ export const MOCK_VENUES: GameVenue[] = [
 ];
 
 // ==========================================
-// TABLE 3: GAMES (5 Sessions)
+// TABLE 3: GAMES
 // ==========================================
 export const MOCK_GAMES: GameSession[] = [
   // --- UPCOMING ---
@@ -204,22 +204,78 @@ export const MOCK_GAMES: GameSession[] = [
     hostId: "u2", // SeerSally
     venueId: "v1", // Mind Cafe
     title: "Friday Night Bloodbath",
-    date: "2026-02-20T19:00:00Z", // Future
+    date: "2026-05-09T19:00:00+08:00",
     maxPlayers: 12,
     currentPlayers: 11,
     status: "open",
-    totalLikes: 45
+    totalLikes: 45,
+    proficiency: "Advanced",
+    description: "Bring your A-game. No mercy for new players. Strict no-phone rule enforced."
   },
   {
     id: "g2",
-    hostId: "u8", // Mod Mike
+    hostId: "u8", // ModeratorMike
     venueId: "v5", // King and Pawn
     title: "SG League Qualifiers",
-    date: "2026-02-22T14:00:00Z", // Future
+    date: "2026-05-15T14:00:00+08:00",
     maxPlayers: 9,
     currentPlayers: 9,
-    status: "open", // Full but open
-    totalLikes: 120
+    status: "open",
+    totalLikes: 120,
+    proficiency: "Advanced",
+    description: "Official SG League qualifier round. Strict rules apply. Results count toward rankings."
+  },
+  {
+    id: "g6",
+    hostId: "u10", // RedHood
+    venueId: "v2", // Battle Bunker
+    title: "Bugis Brawl Night",
+    date: "2026-05-08T20:00:00+08:00",
+    maxPlayers: 15,
+    currentPlayers: 6,
+    status: "open",
+    totalLikes: 38,
+    proficiency: "All Welcome",
+    description: "Energetic open session at Battle Bunker. Newcomers welcome — experienced players encouraged to mentor."
+  },
+  {
+    id: "g7",
+    hostId: "u4", // WitchHazel
+    venueId: "v9", // Wolf's Den
+    title: "Full Moon Ritual",
+    date: "2026-05-21T21:00:00+08:00",
+    maxPlayers: 15,
+    currentPlayers: 9,
+    status: "open",
+    totalLikes: 77,
+    proficiency: "Intermediate",
+    description: "Moonlit ritual game at Wolf's Den. Costumes strongly encouraged. Full immersion format."
+  },
+  {
+    id: "g8",
+    hostId: "u12", // SherlockH
+    venueId: "v1", // Mind Cafe
+    title: "Deduction Masters Vol.3",
+    date: "2026-06-01T15:00:00+08:00",
+    maxPlayers: 10,
+    currentPlayers: 3,
+    status: "open",
+    totalLikes: 22,
+    proficiency: "Expert",
+    description: "High-level deduction only. Apply logic or go home. Third instalment of the Deduction Masters series."
+  },
+  {
+    id: "g9",
+    hostId: "u15", // QueenBee
+    venueId: "v4", // Settlers Cafe
+    title: "Vintage Wolves Night",
+    date: "2026-05-18T18:30:00+08:00",
+    maxPlayers: 12,
+    currentPlayers: 7,
+    status: "open",
+    totalLikes: 55,
+    proficiency: "All Welcome",
+    description: "Relaxed vintage evening with cocktails at Settlers. Casual pace, great vibes."
   },
   // --- PAST ---
   {
@@ -227,33 +283,78 @@ export const MOCK_GAMES: GameSession[] = [
     hostId: "u4", // WitchHazel
     venueId: "v9", // Wolf's Den
     title: "Yishun Chaos Night",
-    date: "2026-02-05T20:00:00Z", // Past
+    date: "2026-04-05T20:00:00+08:00",
     maxPlayers: 15,
     currentPlayers: 15,
     status: "finished",
-    totalLikes: 200
+    totalLikes: 200,
+    proficiency: "Intermediate",
+    description: "Chaotic Yishun session — anything goes. Sound effects, costumes, and maximum drama."
   },
   {
     id: "g4",
-    hostId: "u1", // Me
+    hostId: "u1", // AlphaWolf
     venueId: "v3", // Play Nation
     title: "Beginner Friendly Game",
-    date: "2026-01-28T18:00:00Z", // Past
+    date: "2026-03-28T18:00:00+08:00",
     maxPlayers: 10,
     currentPlayers: 8,
     status: "finished",
-    totalLikes: 30
+    totalLikes: 30,
+    proficiency: "Newbie",
+    description: "Soft intro game for first-timers. Rules explained thoroughly. No judgment zone."
   },
   {
     id: "g5",
     hostId: "u7", // SilentBob
     venueId: "v2", // Battle Bunker
     title: "Silent Mode: No Talking",
-    date: "2026-01-15T19:30:00Z", // Past
+    date: "2026-03-15T19:30:00+08:00",
     maxPlayers: 12,
     currentPlayers: 12,
     status: "finished",
-    totalLikes: 85
+    totalLikes: 85,
+    proficiency: "Advanced",
+    description: "No verbal communication allowed. Cards and gestures only. SilentBob's signature format."
+  },
+  {
+    id: "g10",
+    hostId: "u1", // AlphaWolf
+    venueId: "v1", // Mind Cafe
+    title: "Midnight Logic Duel",
+    date: "2026-04-12T20:00:00+08:00",
+    maxPlayers: 12,
+    currentPlayers: 10,
+    status: "finished",
+    totalLikes: 61,
+    proficiency: "Expert",
+    description: "Logic duel format — short fast rounds, elimination style. Only the sharpest survive."
+  },
+  {
+    id: "g11",
+    hostId: "u6", // ChaosMaker
+    venueId: "v5", // King and Pawn
+    title: "Cocktails & Conspiracies",
+    date: "2026-04-01T19:00:00+08:00",
+    maxPlayers: 10,
+    currentPlayers: 10,
+    status: "finished",
+    totalLikes: 143,
+    proficiency: "All Welcome",
+    description: "Cocktails mandatory. Deception encouraged. ChaosMaker's infamous April night."
+  },
+  {
+    id: "g12",
+    hostId: "u7", // SilentBob
+    venueId: "v9", // Wolf's Den
+    title: "The Silent Hunt",
+    date: "2026-04-19T21:30:00+08:00",
+    maxPlayers: 12,
+    currentPlayers: 11,
+    status: "finished",
+    totalLikes: 99,
+    proficiency: "Intermediate",
+    description: "SilentBob's signature silent hunt format. Communication via written notes only."
   }
 ];
 
