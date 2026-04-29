@@ -29,6 +29,10 @@ export interface GameVenue {
   averageRating: number;
   totalLikes: number;
   totalSubscribers: number;
+  // Additional fields returned by backend
+  ownerId?: string;
+  type?: string;
+  rules?: string;
 }
 
 export interface GameSession {
@@ -40,8 +44,17 @@ export interface GameSession {
   maxPlayers: number;
   currentPlayers: number;
   status: "open" | "playing" | "finished";
-  // 公共统计数据
   totalLikes: number;
+  proficiency?: "All Welcome" | "Newbie" | "Intermediate" | "Advanced" | "Expert";
+  description?: string;
+  // Additional fields returned by backend
+  waitlistCount?: number;
+  minPax?: number;
+  externalPax?: number;
+  gameType?: string;
+  judgeMethod?: string;
+  hostName?: string;
+  venueName?: string;
 }
 
 // ==========================================
@@ -88,7 +101,9 @@ export interface GameSessionDTO extends GameSession {
   myInteraction?: SessionInteraction;
   // 为了方便前端展示，通常也会把 Host 和 Venue 的简略信息带回来
   hostName?: string;
-  venueName?: string; 
+  venueName?: string;
+  venueAddress?: string;
+  pricePerHour?: number;
 }
 
 // 用户资料 DTO: 包含用户信息 + 我是否关注了他
