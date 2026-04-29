@@ -1,0 +1,59 @@
+import { Router, Request, Response } from 'express';
+import { PlayerSpaceService } from '../coreLogic/PlayerSpaceService';
+import { MatchService } from '../../matches/coreLogic/MatchService';
+import { requireAuth, optionalAuth } from '../../../shared/middleware/auth';
+import { validate } from '../../../shared/middleware/validate';
+import { CreatePlayerSpaceSchema, RateVenueSchema } from '../DTOs/PlayerSpaceDTOs';
+
+const router = Router();
+const playerSpaceService = new PlayerSpaceService();
+const matchService = new MatchService();
+
+router.get('/venues', optionalAuth, async (req: Request, res: Response) => {
+  const venues = await playerSpaceService.getAllVenues(req.user?.userId);
+  res.status(200).json(venues);
+});
+
+router.get('/venues/:id', optionalAuth, async (req: Request, res: Response) => {
+  const result = await playerSpaceService.getVenueById(String(req.params['id']), req.user?.userId);
+  if (result.isFailure) { res.status(404).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
+});
+
+router.get('/venues/:id/sessions', optionalAuth, async (req: Request, res: Response) => {
+  const sessions = await matchService.getMatchesByVenue(
+    String(req.params['id']),
+    req.user?.userId
+  );
+  res.status(200).json(sessions);
+});
+
+router.post('/venues', requireAuth, validate(CreatePlayerSpaceSchema), async (req: Request, res: Response) => {
+  const result = await playerSpaceService.createVenue(req.user!.userId, req.body as Parameters<PlayerSpaceService['createVenue']>[1]);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(201).json(result.getValue());
+});
+
+router.post('/venues/:id/like', requireAuth, async (req: Request, res: Response) => {
+  const result = await playerSpaceService.toggleLike(String(req.params['id']), req.user!.userId);
+  if (result.isFailure) { res.status(404).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
+});
+
+router.post('/venues/:id/subscribe', requireAuth, async (req: Request, res: Response) => {
+  const result = await playerSpaceService.toggleSubscribe(String(req.params['id']), req.user!.userId);
+  if (result.isFailure) { res.status(404).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
+});
+
+router.post('/venues/:id/rate', requireAuth, validate(RateVenueSchema), async (req: Request, res: Response) => {
+  const result = await playerSpaceService.rateVenue(
+    String(req.params['id']),
+    req.user!.userId,
+    (req.body as { rating: number }).rating
+  );
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Rating saved.' });
+});
+
+export default router;
