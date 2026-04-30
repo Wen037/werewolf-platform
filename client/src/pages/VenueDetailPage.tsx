@@ -963,54 +963,7 @@ export default function VenueDetailPage() {
               </div>
             </div>
 
-            {/* About */}
-            <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
-              <h2 className="text-xl font-bold text-white mb-4">{t('About this Place')}</h2>
-              <p className="text-neutral-400 leading-relaxed mb-6">
-                {venue.description || "A mysterious gathering place for werewolves and villagers alike."}
-              </p>
-
-              {/* Meta info row */}
-              <div className="flex flex-wrap gap-3 mb-6">
-                {venue.openingHours && (
-                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                    <IconClock size={14} className="text-amber-400" />
-                    {venue.openingHours}
-                  </div>
-                )}
-                {venue.type && (
-                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                    <IconBuildingStore size={14} className="text-sky-400" />
-                    {VENUE_TYPE_LABELS[venue.type]}
-                  </div>
-                )}
-                {venue.maxPax && (
-                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                    <IconUsers size={14} className="text-green-400" />
-                    Up to {venue.maxPax} pax
-                  </div>
-                )}
-              </div>
-
-              {venue.rules && (
-                <div className="mb-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/15">
-                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">{t('House Rules')}</p>
-                  <p className="text-sm text-neutral-300">{venue.rules}</p>
-                </div>
-              )}
-
-              <h3 className="text-lg font-bold text-white mb-4">{t('Amenities')}</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {venue.amenities.map(am => (
-                  <div key={am} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 text-neutral-300">
-                    <IconCircleCheck size={18} className="text-green-500 flex-shrink-0" />
-                    <span className="text-sm">{am}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Pending Approvals (owner only) ── */}
+            {/* ── Pending Approvals (owner only) — shown first if present ── */}
             {pendingApprovals.length > 0 && (
               <div id="pending-approvals" className="bg-amber-950/20 border border-amber-500/25 rounded-2xl p-6 md:p-8 backdrop-blur-sm scroll-mt-8">
                 <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
@@ -1062,6 +1015,53 @@ export default function VenueDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* About */}
+            <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
+              <h2 className="text-xl font-bold text-white mb-4">{t('About this Place')}</h2>
+              <p className="text-neutral-400 leading-relaxed mb-6">
+                {venue.description || "A mysterious gathering place for werewolves and villagers alike."}
+              </p>
+
+              {/* Meta info row */}
+              <div className="flex flex-wrap gap-3 mb-6">
+                {venue.openingHours && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconClock size={14} className="text-amber-400" />
+                    {venue.openingHours}
+                  </div>
+                )}
+                {venue.type && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconBuildingStore size={14} className="text-sky-400" />
+                    {VENUE_TYPE_LABELS[venue.type]}
+                  </div>
+                )}
+                {venue.maxPax && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconUsers size={14} className="text-green-400" />
+                    Up to {venue.maxPax} pax
+                  </div>
+                )}
+              </div>
+
+              {venue.rules && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/15">
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">{t('House Rules')}</p>
+                  <p className="text-sm text-neutral-300">{venue.rules}</p>
+                </div>
+              )}
+
+              <h3 className="text-lg font-bold text-white mb-4">{t('Amenities')}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {venue.amenities.map(am => (
+                  <div key={am} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 text-neutral-300">
+                    <IconCircleCheck size={18} className="text-green-500 flex-shrink-0" />
+                    <span className="text-sm">{am}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* ── Coming Events ── */}
             <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
