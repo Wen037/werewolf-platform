@@ -264,6 +264,14 @@ export class MatchService {
       { $set: { status: 'cancelled' } }
     );
 
+    // Deduct 1 credit if quitting within 24 hours of the match
+    const hoursUntilMatch = (doc.scheduledAt.getTime() - Date.now()) / 3_600_000;
+    if (hoursUntilMatch < 24 && hoursUntilMatch > 0) {
+      await UserModel.findByIdAndUpdate(userId, {
+        $inc: { creditScore: -1 },
+      });
+    }
+
     return Result.ok();
   }
 
@@ -384,7 +392,7 @@ export class MatchService {
       if (entry.status === 'no-show') {
         await UserModel.findByIdAndUpdate(entry.userId, { $inc: { noshows: 1 } });
       } else if (entry.status === 'attended') {
-        const inc: Record<string, number> = { eventsAttended: 1 };
+        const inc: Record<string, number> = { eventsAttended: 1, creditScore: 1 };
         if (entry.punctuality === 'late') inc['lateCount'] = 1;
         await UserModel.findByIdAndUpdate(entry.userId, { $inc: inc });
       }

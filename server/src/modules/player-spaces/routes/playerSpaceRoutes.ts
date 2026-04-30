@@ -3,7 +3,7 @@ import { PlayerSpaceService } from '../coreLogic/PlayerSpaceService';
 import { MatchService } from '../../matches/coreLogic/MatchService';
 import { requireAuth, optionalAuth } from '../../../shared/middleware/auth';
 import { validate } from '../../../shared/middleware/validate';
-import { CreatePlayerSpaceSchema, RateVenueSchema } from '../DTOs/PlayerSpaceDTOs';
+import { CreatePlayerSpaceSchema, UpdatePlayerSpaceSchema, RateVenueSchema } from '../DTOs/PlayerSpaceDTOs';
 
 const router = Router();
 const playerSpaceService = new PlayerSpaceService();
@@ -26,6 +26,21 @@ router.get('/venues/:id/sessions', optionalAuth, async (req: Request, res: Respo
     req.user?.userId
   );
   res.status(200).json(sessions);
+});
+
+// Owner-only: update mutable space properties
+router.patch('/venues/:id', requireAuth, validate(UpdatePlayerSpaceSchema), async (req: Request, res: Response) => {
+  const result = await playerSpaceService.updateVenue(
+    String(req.params['id']),
+    req.user!.userId,
+    req.body as Parameters<PlayerSpaceService['updateVenue']>[2]
+  );
+  if (result.isFailure) {
+    const status = result.getError()?.includes('Forbidden') ? 403 : 404;
+    res.status(status).json({ message: result.getError() });
+    return;
+  }
+  res.status(200).json(result.getValue());
 });
 
 router.post('/venues', requireAuth, validate(CreatePlayerSpaceSchema), async (req: Request, res: Response) => {

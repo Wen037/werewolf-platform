@@ -1,5 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+// Unregistered friends invited by the host — tracked by name, not user account
+export interface IMatchGuest {
+  name: string;
+  addedBy: mongoose.Types.ObjectId; // host or co-host who added them
+  addedAt: Date;
+}
+
 export interface IMatchDocument extends Document {
   host_id: mongoose.Types.ObjectId;
   venue_id: mongoose.Types.ObjectId;
@@ -17,6 +24,8 @@ export interface IMatchDocument extends Document {
   status: 'Created' | 'Open' | 'Full' | 'Started' | 'Completed' | 'Cancelled';
   players: mongoose.Types.ObjectId[];
   waitlist: mongoose.Types.ObjectId[];
+  // Non-registered attendees (friends of host who don't have accounts)
+  guests: IMatchGuest[];
   totalLikes: number;
   cancelledAt?: Date;
   createdAt: Date;
@@ -48,6 +57,11 @@ const MatchSchema = new Schema<IMatchDocument>(
     },
     players: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     waitlist: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    guests: [{
+      name: { type: String, required: true },
+      addedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+      addedAt: { type: Date, default: Date.now },
+    }],
     totalLikes: { type: Number, default: 0 },
     cancelledAt: { type: Date },
   },

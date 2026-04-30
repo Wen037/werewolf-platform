@@ -57,6 +57,24 @@ router.get('/users/:id', optionalAuth, async (req: Request, res: Response) => {
   res.status(200).json(result.getValue());
 });
 
+// ─── Admin: Credit Adjustment ────────────────────────────────────────────────
+// Only admin / web_admin can call this. Adjusts a user's creditScore by a delta.
+// Body: { delta: number }  (positive to add, negative to subtract)
+
+router.patch('/admin/users/:id/credit', requireAuth, async (req: Request, res: Response) => {
+  const requestingUser = await import('../DBSchemas/UserSchema').then(m => m.UserModel.findById(req.user!.userId));
+  if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+    res.status(403).json({ message: 'Forbidden.' }); return;
+  }
+  const delta = Number((req.body as { delta: unknown }).delta);
+  if (!Number.isFinite(delta)) { res.status(400).json({ message: 'delta must be a number.' }); return; }
+  const updated = await import('../DBSchemas/UserSchema').then(m =>
+    m.UserModel.findByIdAndUpdate(req.params['id'], { $inc: { creditScore: delta } }, { new: true })
+  );
+  if (!updated) { res.status(404).json({ message: 'User not found.' }); return; }
+  res.status(200).json({ userId: req.params['id'], creditScore: updated.creditScore });
+});
+
 // ─── Follow ───────────────────────────────────────────────────────────────────
 
 router.post('/users/:id/follow', requireAuth, async (req: Request, res: Response) => {

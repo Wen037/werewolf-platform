@@ -45,7 +45,7 @@ export interface UserResponseDTO {
   username: string;
   email: string;
   avatarUrl: string | undefined;
-  role: 'player' | 'admin';
+  role: 'player' | 'admin' | 'web_admin';
   isVerified: boolean;
   skillLevel: string;
   bio: string | undefined;
@@ -53,6 +53,7 @@ export interface UserResponseDTO {
   followersCount: number;
   followingCount: number;
   rank: string;
+  creditScore: number;
   eventsAttended: number;
   eventsHosted: number;
   noshows: number;
