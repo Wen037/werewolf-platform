@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-05-01 — Session 7: i18n Completions, Privacy Hardening, Badge Relabels
+
+**Frontend changes (complete):**
+- **EditSpaceModal i18n** (`VenueDetailPage.tsx`, `i18n/index.ts`): wired all remaining hardcoded English strings through `t()` — venue type button labels (`Board Game Café` → `桌游咖啡馆` etc.), space-type hint paragraphs, privacy hint line, "This exact address is hidden..." hint, "Shown on listing as Yishun area..." hint, "JPG / PNG / WebP · max 5 MB each" photo subtitle; also fixed loop variable shadow (`SPACE_TYPES.map(t =>` → `spaceType`) and `handleTypeChange` parameter rename
+- **Language toggle label** (`AppLayout.tsx`, `HomePage.tsx`): changed `中文` → `CN` for visual consistency with `EN`
+- **Credit score privacy** (`MyProfilePage.tsx`): removed numeric `{score} cr` display from Following list; only the colored rank label (e.g. "Tactician") remains as a visual range indicator — protects user privacy (score not public)
+- **Match history badge relabels** (`MyProfilePage.tsx`, `i18n/index.ts`): `● ON TIME` → `● COMPLETED`, `● LATE` → `● LEFT EARLY`; old i18n keys replaced with `'● Completed': '● 完成'` and `'● Left Early': '● 提前退出'`; applies to both history list and MatchDetailModal
+
+**Host Control Panel (planned, not built this session):**
+- Surveyed full backend capability: `PATCH /games/:sessionId/status`, `/attendance`, `/external-pax`, `canKickPlayer` permission, `guests[]` field all already exist on server
+- Missing pieces identified: no `approvalMode` field, no social group link field, no host-control UI anywhere
+- Proposed scope: Host Control drawer with Info / Roster / Settings / Close Out / Danger tabs
+
+**No backend changes this session.**
+
+---
+
 ## 2026-04-30 — Session 6: i18n Toggle, Profile Refinements, Tier Colors
 
 **Frontend changes (complete):**
