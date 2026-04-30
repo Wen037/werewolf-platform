@@ -2,7 +2,7 @@ import { Result } from '../../../shared/core/Result';
 import { PlayerSpaceModel, IPlayerSpaceDocument } from '../DBSchemas/PlayerSpaceSchema';
 import { VenueInteractionModel } from '../DBSchemas/VenueInteractionSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
-import { CreatePlayerSpaceDTO, GameVenueResponseDTO } from '../DTOs/PlayerSpaceDTOs';
+import { CreatePlayerSpaceDTO, UpdatePlayerSpaceDTO, GameVenueResponseDTO } from '../DTOs/PlayerSpaceDTOs';
 
 function toVenueDTO(
   doc: IPlayerSpaceDocument,
@@ -13,12 +13,17 @@ function toVenueDTO(
     ownerId: doc.owner_id.toString(),
     name: doc.name,
     address: doc.address,
+    privacy: doc.privacy ?? 'public',
+    ...(doc.area !== undefined ? { area: doc.area } : {}),
     description: doc.description ?? '',
     imageUrl: doc.imageUrl ?? 'https://placehold.co/600x400?text=Venue',
     type: doc.type,
     coordinates: { lat: doc.location.lat, lng: doc.location.long },
     isVerified: doc.status === 'Verified',
     pricePerHour: doc.financials.approx_fee,
+    priceType: doc.financials.price_type ?? 'per_session',
+    ...(doc.openingHours !== undefined ? { openingHours: doc.openingHours } : {}),
+    ...(doc.maxPax !== undefined ? { maxPax: doc.maxPax } : {}),
     amenities: doc.amenities,
     rules: doc.rules,
     averageRating: doc.averageRating,
@@ -88,6 +93,33 @@ export class PlayerSpaceService {
 
     const venue = await PlayerSpaceModel.create(docData);
     return Result.ok(toVenueDTO(venue));
+  }
+
+  // Only the venue owner may update space properties.
+  // Admin-only actions (verify, transfer ownership) require a separate admin endpoint.
+  async updateVenue(venueId: string, userId: string, dto: UpdatePlayerSpaceDTO): Promise<Result<GameVenueResponseDTO>> {
+    const venue = await PlayerSpaceModel.findById(venueId);
+    if (!venue) return Result.fail('Venue not found.');
+    if (venue.owner_id.toString() !== userId) return Result.fail('Forbidden: only the space owner can edit this venue.');
+
+    const update: Record<string, unknown> = {};
+    if (dto.name        !== undefined) update['name']               = dto.name;
+    if (dto.address     !== undefined) update['address']            = dto.address;
+    if (dto.description !== undefined) update['description']        = dto.description;
+    if (dto.imageUrl    !== undefined) update['imageUrl']           = dto.imageUrl;
+    if (dto.type        !== undefined) update['type']               = dto.type;
+    if (dto.privacy     !== undefined) update['privacy']            = dto.privacy;
+    if (dto.area        !== undefined) update['area']               = dto.area;
+    if (dto.openingHours!== undefined) update['openingHours']       = dto.openingHours;
+    if (dto.maxPax      !== undefined) update['maxPax']             = dto.maxPax;
+    if (dto.amenities   !== undefined) update['amenities']          = dto.amenities;
+    if (dto.rules       !== undefined) update['rules']              = dto.rules;
+    if (dto.is_chargeable !== undefined) update['financials.is_chargeable'] = dto.is_chargeable;
+    if (dto.approx_fee  !== undefined) update['financials.approx_fee']      = dto.approx_fee;
+    if (dto.price_type  !== undefined) update['financials.price_type']      = dto.price_type;
+
+    const updated = await PlayerSpaceModel.findByIdAndUpdate(venueId, { $set: update }, { new: true });
+    return Result.ok(toVenueDTO(updated!));
   }
 
   async toggleLike(venueId: string, userId: string): Promise<Result<{ isLiked: boolean }>> {

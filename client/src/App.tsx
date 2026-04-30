@@ -5,9 +5,11 @@ import GameSpacePage from './pages/GameSpacePage';
 import VenueDetailPage from './pages/VenueDetailPage';
 import MyEventsPage from './pages/MyEventsPage';
 import MyProfilePage from './pages/MyProfilePage';
+import { LanguageProvider } from './context/LanguageContext';
 
 function App() {
   return (
+    <LanguageProvider>
     <Router>
       <Routes>
         {/* Route 1: Landing Page (No Sidebar) */}
@@ -21,6 +23,7 @@ function App() {
         <Route path="/myprofile" element={<MyProfilePage />} />
       </Routes>
     </Router>
+    </LanguageProvider>
   );
 }
 

@@ -10,13 +10,18 @@ import { motion } from "framer-motion";
 import { ContactModal } from "../ContactModal";
 import { AuthModal } from "../AuthModal";
 import { AuthService } from "../../services/auth.service";
+import { getUsernameColor } from "../../types";
+import { useLang } from "../../context/LanguageContext";
 
 // ── Debug mock users (dev only) ───────────────────────────────────────────
 const DEBUG_USERS = [
-  { label: "AlphaWolf (Expert)",       id: "u1",  username: "AlphaWolf",    email: "alpha@wolf.sg",   role: "player" as const, skillLevel: "Expert" as const,       isVerified: true  },
-  { label: "SeerSally (Advanced)",      id: "u2",  username: "SeerSally",    email: "sally@seer.sg",   role: "player" as const, skillLevel: "Advanced" as const,     isVerified: true  },
-  { label: "ModeratorMike (Admin)",     id: "u8",  username: "ModeratorMike",email: "mike@host.sg",    role: "admin"  as const, skillLevel: "Expert" as const,       isVerified: true  },
-  { label: "NoobHunter (Beginner)",     id: "u3",  username: "NoobHunter",   email: "hunter@game.sg",  role: "player" as const, skillLevel: "Beginner" as const,     isVerified: false },
+  { label: "AlphaWolf (Grandmaster 152cr)", id: "u1",  username: "AlphaWolf",    email: "alpha@wolf.sg",     role: "player"    as const, skillLevel: "Expert"       as const, isVerified: true,  creditScore: 152 },
+  { label: "SeerSally (Advanced)",      id: "u2",  username: "SeerSally",    email: "sally@seer.sg",     role: "player"    as const, skillLevel: "Advanced"     as const, isVerified: true,  creditScore: 138 },
+  { label: "ModeratorMike (Admin)",     id: "u8",  username: "ModeratorMike",email: "mike@host.sg",      role: "admin"     as const, skillLevel: "Expert"       as const, isVerified: true,  creditScore: 200 },
+  { label: "NoobHunter (Newbie 100cr)", id: "u3",  username: "NoobHunter",   email: "hunter@game.sg",    role: "player"    as const, skillLevel: "Beginner"     as const, isVerified: false, creditScore: 100 },
+  { label: "JesterJack (⚠ Flagged 96cr)",id:"u14", username: "JesterJack",  email: "jack@fool.sg",      role: "player"    as const, skillLevel: "Beginner"     as const, isVerified: false, creditScore: 96  },
+  { label: "WolfDenOwner (Wolf's Den)", id: "u16", username: "WolfDenOwner", email: "owner@wolfsden.sg", role: "player"    as const, skillLevel: "Intermediate" as const, isVerified: true,  creditScore: 120 },
+  { label: "Wen037 (Web Admin 👑)",     id: "u17", username: "Wen037",       email: "e1062715@u.nus.edu",role: "web_admin" as const, skillLevel: "Expert"       as const, isVerified: true,  creditScore: 999 },
 ];
 
 function DebugPanel() {
@@ -27,7 +32,7 @@ function DebugPanel() {
     localStorage.setItem("token", "debug-fake-token-" + u.id);
     localStorage.setItem("user", JSON.stringify({
       id: u.id, username: u.username, email: u.email,
-      role: u.role, skillLevel: u.skillLevel, isVerified: u.isVerified,
+      role: u.role, skillLevel: u.skillLevel, isVerified: u.isVerified, creditScore: u.creditScore,
     }));
     window.location.reload();
   };
@@ -90,19 +95,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const isLoggedIn = AuthService.isLoggedIn();
   const currentUser = AuthService.getCurrentUser();
   const userName = currentUser?.username ?? "Guest";
-  
+
   const [isContactOpen, setContactOpen] = useState(false);
   const [isAuthOpen, setAuthOpen] = useState(false);
 
   const location = useLocation();
+  const { lang, toggle, t } = useLang();
 
   const getPageTitle = (path: string) => {
     switch (path) {
-      case "/lobby": return "Game Map";
-      case "/gamespace": return "Game Space";
-      case "/my-events": return "My Events";
-      case "/profile": return "My Profile";
-      default: return "Dashboard"; 
+      case "/lobby":     return t("Game Map");
+      case "/gamespace": return t("Game Space");
+      case "/my-events": return t("My Events");
+      case "/profile":   return t("My Profile");
+      default:           return t("Dashboard");
     }
   };
 
@@ -110,7 +116,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const links = [
     {
-      label: "Find Games",
+      label: t("Find Games"),
       href: "/lobby",
       icon: (
         <img src="/findGame.png" alt="Wolf" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
@@ -118,7 +124,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       visible: true,
     },
     {
-      label: "Game Space",
+      label: t("Game Space"),
       href: "/gamespace",
       icon: (
         <img src="/Space.png" alt="Village" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
@@ -126,7 +132,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       visible: true,
     },
     {
-      label: "My Events",
+      label: t("My Events"),
       href: "/myevents",
       icon: (
         <img src="/myEvents.png" alt="Scroll" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
@@ -134,7 +140,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       visible: isLoggedIn,
     },
     {
-      label: "My Profile",
+      label: t("My Profile"),
       href: "/myprofile",
       icon: (
         <img src="/logo_white.png" alt="Profile" className="h-6 w-6 flex-shrink-0 rounded-full" />
@@ -181,21 +187,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="border-t border-white/5 pt-4 flex flex-col gap-2">
                {isLoggedIn ? (
                  <SidebarLink
-                   link={{ label: "Logout", href: "#", icon: <IconLogout className="h-6 w-6 text-neutral-200" /> }}
+                   link={{ label: t("Logout"), href: "#", icon: <IconLogout className="h-6 w-6 text-neutral-200" /> }}
                    onClick={() => AuthService.logout()}
                  />
                ) : (
                  <SidebarLink
-                   link={{ label: "Login", href: "#", icon: <IconLogin className="h-6 w-6 text-neutral-200" /> }}
+                   link={{ label: t("Login"), href: "#", icon: <IconLogin className="h-6 w-6 text-neutral-200" /> }}
                    onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}
                  />
                )}
-               
-               {/* 6. ADDED CONTACT US SIDEBAR LINK */}
+
                <SidebarLink
-                 link={{ label: "Contact Us", href: "#", icon: <IconMail className="h-6 w-6 text-neutral-200" /> }}
+                 link={{ label: t("Contact Us"), href: "#", icon: <IconMail className="h-6 w-6 text-neutral-200" /> }}
                  onClick={(e) => {
-                   e.preventDefault(); // Prevents href="#" from jumping to top of page
+                   e.preventDefault();
                    setContactOpen(true);
                  }}
                />
@@ -229,11 +234,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
               {/* User Info */}
               <div className="flex items-center gap-3">
+                {/* Language toggle */}
+                <button
+                  onClick={toggle}
+                  className="px-2.5 py-1 rounded-full border border-white/15 text-neutral-400 hover:text-white hover:border-white/30 text-xs font-semibold transition-colors tracking-wide"
+                  title={lang === 'en' ? 'Switch to Chinese' : '切换英文'}
+                >
+                  {lang === 'en' ? '中文' : 'EN'}
+                </button>
                 <span className="text-neutral-300 text-sm hidden md:inline">
                     {isLoggedIn ? (
-                      <>Welcome back, <span className="text-white font-medium">{userName}</span></>
+                      <>{t('Welcome back,')} <span className={`font-medium ${currentUser ? getUsernameColor(currentUser) : 'text-white'}`}>{userName}</span></>
                     ) : (
-                      "Guest View"
+                      t("Guest View")
                     )}
                 </span>
                 {isLoggedIn && (
