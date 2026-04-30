@@ -361,8 +361,8 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
       setForm(f => ({ ...f, [k]: e.target.value }));
 
   // When space type changes, auto-suggest the most appropriate privacy level
-  const handleTypeChange = (t: VenueSpaceType) => {
-    setForm(f => ({ ...f, type: t, privacy: DEFAULT_PRIVACY[t] }));
+  const handleTypeChange = (spaceType: VenueSpaceType) => {
+    setForm(f => ({ ...f, type: spaceType, privacy: DEFAULT_PRIVACY[spaceType] }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -421,23 +421,23 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                   <div>
                     <label className={labelCls}><IconBuildingStore size={11} className="inline mr-1" />{t('Space Type')}</label>
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                      {SPACE_TYPES.map(t => (
-                        <button key={t} type="button" onClick={() => handleTypeChange(t)}
+                      {SPACE_TYPES.map(spaceType => (
+                        <button key={spaceType} type="button" onClick={() => handleTypeChange(spaceType)}
                           className={`py-2 px-1 rounded-xl text-[11px] font-semibold border transition-all text-center ${
-                            form.type === t
+                            form.type === spaceType
                               ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
                               : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
                           }`}>
-                          {VENUE_TYPE_LABELS[t]}
+                          {t(VENUE_TYPE_LABELS[spaceType])}
                         </button>
                       ))}
                     </div>
                     {/* Space-type hints */}
                     {form.type === 'house' && (
-                      <p className="mt-2 text-[11px] text-amber-400/80">Home venues default to private — only the district is shown publicly.</p>
+                      <p className="mt-2 text-[11px] text-amber-400/80">{t('Home venues default to private — only the district is shown publicly.')}</p>
                     )}
                     {(form.type === 'work' || form.type === 'school') && (
-                      <p className="mt-2 text-[11px] text-sky-400/80">Office / school venues default to approximate — full address shared on request.</p>
+                      <p className="mt-2 text-[11px] text-sky-400/80">{t('Office / school venues default to approximate — full address shared on request.')}</p>
                     )}
                   </div>
 
@@ -458,7 +458,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                       ))}
                     </div>
                     <p className="mt-1.5 text-[11px] text-neutral-500">
-                      {PRIVACY_OPTIONS.find(o => o.value === form.privacy)?.hint}
+                      {t(PRIVACY_OPTIONS.find(o => o.value === form.privacy)?.hint ?? '')}
                     </p>
                   </div>
 
@@ -476,7 +476,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                     <input value={form.address} onChange={set("address")} required className={inputCls}
                       placeholder="e.g. 60A Prinsep Street, Singapore" />
                     {form.privacy !== 'public' && (
-                      <p className="mt-1 text-[11px] text-amber-400/80">This exact address is hidden from the public listing.</p>
+                      <p className="mt-1 text-[11px] text-amber-400/80">{t('This exact address is hidden from the public listing.')}</p>
                     )}
                   </div>
 
@@ -486,7 +486,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                       <label className={labelCls}>{t('Public Area Label')}</label>
                       <input value={form.area} onChange={set("area")} className={inputCls}
                         placeholder="e.g. Yishun, Jurong East" />
-                      <p className="mt-1 text-[11px] text-neutral-500">Shown on the listing as "Yishun area" so players know the general location.</p>
+                      <p className="mt-1 text-[11px] text-neutral-500">{t('Shown on the listing as "Yishun area" so players know the general location.')}</p>
                     </div>
                   )}
 
@@ -535,7 +535,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                     <div className="flex items-center justify-between mb-2">
                       <label className={labelCls + " mb-0"}>
                         <IconPhoto size={11} className="inline mr-1" />{t('Photos')}
-                        <span className="normal-case font-normal text-neutral-500 ml-1">JPG / PNG / WebP · max 5 MB each</span>
+                        <span className="normal-case font-normal text-neutral-500 ml-1">{t('JPG / PNG / WebP · max 5 MB each')}</span>
                       </label>
                       <span className="text-[11px] text-neutral-500">{images.length} / {MAX_IMAGES}</span>
                     </div>

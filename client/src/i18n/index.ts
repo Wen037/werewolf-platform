@@ -92,6 +92,13 @@ export const zh: Record<string, string> = {
   'WeChat':                     '微信',
   'Copied!':                    '已复制!',
 
+  // ── Venue type labels ─────────────────────────────────────────────
+  'Board Game Café':  '桌游咖啡馆',
+  'Home':             '家',
+  'Office / Co-work': '办公室',
+  'School / Campus':  '学校',
+  'Other':            '其他',
+
   // ── Edit Space Modal ──────────────────────────────────────────────
   'Only you (the owner) can edit this listing': '仅场地主可编辑此场地',
   'Space Type':             '场地类型',
@@ -99,6 +106,17 @@ export const zh: Record<string, string> = {
   'Public':                 '公开',
   'Approximate':            '大致位置',
   'Private':                '保密',
+  'Full address shown to everyone':             '完整地址对所有人可见',
+  'District shown; full address on request':    '仅显示区域；完整地址可申请',
+  'Area only; shared after player joins':       '仅显示区域；加入后获取详址',
+  'Home venues default to private — only the district is shown publicly.':
+    '家庭场地默认保密——仅公开显示区域。',
+  'Office / school venues default to approximate — full address shared on request.':
+    '办公室/学校场地默认大致位置——完整地址可申请。',
+  'This exact address is hidden from the public listing.': '完整地址不会公开显示。',
+  'Shown on the listing as "Yishun area" so players know the general location.':
+    '以"区域"形式显示，让玩家了解大致位置。',
+  'JPG / PNG / WebP · max 5 MB each': 'JPG / PNG / WebP · 每张最大 5 MB',
   'Space Name':             '场地名称',
   'Full Address (shown publicly)': '完整地址（公开显示）',
   'Full Address (kept private)':   '完整地址（保密）',
