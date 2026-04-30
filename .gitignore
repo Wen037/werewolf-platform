@@ -28,9 +28,11 @@ yarn-error.log*
 logs/
 *.log
 
-# --- IDE Settings (VS Code / JetBrains) ---
+# --- IDE / AI Tool Settings ---
 .idea/
 .vscode/
+.claude/
+.gemini/
 *.swp
 *.swo
 .DS_Store
