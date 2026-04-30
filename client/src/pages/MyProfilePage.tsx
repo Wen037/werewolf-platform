@@ -4,6 +4,7 @@ import { GameService } from "../services/game.service";
 import type { FullUserProfileDTO, User, GameVenue, GameSessionDTO } from "../types";
 import { getCreditInfo, getUsernameColor } from "../types";
 import { useLang } from "../context/LanguageContext";
+import { formatEventDate, formatShortDate } from "../i18n";
 import { ReportModal } from "../components/ReportModal";
 import { CreateEventModal } from "../components/CreateEventModal";
 import {
@@ -223,10 +224,10 @@ const PROFICIENCY_STYLES: Record<string, string> = {
 };
 
 function MatchDetailModal({ event, onClose }: { event: GameSessionDTO | null; onClose: () => void }) {
+  const { lang } = useLang();
   if (!event) return null;
-  const date = new Date(event.date);
-  const dateStr = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const timeStr = date.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
+  const { fullString: dateStr } = formatEventDate(event.date, lang);
+  const timeStr = '';
   const myStatus = event.myInteraction?.status ?? 'registered';
   const myRating = event.myInteraction?.myRating ?? 0;
   const punctuality = event.myInteraction?.punctuality;
@@ -410,7 +411,7 @@ export default function MyProfilePage() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({ email: "", phone: "" });
 
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   // --- Bio edit state ---
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -852,8 +853,7 @@ export default function MyProfilePage() {
               {profile.pastEvents.length > 0 ? (
                 <div className="divide-y divide-white/5">
                   {profile.pastEvents.map(event => {
-                    const dateObj = new Date(event.date);
-                    const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    const dateStr = formatShortDate(event.date, lang);
                     return (
                       <button
                         key={event.id}

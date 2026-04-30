@@ -67,6 +67,7 @@ export const zh: Record<string, string> = {
                                             '还没有简介。就是个努力活过今晚的村民。',
 
   // ── My Events ─────────────────────────────────────────────────────
+  'My Events':                  '我的活动',
   'upcoming':                   '即将进行',
   'history':                    '历史记录',
   'Host Event':                 '发起游戏',
@@ -88,6 +89,8 @@ export const zh: Record<string, string> = {
   'Your Rating':                '我的评分',
   'Punctual':                   '守时',
   'Late':                       '迟到',
+  'WeChat':                     '微信',
+  'Copied!':                    '已复制!',
 
   // ── Game Spaces ───────────────────────────────────────────────────
   'Game Spaces':        '游戏场地',
@@ -153,4 +156,32 @@ export const zh: Record<string, string> = {
 export function t(key: string, lang: Lang): string {
   if (lang === 'en') return key;
   return zh[key] ?? key;
+}
+
+const ZH_WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+export function formatEventDate(dateStr: string, lang: Lang): { dayNum: number; month: string; fullString: string } {
+  const date = new Date(dateStr);
+  const dayNum = date.getDate();
+  if (lang === 'zh') {
+    const mo = date.getMonth() + 1;
+    const wd = ZH_WEEKDAYS[date.getDay()];
+    const h24 = date.getHours();
+    const min = date.getMinutes().toString().padStart(2, '0');
+    const ampm = h24 >= 12 ? '下午' : '上午';
+    const h12 = h24 % 12 || 12;
+    return { dayNum, month: `${mo}月`, fullString: `${mo}月${dayNum}日 ${wd} ${ampm}${h12}:${min}` };
+  }
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+  const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return { dayNum, month, fullString: `${dayNum} ${month} ${time}, ${dayName}` };
+}
+
+export function formatShortDate(dateStr: string, lang: Lang): string {
+  const date = new Date(dateStr);
+  if (lang === 'zh') {
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }

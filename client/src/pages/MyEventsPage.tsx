@@ -5,11 +5,12 @@ import { AuthService } from "../services/auth.service";
 import type { GameSessionDTO } from "../types";
 import { getCreditInfo } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, MapPin, Clock, Share2, Star, Heart, Copy, Check, User, Plus, CheckCircle, LogOut, AlertTriangle, X } from "lucide-react";
+import { Calendar, MapPin, Clock, Share2, Star, Heart, User, Plus, CheckCircle, LogOut, AlertTriangle, X } from "lucide-react";
 import { CreateEventModal } from "../components/CreateEventModal";
 import { ReportModal } from "../components/ReportModal";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useLang } from "../context/LanguageContext";
+import { formatEventDate } from "../i18n";
 
 // --- COMPONENT: Quit Confirm Modal ---
 interface QuitModalProps {
@@ -134,70 +135,51 @@ function QuitConfirmModal({ event, creditScore, onConfirm, onCancel }: QuitModal
 // --- COMPONENT: Share Button ---
 const ShareButton = ({ platform, text, url }: { platform: 'whatsapp' | 'telegram' | 'wechat', text: string, url: string }) => {
   const [copied, setCopied] = useState(false);
+  const { t } = useLang();
 
   const handleShare = () => {
     const encodedText = encodeURIComponent(text);
     const encodedUrl = encodeURIComponent(url);
-    
     if (platform === 'whatsapp') {
       window.open(`https://wa.me/?text=${encodedText}%0A${encodedUrl}`, '_blank');
     } else if (platform === 'telegram') {
       window.open(`https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`, '_blank');
-    } else if (platform === 'wechat') {
+    } else {
       navigator.clipboard.writeText(`${text}\n${url}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  const getIcon = () => {
-    if (platform === 'wechat') return copied ? <Check size={14} /> : <Copy size={14} />;
-    return <Share2 size={14} />;
-  };
-
   const getLabel = () => {
     if (platform === 'whatsapp') return "WhatsApp";
     if (platform === 'telegram') return "Telegram";
-    return copied ? "Copied!" : "WeChat";
+    return copied ? t('Copied!') : t('WeChat');
   };
 
   const getColor = () => {
     if (platform === 'whatsapp') return "bg-[#25D366] hover:bg-[#128C7E]";
     if (platform === 'telegram') return "bg-[#0088cc] hover:bg-[#0077b5]";
-    return "bg-[#07C160] hover:bg-[#06ad56]"; 
+    return "bg-[#07C160] hover:bg-[#06ad56]";
   };
 
   return (
-    <button 
+    <button
       onClick={handleShare}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold transition-all shadow-md active:scale-95 ${getColor()}`}
     >
-      {getIcon()} {getLabel()}
+      <Share2 size={14} /> {getLabel()}
     </button>
   );
 };
 
-// --- HELPER: Date Formatter ---
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const dayNum = date.getDate();
-  const month = date.toLocaleDateString('en-US', { month: 'short' });
-  const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-  const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-  return {
-    dayNum,
-    month,
-    fullString: `${dayNum} ${month} ${time}, ${dayName}`
-  };
-};
 
 export default function MyEventsPage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
   const [events, setEvents] = useState<GameSessionDTO[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [quitTarget, setQuitTarget] = useState<GameSessionDTO | null>(null);
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   const currentUser = AuthService.getCurrentUser();
   const creditScore = currentUser?.creditScore ?? 100;
@@ -306,7 +288,7 @@ export default function MyEventsPage() {
 
         {/* Header & Tabs */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-3xl font-bold text-white">My Events</h1>
+          <h1 className="text-3xl font-bold text-white">{t('My Events')}</h1>
           
           <div className="flex flex-col-reverse sm:flex-row items-center gap-4 w-full md:w-auto">
             <div className="bg-neutral-900/80 p-1 rounded-xl flex gap-1 border border-white/10 backdrop-blur-sm w-full sm:w-auto">
@@ -339,7 +321,7 @@ export default function MyEventsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
           <AnimatePresence mode="popLayout">
             {displayedEvents.map((event) => {
-              const { dayNum, month, fullString } = formatDate(event.date);
+              const { dayNum, month, fullString } = formatEventDate(event.date, lang);
               
               // Safe access to interaction properties
               const isLiked = event.myInteraction?.isLiked || false;
@@ -476,7 +458,7 @@ export default function MyEventsPage() {
                         {/* New Punctuality Badge */}
                         {punctuality && (
                           <span className={`w-fit text-[10px] px-2 py-1 rounded-md font-bold border uppercase tracking-wider ${punctuality === 'punctual' ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-orange-400 bg-orange-400/10 border-orange-400/20'}`}>
-                            {punctuality === 'punctual' ? 'Punctual' : 'Late'}
+                            {punctuality === 'punctual' ? t('Punctual') : t('Late')}
                           </span>
                         )}
                       </div>
