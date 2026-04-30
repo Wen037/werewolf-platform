@@ -5,9 +5,11 @@ import { AuthService } from "../services/auth.service";
 import type { GameSessionDTO } from "../types";
 import { getCreditInfo } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, MapPin, Clock, Share2, Star, Heart, User, Plus, CheckCircle, LogOut, AlertTriangle, X } from "lucide-react";
+import { Calendar, MapPin, Clock, Share2, Star, Heart, User, Plus, CheckCircle, LogOut, AlertTriangle, X, Shield, Pencil, ExternalLink, QrCode } from "lucide-react";
 import { CreateEventModal } from "../components/CreateEventModal";
 import { ReportModal } from "../components/ReportModal";
+import { HostControlPanel } from "../components/HostControlPanel";
+import { EditEventModal } from "../components/EditEventModal";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useLang } from "../context/LanguageContext";
 import { formatEventDate } from "../i18n";
@@ -174,11 +176,65 @@ const ShareButton = ({ platform, text, url }: { platform: 'whatsapp' | 'telegram
 };
 
 
+// ── Group link section shown to joined players ─────────────────────────────
+const GROUP_COLORS: Record<string, string> = {
+  telegram: "bg-[#0088cc]/15 border-[#0088cc]/30 text-[#29b6f6]",
+  whatsapp: "bg-[#25D366]/15 border-[#25D366]/30 text-[#66bb6a]",
+  wechat:   "bg-[#07C160]/15 border-[#07C160]/30 text-[#43a047]",
+  facebook: "bg-[#1877F2]/15 border-[#1877F2]/30 text-[#5c8fef]",
+};
+const GROUP_LABELS: Record<string, string> = {
+  telegram: "Telegram Group", whatsapp: "WhatsApp Group",
+  wechat:   "WeChat Group",   facebook: "Facebook Group",
+};
+
+function GroupLinkSection({ groupLink, groupType }: { groupLink: string; groupType?: string }) {
+  const [showQR, setShowQR] = useState(false);
+  const color = GROUP_COLORS[groupType ?? ""] ?? "bg-neutral-700/20 border-white/20 text-neutral-300";
+  const label = GROUP_LABELS[groupType ?? ""] ?? "Group";
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(groupLink)}`;
+
+  return (
+    <div className="border-t border-white/10 pt-4 bg-neutral-800/30 -mx-6 -mb-6 p-4 rounded-b-2xl mt-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Host's Group</span>
+        <button
+          onClick={() => setShowQR(p => !p)}
+          className="flex items-center gap-1 text-[10px] text-neutral-500 hover:text-white transition-colors"
+        >
+          <QrCode size={11} /> {showQR ? "Hide QR" : "Show QR"}
+        </button>
+      </div>
+
+      <a
+        href={groupLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all hover:opacity-80 active:scale-95 ${color}`}
+      >
+        <ExternalLink size={14} className="shrink-0" />
+        <span className="truncate">{label}</span>
+        <span className="ml-auto text-[10px] opacity-60 truncate max-w-[120px]">{groupLink}</span>
+      </a>
+
+      {showQR && (
+        <div className="flex justify-center">
+          <div className="bg-white rounded-xl p-3">
+            <img src={qrSrc} alt="QR Code" className="w-36 h-36" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MyEventsPage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
   const [events, setEvents] = useState<GameSessionDTO[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [quitTarget, setQuitTarget] = useState<GameSessionDTO | null>(null);
+  const [managingEvent, setManagingEvent] = useState<GameSessionDTO | null>(null);
+  const [editingEvent, setEditingEvent] = useState<GameSessionDTO | null>(null);
   const { t, lang } = useLang();
 
   const currentUser = AuthService.getCurrentUser();
@@ -245,9 +301,19 @@ export default function MyEventsPage() {
     }));
   };
 
+  const handleHostPanelUpdate = (sessionId: string, updated: Partial<GameSessionDTO>) => {
+    setEvents(prev => prev.map(e => e.id === sessionId ? { ...e, ...updated } : e));
+    setManagingEvent(prev => prev && prev.id === sessionId ? { ...prev, ...updated } : prev);
+  };
+
+  const handleHostPanelCancel = (sessionId: string) => {
+    setEvents(prev => prev.map(e => e.id === sessionId ? { ...e, status: "finished" } : e));
+    setManagingEvent(null);
+  };
+
   const displayedEvents = events.filter(e => {
     if (activeTab === "upcoming") return e.status === "open" || e.status === "playing";
-    return e.status === "finished"; 
+    return e.status === "finished";
   });
 
   return (
@@ -326,7 +392,8 @@ export default function MyEventsPage() {
               // Safe access to interaction properties
               const isLiked = event.myInteraction?.isLiked || false;
               const myRating = event.myInteraction?.myRating || 0;
-              const punctuality = event.myInteraction?.punctuality; // Extract new punctuality field
+              const punctuality = event.myInteraction?.punctuality;
+              const isHost = currentUser?.id === event.hostId;
 
               return (
                 <motion.div
@@ -344,17 +411,42 @@ export default function MyEventsPage() {
                     </div>
                     
                     <div className="flex items-center gap-1">
-                      {/* Report Event Icon Button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReportData({ isOpen: true, name: event.title });
-                        }}
-                        className="p-2 text-neutral-500 hover:text-red-400 transition-colors rounded-full hover:bg-white/5"
-                        title="Report Event"
-                      >
-                        <IconAlertTriangle size={18} />
-                      </button>
+                      {/* Host badge + Manage button — host only, upcoming tab */}
+                      {isHost && activeTab === "upcoming" && (
+                        <>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border text-red-400 border-red-500/30 bg-red-500/10 uppercase tracking-wide mr-1">
+                            HOST
+                          </span>
+                          <button
+                            onClick={() => setEditingEvent(event)}
+                            className="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+                            title="Edit Event"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            onClick={() => setManagingEvent(event)}
+                            className="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-red-500/15 transition-all active:scale-90"
+                            title="Manage Event"
+                          >
+                            <Shield size={18} />
+                          </button>
+                        </>
+                      )}
+
+                      {/* Report Event Icon Button — non-hosts only */}
+                      {!isHost && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReportData({ isOpen: true, name: event.title });
+                          }}
+                          className="p-2 text-neutral-500 hover:text-red-400 transition-colors rounded-full hover:bg-white/5"
+                          title="Report Event"
+                        >
+                          <IconAlertTriangle size={18} />
+                        </button>
+                      )}
 
                       {/* Like Button */}
                       <button
@@ -368,8 +460,8 @@ export default function MyEventsPage() {
                         <Heart size={20} className={isLiked ? "fill-red-500" : ""} />
                       </button>
 
-                      {/* Quit Button — only on upcoming tab */}
-                      {activeTab === "upcoming" && (
+                      {/* Quit Button — non-hosts only on upcoming tab */}
+                      {activeTab === "upcoming" && !isHost && (
                         <button
                           onClick={() => setQuitTarget(event)}
                           className="p-2 rounded-full text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all active:scale-90"
@@ -408,28 +500,23 @@ export default function MyEventsPage() {
                     </div>
                   </div>
 
-                  {/* --- UPCOMING: Share --- */}
+                  {/* --- UPCOMING: footer --- */}
                   {activeTab === "upcoming" && (
-                    <div className="border-t border-white/10 pt-4 bg-neutral-800/30 -mx-6 -mb-6 p-4 rounded-b-2xl mt-4">
-                      <div className="text-[10px] text-neutral-500 mb-2 font-bold uppercase tracking-wider">{t('Invite Friends')}</div>
-                      <div className="flex gap-2">
-                        <ShareButton
-                          platform="whatsapp"
-                          text={`Join me for a game of Werewolf: ${event.title}!`}
-                          url={`https://werewolf.sg/game/${event.id}`}
-                        />
-                        <ShareButton
-                          platform="telegram"
-                          text={`Join me for a game of Werewolf: ${event.title}!`}
-                          url={`https://werewolf.sg/game/${event.id}`}
-                        />
-                        <ShareButton
-                          platform="wechat"
-                          text={`Join me for a game of Werewolf: ${event.title}!`}
-                          url={`https://werewolf.sg/game/${event.id}`}
-                        />
-                      </div>
-                    </div>
+                    <>
+                      {/* Non-host: show group link if available, else invite friends */}
+                      {!isHost && event.groupLink ? (
+                        <GroupLinkSection groupLink={event.groupLink} groupType={event.groupType} />
+                      ) : (
+                        <div className="border-t border-white/10 pt-4 bg-neutral-800/30 -mx-6 -mb-6 p-4 rounded-b-2xl mt-4">
+                          <div className="text-[10px] text-neutral-500 mb-2 font-bold uppercase tracking-wider">{t('Invite Friends')}</div>
+                          <div className="flex gap-2">
+                            <ShareButton platform="whatsapp" text={`Join me for a game of Werewolf: ${event.title}!`} url={`https://werewolf.sg/game/${event.id}`} />
+                            <ShareButton platform="telegram" text={`Join me for a game of Werewolf: ${event.title}!`} url={`https://werewolf.sg/game/${event.id}`} />
+                            <ShareButton platform="wechat"   text={`Join me for a game of Werewolf: ${event.title}!`} url={`https://werewolf.sg/game/${event.id}`} />
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* History: Rate & Host Info */}
@@ -486,11 +573,32 @@ export default function MyEventsPage() {
         </div>
 
         {/* Create Event Modal */}
-        <CreateEventModal 
-          isOpen={isCreateModalOpen} 
-          onClose={() => setIsCreateModalOpen(false)} 
+        <CreateEventModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
         />
       </div>
+
+      {/* Edit Event Modal */}
+      <EditEventModal
+        event={editingEvent}
+        onClose={() => setEditingEvent(null)}
+        onSaved={(updated) => {
+          if (!editingEvent) return;
+          setEvents(prev => prev.map(e => e.id === editingEvent.id ? { ...e, ...updated } : e));
+          setManagingEvent(prev => prev?.id === editingEvent.id ? { ...prev, ...updated } : prev);
+        }}
+      />
+
+      {/* Host Control Panel */}
+      {managingEvent && (
+        <HostControlPanel
+          event={managingEvent}
+          onClose={() => setManagingEvent(null)}
+          onEventUpdate={(updated) => handleHostPanelUpdate(managingEvent.id, updated)}
+          onEventCancel={handleHostPanelCancel}
+        />
+      )}
     </AppLayout>
   );
 }

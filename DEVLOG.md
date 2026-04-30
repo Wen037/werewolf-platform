@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-05-01 — Session 8: Host Control Panel, Edit Event, Social Group, Entry Mode
+
+**Frontend changes (complete):**
+
+- **Dynamic mock user** (`game.service.mock.ts`): replaced hardcoded `CURRENT_USER_ID = "u1"` with `getCurrentUserId()` that reads from `localStorage` — debug panel user switches now take effect immediately across all mock service calls
+- **Mock data** (`mockDB.ts`): added g13 (AlphaWolf's Logic Duel, hosted by u1, `invite_only`); expanded `MOCK_SESSION_INTERACTIONS` with roster entries for g1 (7 players including flagged JesterJack), g6 (5 players), g13 (4 players); added `groupLink`/`groupType` to g1; added `approvalMode` field
+- **New types** (`types/index.ts`): `SocialGroupType`, `GameSession.groupLink`, `GameSession.groupType`, `GameSession.approvalMode: 'open' | 'approval' | 'invite_only'`
+- **`getMyEvents` fix** (`game.service.mock.ts`): now also includes events where `hostId === currentUserId` even without an interaction record — hosts always see their own events
+- **New mock service methods**: `getSessionRoster`, `kickPlayer`, `addGuest`, `removeGuest`, `updateSessionStatus`, `markAttendance`, `cancelSession`, `updateSession`, `updateApprovalMode`, `sendMessageToPlayer`, `notifyPlayers`
+- **`HostControlPanel.tsx`** (new, ~500 lines): right-side sliding drawer triggered by shield icon on HOST event cards; 4 tabs:
+  - **Roster**: player list with credit rank + skill badges; flagged users shown in red; search by name (appears at 4+ players); per-player inline action panels — **Message** (blue, compose + send) or **Kick** (red, reason required, −0.5 credit deducted on confirm); guest add/remove; waitlist count
+  - **Manage**: entry mode selector (Open / Approval / Invite Only) with one-click save; session status toggle (Open → Playing → Finished); event info summary
+  - **Attendance**: per-player Attended / No-show toggle; saves to mock state
+  - **Danger**: two-step cancel with player count warning
+- **`EditEventModal.tsx`** (new, ~280 lines): pre-filled edit modal for host's event; fields: title, date, time, max players (blocked below current count), proficiency pill buttons, description, social group link (platform picker + link input + live QR preview via `api.qrserver.com`); on save: calls `updateSession` + `notifyPlayers`, shows "Saved & Notified!" green state then auto-closes
+- **Edit button on event cards** (`MyEventsPage.tsx`): HOST cards now show `HOST` badge + pencil (edit) + shield (manage) icon trio; pencil opens `EditEventModal`
+- **Social group on joined player cards** (`MyEventsPage.tsx`): non-host joined players see a "Host's Group" footer section (platform-colored link button + Show QR toggle) instead of generic Invite Friends when event has a `groupLink`
+- **`game.service.real.ts`**: stubs added for all new host-control and social endpoints
+
+**No backend schema changes this session — all new fields batched for later.**
+
+---
+
 ## 2026-05-01 — Session 7: i18n Completions, Privacy Hardening, Badge Relabels
 
 **Frontend changes (complete):**

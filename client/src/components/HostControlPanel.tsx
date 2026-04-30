@@ -1,0 +1,780 @@
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  X, Users, Settings, ClipboardCheck, AlertTriangle,
+  UserMinus, UserPlus, CheckCircle2, XCircle, ShieldAlert,
+  ChevronRight, Play, Trophy, Search, MessageSquare, Send,
+  Lock, UserCheck, Globe,
+} from "lucide-react";
+import type { GameSessionDTO, User } from "../types";
+import type { SessionInteraction } from "../types";
+import { getCreditInfo } from "../types";
+import { GameService } from "../services/game.service";
+import { useLang } from "../context/LanguageContext";
+
+interface RosterEntry {
+  user: User;
+  interaction: SessionInteraction;
+}
+
+type PanelTab = "roster" | "manage" | "attendance" | "danger";
+
+interface HostControlPanelProps {
+  event: GameSessionDTO;
+  onClose: () => void;
+  onEventUpdate: (updated: Partial<GameSessionDTO>) => void;
+  onEventCancel: (sessionId: string) => void;
+}
+
+// ── Credit rank mini-badge ─────────────────────────────────────────────────
+function CreditBadge({ score }: { score?: number }) {
+  const info = getCreditInfo(score ?? 100);
+  return (
+    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${info.bgColor} ${info.color}`}>
+      {info.label}
+    </span>
+  );
+}
+
+// ── Skill level badge ──────────────────────────────────────────────────────
+function SkillBadge({ level }: { level?: string }) {
+  const colors: Record<string, string> = {
+    Beginner: "text-green-400 border-green-400/30 bg-green-400/10",
+    Intermediate: "text-blue-400 border-blue-400/30 bg-blue-400/10",
+    Advanced: "text-purple-400 border-purple-400/30 bg-purple-400/10",
+    Expert: "text-orange-400 border-orange-400/30 bg-orange-400/10",
+  };
+  if (!level) return null;
+  return (
+    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${colors[level] ?? "text-neutral-400 border-neutral-400/30"}`}>
+      {level}
+    </span>
+  );
+}
+
+// ── Roster Tab ─────────────────────────────────────────────────────────────
+function RosterTab({ event, roster, onRosterChange }: {
+  event: GameSessionDTO;
+  roster: RosterEntry[];
+  onRosterChange: () => void;
+}) {
+  const { t } = useLang();
+  const [search, setSearch] = useState("");
+  // active inline panel per player: 'kick' | 'message' | null
+  const [activePanel, setActivePanel] = useState<{ userId: string; mode: 'kick' | 'message' } | null>(null);
+  const [kickReason, setKickReason] = useState("");
+  const [kicking, setKicking] = useState(false);
+  const [msgText, setMsgText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState("");
+  const [addingGuest, setAddingGuest] = useState(false);
+  const [localGuests, setLocalGuests] = useState(event.guests ?? []);
+
+  const closePanel = () => { setActivePanel(null); setKickReason(""); setMsgText(""); };
+
+  const activeRoster = roster.filter(r => r.interaction.status !== "cancelled");
+  const filtered = search.trim()
+    ? activeRoster.filter(r => r.user.username.toLowerCase().includes(search.trim().toLowerCase()))
+    : activeRoster;
+
+  const handleKickConfirm = async (userId: string) => {
+    if (!kickReason.trim()) return;
+    setKicking(true);
+    try {
+      await (GameService as any).kickPlayer(event.id, userId);
+      await (GameService as any).adjustCredit(userId, -0.5);
+      closePanel();
+      onRosterChange();
+    } finally {
+      setKicking(false);
+    }
+  };
+
+  const handleSendMessage = async (userId: string) => {
+    if (!msgText.trim()) return;
+    setSending(true);
+    try {
+      await (GameService as any).sendMessageToPlayer(event.id, userId, msgText.trim());
+      setSentTo(userId);
+      setMsgText("");
+      setTimeout(() => { setSentTo(null); closePanel(); }, 1500);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleAddGuest = async () => {
+    const name = guestName.trim();
+    if (!name) return;
+    setAddingGuest(true);
+    try {
+      await (GameService as any).addGuest(event.id, name);
+      setLocalGuests(prev => [...prev, { name, addedBy: "", addedAt: new Date().toISOString() }]);
+      setGuestName("");
+    } finally {
+      setAddingGuest(false);
+    }
+  };
+
+  const handleRemoveGuest = async (index: number) => {
+    await (GameService as any).removeGuest(event.id, index);
+    setLocalGuests(prev => prev.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Registered players */}
+      <div>
+        {/* Header + capacity bar */}
+        <div className="flex items-center gap-3 mb-3">
+          <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider shrink-0">
+            {t('Players')} ({activeRoster.length}/{event.maxPlayers})
+          </h3>
+          <div className="h-1.5 flex-1 bg-neutral-800 rounded-full overflow-hidden">
+            <div className="h-full bg-red-600 rounded-full transition-all"
+              style={{ width: `${Math.min(100, (activeRoster.length / event.maxPlayers) * 100)}%` }} />
+          </div>
+        </div>
+
+        {/* Search */}
+        {activeRoster.length > 3 && (
+          <div className="relative mb-3">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search player…"
+              className="w-full bg-neutral-800 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-white/20"
+            />
+          </div>
+        )}
+
+        {filtered.length === 0 ? (
+          <p className="text-neutral-600 text-sm italic py-4 text-center">
+            {search ? "No player matches that name." : "No registered players yet."}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map(({ user, interaction }) => {
+              const isFlagged = (user.creditScore ?? 100) < 100;
+              const panelMode = activePanel?.userId === user.id ? activePanel.mode : null;
+              const isSent = sentTo === user.id;
+              return (
+                <div key={user.id} className={`rounded-xl border overflow-hidden transition-colors ${
+                  isFlagged ? "border-red-500/20" : "border-white/5"
+                }`}>
+                  {/* Player row */}
+                  <div className={`flex items-center gap-3 p-3 ${isFlagged ? "bg-red-500/5" : "bg-neutral-800/60"}`}>
+                    <img
+                      src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+                      alt={user.username}
+                      className="w-8 h-8 rounded-full shrink-0 bg-neutral-700"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-sm font-bold truncate ${isFlagged ? "text-red-300" : "text-white"}`}>
+                          {user.username}
+                        </span>
+                        {isFlagged && <AlertTriangle size={11} className="text-red-400 shrink-0" />}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <CreditBadge score={user.creditScore} />
+                        <SkillBadge level={user.skillLevel} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border mr-1 ${
+                        interaction.status === "registered"
+                          ? "text-blue-400 border-blue-400/30 bg-blue-400/10"
+                          : "text-neutral-500 border-neutral-600"
+                      }`}>
+                        {interaction.status}
+                      </span>
+                      {/* Message button */}
+                      <button
+                        onClick={() => { setActivePanel(panelMode === 'message' ? null : { userId: user.id, mode: 'message' }); setMsgText(""); }}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          panelMode === 'message' ? "text-blue-400 bg-blue-500/15" : "text-neutral-600 hover:text-blue-400 hover:bg-blue-500/10"
+                        }`}
+                        title="Send message"
+                      >
+                        <MessageSquare size={14} />
+                      </button>
+                      {/* Kick button */}
+                      <button
+                        onClick={() => { setActivePanel(panelMode === 'kick' ? null : { userId: user.id, mode: 'kick' }); setKickReason(""); }}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          panelMode === 'kick' ? "text-red-400 bg-red-500/15" : "text-neutral-600 hover:text-red-400 hover:bg-red-500/10"
+                        }`}
+                        title="Remove player"
+                      >
+                        <UserMinus size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Message panel */}
+                  {panelMode === 'message' && (
+                    <div className="bg-blue-950/30 border-t border-blue-500/15 px-3 py-3 space-y-2">
+                      <p className="text-blue-300 text-xs font-bold">
+                        Send a private message to <span className="text-white">{user.username}</span>
+                      </p>
+                      <textarea
+                        value={msgText}
+                        onChange={e => setMsgText(e.target.value)}
+                        placeholder="Type your message…"
+                        rows={2}
+                        className="w-full bg-neutral-900 border border-blue-500/20 rounded-lg px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-blue-500/40 resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={closePanel}
+                          className="flex-1 py-1.5 rounded-lg text-xs font-bold text-neutral-400 border border-white/10 hover:bg-white/5 transition-colors">
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleSendMessage(user.id)}
+                          disabled={sending || !msgText.trim() || isSent}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-40 ${
+                            isSent ? "bg-green-600 text-white" : "bg-blue-600 hover:bg-blue-500 text-white"
+                          }`}
+                        >
+                          {isSent ? "✓ Sent!" : sending ? "Sending…" : <><Send size={12} /> Send</>}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Kick panel */}
+                  {panelMode === 'kick' && (
+                    <div className="bg-red-950/40 border-t border-red-500/20 px-3 py-3 space-y-2">
+                      <p className="text-red-300 text-xs font-bold">
+                        Removing <span className="text-white">{user.username}</span> will deduct <span className="text-red-400">−0.5 credit</span> from their account.
+                      </p>
+                      <input
+                        value={kickReason}
+                        onChange={e => setKickReason(e.target.value)}
+                        placeholder="Reason for removal (required)…"
+                        className="w-full bg-neutral-900 border border-red-500/20 rounded-lg px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-red-500/40"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={closePanel}
+                          className="flex-1 py-1.5 rounded-lg text-xs font-bold text-neutral-400 border border-white/10 hover:bg-white/5 transition-colors">
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleKickConfirm(user.id)}
+                          disabled={kicking || !kickReason.trim()}
+                          className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-40"
+                        >
+                          {kicking ? "Removing…" : "Confirm Remove"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Guests */}
+      <div>
+        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">
+          Guests ({localGuests.length})
+        </h3>
+        <div className="space-y-2 mb-3">
+          {localGuests.map((g, i) => (
+            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-800/40 border border-white/5">
+              <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center shrink-0">
+                <UserPlus size={14} className="text-neutral-400" />
+              </div>
+              <span className="text-sm text-neutral-300 flex-1 truncate">{g.name}</span>
+              <button
+                onClick={() => handleRemoveGuest(i)}
+                className="p-1.5 text-neutral-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={guestName}
+            onChange={e => setGuestName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleAddGuest()}
+            placeholder="Guest name…"
+            className="flex-1 bg-neutral-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-red-500/50"
+          />
+          <button onClick={handleAddGuest} disabled={addingGuest || !guestName.trim()}
+            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40">
+            Add
+          </button>
+        </div>
+      </div>
+
+      {/* Waitlist */}
+      {(event.waitlistCount ?? 0) > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+          <p className="text-amber-400 text-sm font-bold">
+            {event.waitlistCount} player{event.waitlistCount !== 1 ? "s" : ""} on waitlist
+          </p>
+          <p className="text-neutral-400 text-xs mt-1">They will be promoted automatically when a spot opens.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Manage Tab ─────────────────────────────────────────────────────────────
+function ManageTab({ event, onEventUpdate }: {
+  event: GameSessionDTO;
+  onEventUpdate: (updated: Partial<GameSessionDTO>) => void;
+}) {
+  const [localStatus, setLocalStatus]           = useState(event.status);
+  const [localMode, setLocalMode]               = useState(event.approvalMode ?? 'open');
+  const [savingStatus, setSavingStatus]         = useState(false);
+  const [savingMode, setSavingMode]             = useState(false);
+
+  const STATUS_OPTIONS: { value: 'open' | 'playing' | 'finished'; label: string; icon: React.ReactNode; color: string }[] = [
+    { value: "open",     label: "Open",     icon: <ChevronRight size={14} />, color: "border-green-500/40 text-green-400 bg-green-500/10" },
+    { value: "playing",  label: "Playing",  icon: <Play size={14} />,          color: "border-blue-500/40 text-blue-400 bg-blue-500/10" },
+    { value: "finished", label: "Finished", icon: <Trophy size={14} />,        color: "border-neutral-500/40 text-neutral-400 bg-neutral-500/10" },
+  ];
+
+  const ENTRY_MODES: {
+    value: 'open' | 'approval' | 'invite_only';
+    label: string;
+    desc: string;
+    icon: React.ReactNode;
+    color: string;
+  }[] = [
+    {
+      value: "open",
+      label: "Open",
+      desc: "Anyone can join instantly",
+      icon: <Globe size={16} />,
+      color: "border-green-500/40 text-green-400 bg-green-500/10",
+    },
+    {
+      value: "approval",
+      label: "Approval",
+      desc: "You review each join request",
+      icon: <UserCheck size={16} />,
+      color: "border-amber-500/40 text-amber-400 bg-amber-500/10",
+    },
+    {
+      value: "invite_only",
+      label: "Invite Only",
+      desc: "You invite players directly",
+      icon: <Lock size={16} />,
+      color: "border-purple-500/40 text-purple-400 bg-purple-500/10",
+    },
+  ];
+
+  const handleStatusChange = async (status: 'open' | 'playing' | 'finished') => {
+    if (status === localStatus) return;
+    setSavingStatus(true);
+    try {
+      await (GameService as any).updateSessionStatus(event.id, status);
+      setLocalStatus(status);
+      onEventUpdate({ status });
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const handleModeChange = async (mode: 'open' | 'approval' | 'invite_only') => {
+    if (mode === localMode) return;
+    setSavingMode(true);
+    try {
+      await (GameService as any).updateApprovalMode(event.id, mode);
+      setLocalMode(mode);
+      onEventUpdate({ approvalMode: mode });
+    } finally {
+      setSavingMode(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+
+      {/* ── Entry Mode ────────────────────────────────────────── */}
+      <div>
+        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">
+          Entry Mode
+        </h3>
+        <div className="space-y-2">
+          {ENTRY_MODES.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => handleModeChange(opt.value)}
+              disabled={savingMode}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border font-bold text-sm transition-all disabled:opacity-50 text-left ${
+                localMode === opt.value
+                  ? opt.color + " ring-1 ring-offset-1 ring-offset-neutral-900 ring-current/40"
+                  : "border-white/10 text-neutral-400 bg-neutral-800/40 hover:border-white/20 hover:text-neutral-200"
+              }`}
+            >
+              <span className="shrink-0">{opt.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold">{opt.label}</div>
+                <div className="text-[11px] font-normal opacity-70 mt-0.5">{opt.desc}</div>
+              </div>
+              {localMode === opt.value && (
+                <CheckCircle2 size={15} className="shrink-0 opacity-80" />
+              )}
+            </button>
+          ))}
+        </div>
+        {localMode === "approval" && (
+          <p className="text-amber-400 text-xs mt-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            New join requests will appear in the Roster tab for your approval.
+          </p>
+        )}
+        {localMode === "invite_only" && (
+          <p className="text-purple-400 text-xs mt-2 bg-purple-500/10 border border-purple-500/20 rounded-lg px-3 py-2">
+            The event is hidden from public listing. Only invited players can see and join.
+          </p>
+        )}
+      </div>
+
+      {/* ── Session Status ───────────────────────────────────── */}
+      <div>
+        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">
+          Session Status
+        </h3>
+        <div className="flex gap-2">
+          {STATUS_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => handleStatusChange(opt.value)}
+              disabled={savingStatus}
+              className={`flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border font-bold text-xs transition-all disabled:opacity-50 ${
+                localStatus === opt.value
+                  ? opt.color + " ring-1 ring-offset-1 ring-offset-neutral-900 ring-current"
+                  : "border-white/10 text-neutral-500 bg-neutral-800/40 hover:border-white/20 hover:text-neutral-300"
+              }`}
+            >
+              {opt.icon}
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {localStatus === "playing" && (
+          <p className="text-blue-400 text-xs mt-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+            Session is live. Players can no longer join or leave.
+          </p>
+        )}
+        {localStatus === "finished" && (
+          <p className="text-neutral-400 text-xs mt-2 bg-neutral-800/40 border border-white/5 rounded-lg px-3 py-2">
+            Session closed. Head to the Attendance tab to mark results.
+          </p>
+        )}
+      </div>
+
+      {/* ── Event Info Summary ───────────────────────────────── */}
+      <div className="bg-neutral-800/40 border border-white/5 rounded-xl p-4 space-y-2">
+        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Event Info</h3>
+        <div className="flex justify-between text-sm">
+          <span className="text-neutral-500">Players</span>
+          <span className="text-white font-bold">{event.currentPlayers} / {event.maxPlayers}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-neutral-500">Proficiency</span>
+          <span className="text-white">{event.proficiency ?? "All Welcome"}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-neutral-500">Venue</span>
+          <span className="text-white truncate max-w-[180px]">{event.venueName}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-neutral-500">Venue Approval</span>
+          <span className={event.venueApprovalStatus === "confirmed" ? "text-green-400 font-bold" : "text-amber-400"}>
+            {event.venueApprovalStatus === "confirmed" ? "Confirmed" : "Pending"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Attendance Tab ─────────────────────────────────────────────────────────
+function AttendanceTab({ event, roster, onEventUpdate }: {
+  event: GameSessionDTO;
+  roster: RosterEntry[];
+  onEventUpdate: (updated: Partial<GameSessionDTO>) => void;
+}) {
+  const [marks, setMarks] = useState<Record<string, 'attended' | 'no-show' | null>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const activeRoster = roster.filter(r => r.interaction.status === "registered" || r.interaction.status === "attended" || r.interaction.status === "no-show");
+
+  useEffect(() => {
+    const initial: Record<string, 'attended' | 'no-show' | null> = {};
+    for (const { user, interaction } of activeRoster) {
+      initial[user.id] = (interaction.status === "attended" || interaction.status === "no-show") ? interaction.status : null;
+    }
+    setMarks(initial);
+  }, [roster.length]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const records = activeRoster
+      .filter(r => marks[r.user.id] !== null)
+      .map(r => ({ userId: r.user.id, status: marks[r.user.id]! }));
+    try {
+      await (GameService as any).markAttendance(event.id, records);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      // If all marked, surface as finished
+      if (records.length === activeRoster.length) {
+        onEventUpdate({ status: "finished" });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (activeRoster.length === 0) {
+    return <p className="text-neutral-600 text-sm italic py-8 text-center">No players to mark attendance for.</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-neutral-400 text-xs">Mark each player's attendance for this session.</p>
+      <div className="space-y-2">
+        {activeRoster.map(({ user }) => (
+          <div key={user.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-800/60 border border-white/5">
+            <img
+              src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+              alt={user.username}
+              className="w-8 h-8 rounded-full bg-neutral-700 shrink-0"
+            />
+            <span className="flex-1 text-sm text-white font-medium truncate">{user.username}</span>
+            <div className="flex gap-1.5 shrink-0">
+              <button
+                onClick={() => setMarks(prev => ({ ...prev, [user.id]: "attended" }))}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                  marks[user.id] === "attended"
+                    ? "bg-green-500/20 border-green-500/40 text-green-400"
+                    : "bg-transparent border-white/10 text-neutral-500 hover:border-green-500/30 hover:text-green-400"
+                }`}
+              >
+                <CheckCircle2 size={12} /> Attended
+              </button>
+              <button
+                onClick={() => setMarks(prev => ({ ...prev, [user.id]: "no-show" }))}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                  marks[user.id] === "no-show"
+                    ? "bg-red-500/20 border-red-500/40 text-red-400"
+                    : "bg-transparent border-white/10 text-neutral-500 hover:border-red-500/30 hover:text-red-400"
+                }`}
+              >
+                <XCircle size={12} /> No-show
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving || Object.values(marks).every(v => v === null)}
+        className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${
+          saved
+            ? "bg-green-600 text-white"
+            : "bg-red-600 hover:bg-red-500 text-white disabled:opacity-40"
+        }`}
+      >
+        {saved ? "✓ Saved!" : saving ? "Saving…" : "Save Attendance"}
+      </button>
+    </div>
+  );
+}
+
+// ── Danger Tab ─────────────────────────────────────────────────────────────
+function DangerTab({ event, onEventCancel }: {
+  event: GameSessionDTO;
+  onEventCancel: (sessionId: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancel = async () => {
+    setCancelling(true);
+    try {
+      await (GameService as any).cancelSession(event.id);
+      onEventCancel(event.id);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldAlert size={16} className="text-red-400 shrink-0" />
+          <span className="text-red-300 font-bold text-sm">Danger Zone</span>
+        </div>
+        <p className="text-neutral-400 text-xs leading-relaxed">
+          These actions are irreversible. All registered players will be notified and removed.
+        </p>
+      </div>
+
+      {!confirming ? (
+        <button
+          onClick={() => setConfirming(true)}
+          className="w-full py-3 rounded-xl text-sm font-bold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+        >
+          Cancel This Event
+        </button>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-white text-sm font-bold text-center">
+            Cancel "<span className="text-red-400">{event.title}</span>"?
+          </p>
+          <p className="text-neutral-400 text-xs text-center">
+            This will remove all {event.currentPlayers} registered players and mark the event as finished.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setConfirming(false)}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold border border-white/10 text-neutral-300 hover:bg-white/5 transition-colors"
+            >
+              Keep Event
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50"
+            >
+              {cancelling ? "Cancelling…" : "Yes, Cancel"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Panel ─────────────────────────────────────────────────────────────
+export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel }: HostControlPanelProps) {
+  const [activeTab, setActiveTab] = useState<PanelTab>("roster");
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [localEvent, setLocalEvent] = useState(event);
+
+  useEffect(() => {
+    loadRoster();
+  }, [event.id]);
+
+  const loadRoster = async () => {
+    const data = await (GameService as any).getSessionRoster(event.id);
+    setRoster(data);
+  };
+
+  const handleEventUpdate = (updated: Partial<GameSessionDTO>) => {
+    setLocalEvent(prev => ({ ...prev, ...updated }));
+    onEventUpdate(updated);
+  };
+
+  const TABS: { id: PanelTab; label: string; icon: React.ReactNode }[] = [
+    { id: "roster",     label: "Roster",     icon: <Users size={14} /> },
+    { id: "manage",     label: "Manage",     icon: <Settings size={14} /> },
+    { id: "attendance", label: "Attendance", icon: <ClipboardCheck size={14} /> },
+    { id: "danger",     label: "Danger",     icon: <AlertTriangle size={14} /> },
+  ];
+
+  return (
+    <AnimatePresence>
+      <>
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+          onClick={onClose}
+        />
+
+        {/* Panel */}
+        <motion.div
+          initial={{ x: "100%" }}
+          animate={{ x: 0 }}
+          exit={{ x: "100%" }}
+          transition={{ type: "spring", damping: 28, stiffness: 260 }}
+          className="fixed top-0 right-0 h-full w-full max-w-md bg-neutral-950 border-l border-white/10 shadow-2xl z-[110] flex flex-col"
+        >
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 border-b border-white/10 shrink-0">
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <div className="text-[10px] font-bold text-red-500 uppercase tracking-[0.15em] mb-1">Host Control</div>
+                <h2 className="text-white font-bold text-lg leading-tight truncate max-w-[280px]">{localEvent.title}</h2>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 text-neutral-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                localEvent.status === "open"
+                  ? "text-green-400 border-green-500/30 bg-green-500/10"
+                  : localEvent.status === "playing"
+                  ? "text-blue-400 border-blue-500/30 bg-blue-500/10"
+                  : "text-neutral-400 border-neutral-500/30 bg-neutral-500/10"
+              }`}>
+                {localEvent.status.toUpperCase()}
+              </span>
+              <span className="text-neutral-500 text-xs">{localEvent.venueName}</span>
+            </div>
+          </div>
+
+          {/* Tab Bar */}
+          <div className="flex border-b border-white/10 shrink-0">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-bold uppercase tracking-wider transition-colors border-b-2 ${
+                  activeTab === tab.id
+                    ? tab.id === "danger"
+                      ? "border-red-500 text-red-400"
+                      : "border-red-500 text-white"
+                    : "border-transparent text-neutral-600 hover:text-neutral-400"
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {activeTab === "roster" && (
+              <RosterTab event={localEvent} roster={roster} onRosterChange={loadRoster} />
+            )}
+            {activeTab === "manage" && (
+              <ManageTab event={localEvent} onEventUpdate={handleEventUpdate} />
+            )}
+            {activeTab === "attendance" && (
+              <AttendanceTab event={localEvent} roster={roster} onEventUpdate={handleEventUpdate} />
+            )}
+            {activeTab === "danger" && (
+              <DangerTab event={localEvent} onEventCancel={onEventCancel} />
+            )}
+          </div>
+        </motion.div>
+      </>
+    </AnimatePresence>
+  );
+}

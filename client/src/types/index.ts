@@ -101,6 +101,8 @@ export interface GameVenue {
   ownerId?: string;
 }
 
+export type SocialGroupType = 'telegram' | 'whatsapp' | 'wechat' | 'facebook';
+
 export interface GameSession {
   id: string;
   hostId: string;
@@ -124,6 +126,11 @@ export interface GameSession {
   venueApprovalStatus?: 'confirmed' | 'pending';
   // Non-registered attendees added by the host
   guests?: Array<{ name: string; addedBy: string; addedAt: string }>;
+  // Social group link shared with registered players
+  groupLink?: string;
+  groupType?: SocialGroupType;
+  // Who can join: open (anyone), approval (host must approve), invite_only (host invites)
+  approvalMode?: 'open' | 'approval' | 'invite_only';
 }
 
 // ── Interaction / join-table records ──────────────────────────────────────

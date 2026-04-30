@@ -215,7 +215,9 @@ export const MOCK_GAMES: GameSession[] = [
     totalLikes: 45,
     proficiency: "Advanced",
     venueApprovalStatus: "confirmed",
-    description: "Bring your A-game. No mercy for new players. Strict no-phone rule enforced."
+    description: "Bring your A-game. No mercy for new players. Strict no-phone rule enforced.",
+    groupLink: "https://t.me/+friday_bloodbath_sg",
+    groupType: "telegram",
   },
   {
     id: "g2",
@@ -365,6 +367,24 @@ export const MOCK_GAMES: GameSession[] = [
     totalLikes: 99,
     proficiency: "Intermediate",
     description: "SilentBob's signature silent hunt format. Communication via written notes only."
+  },
+  // g13: AlphaWolf's own hosted upcoming event (for host control panel testing)
+  {
+    id: "g13",
+    hostId: "u1",
+    venueId: "v6", // Experience Point
+    title: "AlphaWolf's Logic Duel",
+    date: "2026-05-16T20:00:00+08:00",
+    maxPlayers: 10,
+    currentPlayers: 5,
+    status: "open",
+    totalLikes: 12,
+    proficiency: "Expert",
+    venueApprovalStatus: "pending",
+    waitlistCount: 2,
+    description: "Invite-only high-level session. Expect brutal deduction and zero mercy.",
+    approvalMode: "invite_only",
+    guests: [],
   }
 ];
 
@@ -379,16 +399,36 @@ export const MOCK_VENUE_INTERACTIONS: VenueInteraction[] = [
 ];
 
 // ==========================================
-// TABLE 5: SESSION INTERACTIONS (u1's view)
+// TABLE 5: SESSION INTERACTIONS
+// Covers u1's own events + roster entries for all sessions
 // ==========================================
 export const MOCK_SESSION_INTERACTIONS: SessionInteraction[] = [
-  // Joined Upcoming
+  // ── u1 (AlphaWolf) own interactions ───────────────────────────────────────
   { userId: "u1", sessionId: "g1", status: "registered", isLiked: true },
-  
-  // Attended Past
-  { userId: "u1", sessionId: "g3", status: "attended", isLiked: true, myRating: 5, punctuality: "late" }, // Yishun Chaos
-  { userId: "u1", sessionId: "g4", status: "attended", isLiked: false, myRating: 4, punctuality: "punctual" }, // My own game
-  { userId: "u1", sessionId: "g5", status: "attended", isLiked: true, myRating: 5, punctuality: "punctual" }  // Silent Mode
+  { userId: "u1", sessionId: "g3", status: "attended", isLiked: true, myRating: 5, punctuality: "late" },
+  { userId: "u1", sessionId: "g4", status: "attended", isLiked: false, myRating: 4, punctuality: "punctual" },
+  { userId: "u1", sessionId: "g5", status: "attended", isLiked: true, myRating: 5, punctuality: "punctual" },
+
+  // ── g1 roster (SeerSally's Friday Night Bloodbath) ─────────────────────────
+  { userId: "u4",  sessionId: "g1", status: "registered", isLiked: false },
+  { userId: "u6",  sessionId: "g1", status: "registered", isLiked: true  },
+  { userId: "u9",  sessionId: "g1", status: "registered", isLiked: false },
+  { userId: "u10", sessionId: "g1", status: "registered", isLiked: true  },
+  { userId: "u14", sessionId: "g1", status: "registered", isLiked: false }, // JesterJack — flagged
+  { userId: "u7",  sessionId: "g1", status: "registered", isLiked: false },
+
+  // ── g6 roster (RedHood's Bugis Brawl Night) ────────────────────────────────
+  { userId: "u3",  sessionId: "g6", status: "registered", isLiked: false },
+  { userId: "u5",  sessionId: "g6", status: "registered", isLiked: false },
+  { userId: "u11", sessionId: "g6", status: "registered", isLiked: false },
+  { userId: "u13", sessionId: "g6", status: "registered", isLiked: false },
+  { userId: "u15", sessionId: "g6", status: "registered", isLiked: true  },
+
+  // ── g13 roster (AlphaWolf's Logic Duel — hosted by u1) ────────────────────
+  { userId: "u4",  sessionId: "g13", status: "registered", isLiked: true  },
+  { userId: "u7",  sessionId: "g13", status: "registered", isLiked: true  },
+  { userId: "u12", sessionId: "g13", status: "registered", isLiked: false },
+  { userId: "u15", sessionId: "g13", status: "registered", isLiked: true  },
 ];
 
 // ==========================================
