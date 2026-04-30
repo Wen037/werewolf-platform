@@ -795,8 +795,6 @@ export default function MyProfilePage() {
                            <div className={`text-sm font-bold truncate ${getUsernameColor(u)}`}>{u.username}</div>
                            <div className="flex items-center gap-1.5">
                              <span className={`text-[10px] font-bold ${ci.color}`}>{t(ci.label)}</span>
-                             <span className="text-[10px] text-neutral-600">·</span>
-                             <span className={`text-[10px] ${ci.color}`}>{u.creditScore ?? 100} cr</span>
                            </div>
                          </div>
                          {isFlagged && (
