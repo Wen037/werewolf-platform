@@ -111,4 +111,12 @@ export const RealGameService = {
 
   sendMessageToPlayer: (sessionId: string, userId: string, message: string) =>
     api.post(`/games/${sessionId}/message`, { userId, message }),
+
+  // ── Applicant approval (approvalMode === 'approval') ─────────────────────
+
+  approveApplicant: (sessionId: string, userId: string) =>
+    api.patch(`/games/${sessionId}/applicants/${userId}/approve`, {}),
+
+  rejectApplicant: (sessionId: string, userId: string) =>
+    api.patch(`/games/${sessionId}/applicants/${userId}/reject`, {}),
 };

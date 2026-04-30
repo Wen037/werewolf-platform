@@ -10,13 +10,14 @@
 ## Platform Features
 - [ ] **Admin console** — lightweight `/admin` route (web_admin only) for adjusting user credit, editing any space/event, viewing flagged users; currently done via curl to `PATCH /admin/users/:id/credit`
 - [x] **Host Control Panel** — sliding drawer on HOST event cards (shield icon); Roster tab (player list, search, message, kick with reason −0.5 credit, guests, waitlist); Manage tab (entry mode: Open/Approval/Invite-Only; session status: Open/Playing/Finished); Attendance tab (per-player attended/no-show); Danger tab (cancel with confirm)
-- [x] **Edit Event modal** — host edits title, date/time, max players, proficiency, description, social group link; saves + notifies all registered players; shows "Saved & Notified!" confirmation
-- [x] **Social group link** — host sets platform (Telegram/WhatsApp/WeChat/Facebook) + invite link in Edit Event; live QR preview; joined players see colored "Host's Group" button + inline QR toggle on their event card
-- [x] **Event entry mode** — host sets Open / Approval Required / Invite Only from Manage tab; approval mode shows amber info; invite-only shows purple info; saved to mock state
-- [x] **Event invite / guest system** — host adds non-registered guests by name in Roster tab; remove button per guest
-- [x] **Kick with reason** — host searches player by name, opens kick panel, types reason (required), confirms; deducts −0.5 credit from kicked player
-- [x] **Message player** — host opens message panel per player in Roster tab; composes and sends private message (mock: console logged)
-- [ ] **Approval queue UI** — when entry mode is "approval", show pending join requests in Roster tab for host to approve/reject (backend + frontend both missing)
+- [x] **Edit Event (Info tab)** — moved from standalone modal into HostControlPanel Info tab (first tab, default); host edits title, date/time, max players, proficiency, description, social group link + QR; saves + notifies registered players; single Shield icon replaces old Pencil + Shield pair
+- [x] **Social group link** — host sets platform (Telegram/WhatsApp/WeChat/Facebook) + invite link in Info tab; live QR preview; joined players see colored "Host's Group" button + QR on their event card
+- [x] **Event entry mode** — default is now `approval`; host can switch to Open / Invite Only in Manage tab; invite-only events hidden from public map/venue listings (non-hosts), still visible to host in MyEvents
+- [x] **Event invite / guest system** — host adds non-registered guests by name in Roster tab; player count in parent card updates immediately on add/remove
+- [x] **Kick with reason** — host searches player, opens kick panel, types reason (required), confirms; deducts −0.5 credit; player count updates in parent card
+- [x] **Message player** — host opens message panel per player; composes and sends private message (mock: console logged)
+- [x] **Approval queue UI** — Roster tab shows "Awaiting Approval" section for `approvalMode: 'approval'`; Accept / Decline per applicant; amber badge on tab shows pending count; `SessionInteraction.status: 'pending'` added; `approveApplicant` / `rejectApplicant` mock + real stubs added
+- [x] **Cancel credit penalty** — host credit deducted on event cancel: 0–2 registered players → 0, 3–4 → −0.5, 5–8 → −1, 9+ → −1.5; penalty shown in confirmation dialog
 - [ ] **Notification system** — email/Telegram alerts for event reminders, waitlist promotions; backend NotificationService scaffolded but channels not fully wired
 - [ ] **Public user profile page** — view another user's profile (games, credit rank, follow button); currently only self-profile exists
 - [ ] **Event search / discovery** — filter lobby by date, proficiency, venue, price; currently only venue search is implemented
@@ -25,6 +26,6 @@
 
 ## Technical Debt
 - [ ] **Batch backend update** — apply all frontend-defined schema changes (UserSchema + creditScore/role, MatchService credit logic, PlayerSpaceSchema new fields, PATCH /venues/:id, venueApprovalStatus on MatchSchema, approvalMode + groupLink/groupType + guests on MatchSchema); see DEVLOG.md "Backend Change List"
-- [ ] **New backend endpoints** — `GET /games/:id/roster`, `DELETE /games/:id/players/:userId` (kick −0.5 credit), `POST /games/:id/guests`, `DELETE /games/:id/guests/:index`, `POST /games/:id/message`, `POST /games/:id/notify`, `PATCH /games/:id` (full session update), `PATCH /games/:id/approval-mode`
+- [ ] **New backend endpoints** — `GET /games/:id/roster` (include pending status), `DELETE /games/:id/players/:userId` (kick −0.5 credit), `POST /games/:id/guests`, `DELETE /games/:id/guests/:index`, `POST /games/:id/message`, `POST /games/:id/notify`, `PATCH /games/:id` (full session update + approvalMode), `PATCH /games/:id/applicants/:userId/approve`, `PATCH /games/:id/applicants/:userId/reject`; cancel endpoint should apply tiered credit penalty to host
 - [ ] **Real authentication flow** — replace debug localStorage login with actual register/login/OTP flow in the UI
 - [ ] **Space approval backend** — `PATCH /sessions/:id/approve` and `/reject` endpoints; `venueApprovalStatus` field on MatchSchema; notify host on decision

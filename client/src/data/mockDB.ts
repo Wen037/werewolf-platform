@@ -376,14 +376,14 @@ export const MOCK_GAMES: GameSession[] = [
     title: "AlphaWolf's Logic Duel",
     date: "2026-05-16T20:00:00+08:00",
     maxPlayers: 10,
-    currentPlayers: 5,
+    currentPlayers: 4,  // only 4 registered (u4, u7, u12, u15); u3 & u5 are pending approval
     status: "open",
     totalLikes: 12,
     proficiency: "Expert",
     venueApprovalStatus: "pending",
-    waitlistCount: 2,
-    description: "Invite-only high-level session. Expect brutal deduction and zero mercy.",
-    approvalMode: "invite_only",
+    waitlistCount: 0,
+    description: "High-level session. Approval required to join. Expect brutal deduction and zero mercy.",
+    approvalMode: "approval",  // changed from invite_only — default mode per UX requirement
     guests: [],
   }
 ];
@@ -429,6 +429,9 @@ export const MOCK_SESSION_INTERACTIONS: SessionInteraction[] = [
   { userId: "u7",  sessionId: "g13", status: "registered", isLiked: true  },
   { userId: "u12", sessionId: "g13", status: "registered", isLiked: false },
   { userId: "u15", sessionId: "g13", status: "registered", isLiked: true  },
+  // Pending applicants — waiting for host to approve
+  { userId: "u3",  sessionId: "g13", status: "pending", isLiked: false },
+  { userId: "u5",  sessionId: "g13", status: "pending", isLiked: false },
 ];
 
 // ==========================================

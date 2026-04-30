@@ -5,11 +5,10 @@ import { AuthService } from "../services/auth.service";
 import type { GameSessionDTO } from "../types";
 import { getCreditInfo } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, MapPin, Clock, Share2, Star, Heart, User, Plus, CheckCircle, LogOut, AlertTriangle, X, Shield, Pencil, ExternalLink, QrCode } from "lucide-react";
+import { Calendar, MapPin, Clock, Share2, Star, Heart, User, Plus, CheckCircle, LogOut, AlertTriangle, X, Shield, ExternalLink, QrCode } from "lucide-react";
 import { CreateEventModal } from "../components/CreateEventModal";
 import { ReportModal } from "../components/ReportModal";
 import { HostControlPanel } from "../components/HostControlPanel";
-import { EditEventModal } from "../components/EditEventModal";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useLang } from "../context/LanguageContext";
 import { formatEventDate } from "../i18n";
@@ -234,7 +233,6 @@ export default function MyEventsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [quitTarget, setQuitTarget] = useState<GameSessionDTO | null>(null);
   const [managingEvent, setManagingEvent] = useState<GameSessionDTO | null>(null);
-  const [editingEvent, setEditingEvent] = useState<GameSessionDTO | null>(null);
   const { t, lang } = useLang();
 
   const currentUser = AuthService.getCurrentUser();
@@ -411,19 +409,13 @@ export default function MyEventsPage() {
                     </div>
                     
                     <div className="flex items-center gap-1">
-                      {/* Host badge + Manage button — host only, upcoming tab */}
+                      {/* Host badge + single Manage button — host only, upcoming tab */}
                       {isHost && activeTab === "upcoming" && (
                         <>
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border text-red-400 border-red-500/30 bg-red-500/10 uppercase tracking-wide mr-1">
                             HOST
                           </span>
-                          <button
-                            onClick={() => setEditingEvent(event)}
-                            className="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-all active:scale-90"
-                            title="Edit Event"
-                          >
-                            <Pencil size={16} />
-                          </button>
+                          {/* Bug 2 fix: single button opens HostControlPanel (Info + Manage combined) */}
                           <button
                             onClick={() => setManagingEvent(event)}
                             className="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-red-500/15 transition-all active:scale-90"
@@ -579,18 +571,7 @@ export default function MyEventsPage() {
         />
       </div>
 
-      {/* Edit Event Modal */}
-      <EditEventModal
-        event={editingEvent}
-        onClose={() => setEditingEvent(null)}
-        onSaved={(updated) => {
-          if (!editingEvent) return;
-          setEvents(prev => prev.map(e => e.id === editingEvent.id ? { ...e, ...updated } : e));
-          setManagingEvent(prev => prev?.id === editingEvent.id ? { ...prev, ...updated } : prev);
-        }}
-      />
-
-      {/* Host Control Panel */}
+      {/* Host Control Panel (Info + Manage combined — Bug 2 fix) */}
       {managingEvent && (
         <HostControlPanel
           event={managingEvent}

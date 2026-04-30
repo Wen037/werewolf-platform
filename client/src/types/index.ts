@@ -146,7 +146,8 @@ export interface VenueInteraction {
 export interface SessionInteraction {
   userId: string;
   sessionId: string;
-  status: 'registered' | 'attended' | 'no-show' | 'cancelled';
+  // 'pending' = applied to join, awaiting host approval (approvalMode === 'approval')
+  status: 'registered' | 'attended' | 'no-show' | 'cancelled' | 'pending';
   isLiked: boolean;
   myRating?: number;
   punctuality?: 'punctual' | 'late';

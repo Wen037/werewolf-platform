@@ -65,29 +65,35 @@ export const MockGameService = {
 
   getSessionsByVenue: async (venueId: string): Promise<GameSessionDTO[]> => {
     await delay(200);
+    const currentUserId = getCurrentUserId();
     const venue = MOCK_VENUES.find(v => v.id === venueId);
     return MOCK_GAMES
-      .filter(g => g.venueId === venueId)
+      .filter(g => g.venueId === venueId &&
+        // hide invite_only events from non-hosts in public venue view
+        (g.approvalMode !== 'invite_only' || g.hostId === currentUserId))
       .map(game => ({
         ...game,
         hostName: MOCK_USERS.find(u => u.id === game.hostId)?.username,
         venueName: venue?.name,
         venueAddress: venue?.address,
         pricePerHour: venue?.pricePerHour,
-        myInteraction: MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === game.id && i.userId === getCurrentUserId()),
+        myInteraction: MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === game.id && i.userId === currentUserId),
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   },
 
   getActiveGames: async (): Promise<GameSessionDTO[]> => {
     await delay(300);
+    const currentUserId = getCurrentUserId();
     return MOCK_GAMES
-      .filter(g => g.status === "open" || g.status === "playing")
+      .filter(g => (g.status === "open" || g.status === "playing") &&
+        // hide invite_only events from non-hosts in public listing/map
+        (g.approvalMode !== 'invite_only' || g.hostId === currentUserId))
       .map(game => ({
         ...game,
         hostName: MOCK_USERS.find(u => u.id === game.hostId)?.username,
         venueName: MOCK_VENUES.find(v => v.id === game.venueId)?.name,
-        myInteraction: MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === game.id && i.userId === getCurrentUserId()),
+        myInteraction: MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === game.id && i.userId === currentUserId),
       }));
   },
 
@@ -303,8 +309,28 @@ export const MockGameService = {
     const game = MOCK_GAMES.find(g => g.id === sessionId);
     if (game) game.status = 'finished';
     MOCK_SESSION_INTERACTIONS
-      .filter(i => i.sessionId === sessionId && i.status === 'registered')
+      .filter(i => i.sessionId === sessionId && (i.status === 'registered' || i.status === 'pending'))
       .forEach(i => { i.status = 'cancelled'; });
     console.log(`[Mock] cancelSession ${sessionId}`);
+  },
+
+  // ── Applicant approval (approvalMode === 'approval') ─────────────────────
+
+  approveApplicant: async (sessionId: string, userId: string) => {
+    await delay(200);
+    const entry = MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === sessionId && i.userId === userId);
+    if (entry) entry.status = 'registered';
+    const game = MOCK_GAMES.find(g => g.id === sessionId);
+    if (game) game.currentPlayers += 1;
+    console.log(`[Mock] approveApplicant ${userId} for ${sessionId}`);
+    return { success: true };
+  },
+
+  rejectApplicant: async (sessionId: string, userId: string) => {
+    await delay(200);
+    const entry = MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === sessionId && i.userId === userId);
+    if (entry) entry.status = 'cancelled';
+    console.log(`[Mock] rejectApplicant ${userId} for ${sessionId}`);
+    return { success: true };
   },
 };

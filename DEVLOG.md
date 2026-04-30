@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-05-01 — Session 9: Host Control Panel Bug Fixes (6 items)
+
+**Frontend changes (complete):**
+
+- **Bug 1 — invite_only visibility** (`game.service.mock.ts`): `getActiveGames` and `getSessionsByVenue` now filter out `approvalMode: 'invite_only'` events for non-hosts; hosts still see their own events in MyEventsPage (`getMyEvents` unaffected)
+- **Bug 2 — combine icons** (`MyEventsPage.tsx`, `HostControlPanel.tsx`): removed separate Pencil icon + `EditEventModal` import; single Shield button now opens HostControlPanel; new **Info tab** (first tab, default) contains full edit form (title, date/time, maxPlayers, proficiency, description, social group link + QR); saves and notifies players inline
+- **Bug 3 — default approval mode** (`HostControlPanel.tsx` ManageTab): `event.approvalMode ?? 'open'` → `?? 'approval'`; events without explicit mode now default to host-approval required
+- **Bug 4 — cancel credit penalty** (`HostControlPanel.tsx` DangerTab): on cancel, host credit deducted proportionally — 0–2 registered: 0, 3–4: −0.5, 5–8: −1, 9+: −1.5; penalty shown in confirmation dialog before confirming
+- **Bug 5 — guest count sync** (`HostControlPanel.tsx` RosterTab): `handleAddGuest` and `handleRemoveGuest` now call `onEventUpdate({ currentPlayers, guests })` so parent card updates immediately
+- **Bug 6 — waiting pool / approval queue** (`types/index.ts`, `mockDB.ts`, `game.service.mock.ts`, `HostControlPanel.tsx`):
+  - Added `'pending'` to `SessionInteraction.status` union
+  - `getSessionRoster` includes pending entries; added `approveApplicant` / `rejectApplicant` mock + real stubs
+  - RosterTab shows "Awaiting Approval" section with Accept / Decline per applicant; amber badge on Roster tab shows count
+  - g13 updated: `approvalMode: 'approval'`, `currentPlayers: 4`, u3 + u5 added as `pending` for test data
+
+**No backend schema changes this session — batched for later.**
+
+---
+
 ## 2026-05-01 — Session 8: Host Control Panel, Edit Event, Social Group, Entry Mode
 
 **Frontend changes (complete):**
