@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
 import { AuthService } from "../services/auth.service";
@@ -717,6 +717,7 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
 export default function VenueDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const { t } = useLang();
   const [venue, setVenue]         = useState<GameVenueDTO | null>(null);
   const [sessions, setSessions]   = useState<GameSessionDTO[]>([]);
@@ -755,6 +756,12 @@ export default function VenueDetailPage() {
     });
     GameService.getSessionsByVenue(id).then(setSessions);
   }, [id]);
+
+  useEffect(() => {
+    if (!hash) return;
+    const el = document.querySelector(hash);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [hash, id]);
 
   const now = Date.now();
   const comingEvents  = useMemo(() => sessions.filter(s => s.status !== "finished" || new Date(s.date).getTime() > now), [sessions, now]);
@@ -1005,7 +1012,7 @@ export default function VenueDetailPage() {
 
             {/* ── Pending Approvals (owner only) ── */}
             {pendingApprovals.length > 0 && (
-              <div className="bg-amber-950/20 border border-amber-500/25 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
+              <div id="pending-approvals" className="bg-amber-950/20 border border-amber-500/25 rounded-2xl p-6 md:p-8 backdrop-blur-sm scroll-mt-8">
                 <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
                   <IconCalendarEvent size={22} className="text-amber-400" />
                   {t('Pending Approvals')}

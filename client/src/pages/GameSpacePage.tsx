@@ -121,19 +121,15 @@ export default function GameSpacePage() {
             <span className="text-xs font-bold text-white">{venue.averageRating}</span>
           </div>
         </div>
-        {/* Owner badge on card image */}
-        {isOwned && (
-          <div className="absolute top-3 left-3 flex items-center gap-1.5">
-            <div className="flex items-center gap-1 bg-amber-500/90 backdrop-blur-sm text-black text-[10px] font-bold px-2 py-1 rounded-lg">
-              <Settings size={10} /> My Space
-            </div>
-            {venue.pendingApplicationsCount && venue.pendingApplicationsCount > 0 ? (
-              <div className="flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg animate-pulse">
-                {venue.pendingApplicationsCount} Pending
-              </div>
-            ) : null}
-          </div>
-        )}
+        {/* Pending badge (owner only) */}
+        {isOwned && venue.pendingApplicationsCount && venue.pendingApplicationsCount > 0 ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/gamespace/${venue.id}#pending-approvals`); }}
+            className="absolute top-3 left-3 flex items-center gap-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg animate-pulse transition-colors cursor-pointer"
+          >
+            {venue.pendingApplicationsCount} Pending
+          </button>
+        ) : null}
       </div>
 
       {/* Content */}
