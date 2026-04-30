@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
@@ -281,14 +281,22 @@ const PRIVACY_OPTIONS: { value: VenuePrivacy; label: string; hint: string }[] = 
   { value: 'private',     label: 'Private',      hint: 'Area only; shared after player joins' },
 ];
 
+const MAX_IMAGES = 5;
+const ACCEPTED_TYPES = "image/jpeg,image/png,image/webp";
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+type ImageEntry = { url: string; isDisplay: boolean };
+
 function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps) {
+  const { t } = useLang();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     name:         venue.name,
     address:      venue.address,
     area:         venue.area ?? "",
     privacy:      (venue.privacy ?? "public") as VenuePrivacy,
     description:  venue.description,
-    imageUrl:     venue.imageUrl,
     pricePerHour: venue.pricePerHour,
     priceType:    (venue.priceType ?? "per_session") as "per_person" | "per_session",
     type:         (venue.type ?? "boardgame_store") as VenueSpaceType,
@@ -297,7 +305,11 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
     rules:        venue.rules ?? "",
     amenities:    venue.amenities.join(", "),
   });
+  const [images, setImages] = useState<ImageEntry[]>(
+    venue.imageUrl ? [{ url: venue.imageUrl, isDisplay: true }] : []
+  );
   const [saved, setSaved] = useState(false);
+  const [imgError, setImgError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -307,7 +319,6 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         area:         venue.area ?? "",
         privacy:      (venue.privacy ?? "public") as VenuePrivacy,
         description:  venue.description,
-        imageUrl:     venue.imageUrl,
         pricePerHour: venue.pricePerHour,
         priceType:    (venue.priceType ?? "per_session") as "per_person" | "per_session",
         type:         (venue.type ?? "boardgame_store") as VenueSpaceType,
@@ -316,9 +327,34 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         rules:        venue.rules ?? "",
         amenities:    venue.amenities.join(", "),
       });
+      setImages(venue.imageUrl ? [{ url: venue.imageUrl, isDisplay: true }] : []);
       setSaved(false);
+      setImgError("");
     }
   }, [isOpen, venue]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImgError("");
+    const files = Array.from(e.target.files ?? []);
+    const remaining = MAX_IMAGES - images.length;
+    const toAdd: ImageEntry[] = [];
+    for (const file of files.slice(0, remaining)) {
+      if (file.size > MAX_FILE_BYTES) { setImgError(`"${file.name}" exceeds 5 MB`); continue; }
+      toAdd.push({ url: URL.createObjectURL(file), isDisplay: images.length === 0 && toAdd.length === 0 });
+    }
+    setImages(prev => [...prev, ...toAdd]);
+    e.target.value = "";
+  };
+
+  const setDisplay = (idx: number) =>
+    setImages(prev => prev.map((img, i) => ({ ...img, isDisplay: i === idx })));
+
+  const removeImage = (idx: number) =>
+    setImages(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      if (prev[idx].isDisplay && next.length > 0) next[0].isDisplay = true;
+      return next;
+    });
 
   const set = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -331,13 +367,14 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const displayImg = images.find(i => i.isDisplay);
     onSave({
       name:         form.name,
       address:      form.address,
       area:         form.area || undefined,
       privacy:      form.privacy,
       description:  form.description,
-      imageUrl:     form.imageUrl,
+      imageUrl:     displayImg?.url ?? venue.imageUrl,
       pricePerHour: Number(form.pricePerHour),
       priceType:    form.priceType,
       type:         form.type,
@@ -368,9 +405,9 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
               <div className="flex justify-between items-center p-5 border-b border-white/5">
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <IconEdit size={20} className="text-amber-400" /> Edit Space
+                    <IconEdit size={20} className="text-amber-400" /> {t('Edit Space')}
                   </h2>
-                  <p className="text-xs text-neutral-400 mt-0.5">Only you (the owner) can edit this listing</p>
+                  <p className="text-xs text-neutral-400 mt-0.5">{t('Only you (the owner) can edit this listing')}</p>
                 </div>
                 <button onClick={onClose} className="text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors">
                   <IconX size={18} />
@@ -382,7 +419,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
                   {/* ── Space type ── */}
                   <div>
-                    <label className={labelCls}><IconBuildingStore size={11} className="inline mr-1" />Space Type</label>
+                    <label className={labelCls}><IconBuildingStore size={11} className="inline mr-1" />{t('Space Type')}</label>
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                       {SPACE_TYPES.map(t => (
                         <button key={t} type="button" onClick={() => handleTypeChange(t)}
@@ -406,7 +443,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
                   {/* ── Privacy ── */}
                   <div>
-                    <label className={labelCls}>Address Privacy</label>
+                    <label className={labelCls}>{t('Address Privacy')}</label>
                     <div className="flex gap-2">
                       {PRIVACY_OPTIONS.map(opt => (
                         <button key={opt.value} type="button"
@@ -416,7 +453,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                               ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
                               : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
                           }`}>
-                          {opt.label}
+                          {t(opt.label)}
                         </button>
                       ))}
                     </div>
@@ -427,14 +464,14 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
                   {/* ── Name ── */}
                   <div>
-                    <label className={labelCls}>Space Name</label>
+                    <label className={labelCls}>{t('Space Name')}</label>
                     <input value={form.name} onChange={set("name")} required className={inputCls} placeholder="e.g. Wolf's Den" />
                   </div>
 
                   {/* ── Address ── */}
                   <div>
                     <label className={labelCls}><IconMapPin size={11} className="inline mr-1" />
-                      {form.privacy === 'public' ? 'Full Address (shown publicly)' : 'Full Address (kept private)'}
+                      {t(form.privacy === 'public' ? 'Full Address (shown publicly)' : 'Full Address (kept private)')}
                     </label>
                     <input value={form.address} onChange={set("address")} required className={inputCls}
                       placeholder="e.g. 60A Prinsep Street, Singapore" />
@@ -443,10 +480,10 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                     )}
                   </div>
 
-                  {/* ── Area label (shown when address is not public) ── */}
+                  {/* ── Area label ── */}
                   {form.privacy !== 'public' && (
                     <div>
-                      <label className={labelCls}>Public Area Label</label>
+                      <label className={labelCls}>{t('Public Area Label')}</label>
                       <input value={form.area} onChange={set("area")} className={inputCls}
                         placeholder="e.g. Yishun, Jurong East" />
                       <p className="mt-1 text-[11px] text-neutral-500">Shown on the listing as "Yishun area" so players know the general location.</p>
@@ -456,20 +493,20 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                   {/* ── Price + max pax ── */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={labelCls}><IconCash size={11} className="inline mr-1" />Price / hr (0 = Free)</label>
+                      <label className={labelCls}><IconCash size={11} className="inline mr-1" />{t('Price / hr (0 = Free)')}</label>
                       <input type="number" min={0} step={0.5} value={form.pricePerHour} onChange={set("pricePerHour")} required className={inputCls} />
                     </div>
                     <div>
-                      <label className={labelCls}><IconUsers size={11} className="inline mr-1" />Max Capacity</label>
+                      <label className={labelCls}><IconUsers size={11} className="inline mr-1" />{t('Max Capacity')}</label>
                       <input type="number" min={1} max={500} value={form.maxPax} onChange={set("maxPax")}
                         className={inputCls} placeholder="e.g. 20" />
                     </div>
                   </div>
 
-                  {/* Pricing Model — only when chargeable */}
+                  {/* Pricing Model */}
                   {Number(form.pricePerHour) > 0 && (
                     <div>
-                      <label className={labelCls}>Pricing Model</label>
+                      <label className={labelCls}>{t('Pricing Model')}</label>
                       <div className="flex gap-3">
                         {(["per_session", "per_person"] as const).map(opt => (
                           <button key={opt} type="button"
@@ -479,7 +516,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                                 ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
                                 : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
                             }`}>
-                            {opt === "per_session" ? "$/hr (whole space)" : "$/person/hr"}
+                            {t(opt === "per_session" ? "$/hr (whole space)" : "$/person/hr")}
                           </button>
                         ))}
                       </div>
@@ -488,37 +525,76 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
                   {/* ── Opening hours ── */}
                   <div>
-                    <label className={labelCls}><IconClock size={11} className="inline mr-1" />Opening / Available Hours</label>
+                    <label className={labelCls}><IconClock size={11} className="inline mr-1" />{t('Opening / Available Hours')}</label>
                     <input value={form.openingHours} onChange={set("openingHours")} className={inputCls}
                       placeholder="e.g. Mon–Fri 2pm–11pm, Sat–Sun 12pm–2am" />
                   </div>
 
-                  {/* ── Image URL ── */}
+                  {/* ── Photos (multi-upload, max 5) ── */}
                   <div>
-                    <label className={labelCls}><IconPhoto size={11} className="inline mr-1" />Image URL</label>
-                    <input value={form.imageUrl} onChange={set("imageUrl")} className={inputCls} placeholder="https://..." />
-                    {form.imageUrl && (
-                      <img src={form.imageUrl} alt="preview" className="mt-2 w-full h-28 object-cover rounded-xl border border-white/10 opacity-80" />
-                    )}
+                    <div className="flex items-center justify-between mb-2">
+                      <label className={labelCls + " mb-0"}>
+                        <IconPhoto size={11} className="inline mr-1" />{t('Photos')}
+                        <span className="normal-case font-normal text-neutral-500 ml-1">JPG / PNG / WebP · max 5 MB each</span>
+                      </label>
+                      <span className="text-[11px] text-neutral-500">{images.length} / {MAX_IMAGES}</span>
+                    </div>
+                    {imgError && <p className="text-[11px] text-red-400 mb-2">{imgError}</p>}
+                    <div className="grid grid-cols-3 gap-2">
+                      {images.map((img, idx) => (
+                        <div key={idx} className="relative group rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/40">
+                          <img src={img.url} alt="" className="w-full h-full object-cover" />
+                          {/* Cover badge */}
+                          {img.isDisplay && (
+                            <div className="absolute bottom-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500 text-black">
+                              {t('Cover')}
+                            </div>
+                          )}
+                          {/* Hover controls */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5">
+                            {!img.isDisplay && (
+                              <button type="button" onClick={() => setDisplay(idx)}
+                                className="text-[9px] font-bold px-2 py-1 rounded-lg bg-amber-500/90 text-black hover:bg-amber-400">
+                                {t('Set as Cover')}
+                              </button>
+                            )}
+                            <button type="button" onClick={() => removeImage(idx)}
+                              className="text-[9px] font-bold px-2 py-1 rounded-lg bg-red-500/80 text-white hover:bg-red-500">
+                              ✕ Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Add button */}
+                      {images.length < MAX_IMAGES && (
+                        <button type="button" onClick={() => fileInputRef.current?.click()}
+                          className="aspect-video rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-amber-400 transition-colors bg-white/3">
+                          <IconPhoto size={18} />
+                          <span className="text-[10px] font-semibold">{t('Add Photo')}</span>
+                        </button>
+                      )}
+                    </div>
+                    <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} multiple
+                      onChange={handleFileSelect} className="hidden" />
                   </div>
 
                   {/* ── Description ── */}
                   <div>
-                    <label className={labelCls}>Description</label>
+                    <label className={labelCls}>{t('Description')}</label>
                     <textarea value={form.description} onChange={set("description")} rows={3}
-                      className={`${inputCls} resize-none`} placeholder="Describe the space..." />
+                      className={`${inputCls} resize-none`} placeholder={t('Describe the space...')} />
                   </div>
 
                   {/* ── Amenities ── */}
                   <div>
-                    <label className={labelCls}>Amenities <span className="normal-case font-normal text-neutral-500">(comma-separated)</span></label>
+                    <label className={labelCls}>{t('Amenities')} <span className="normal-case font-normal text-neutral-500">(comma-separated)</span></label>
                     <input value={form.amenities} onChange={set("amenities")} className={inputCls}
                       placeholder="WiFi, Snacks, Private Room" />
                   </div>
 
                   {/* ── Rules ── */}
                   <div>
-                    <label className={labelCls}>House Rules <span className="normal-case font-normal text-neutral-500">(optional)</span></label>
+                    <label className={labelCls}>{t('House Rules')} <span className="normal-case font-normal text-neutral-500">(optional)</span></label>
                     <textarea value={form.rules} onChange={set("rules")} rows={2}
                       className={`${inputCls} resize-none`} placeholder="e.g. No smoking, remove shoes at entrance..." />
                   </div>
@@ -528,13 +604,13 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                 <div className="px-5 pb-5 flex gap-3">
                   <button type="button" onClick={onClose}
                     className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10">
-                    Cancel
+                    {t('Cancel')}
                   </button>
                   <button type="submit"
                     className={`flex-1 py-3 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2 ${
                       saved ? "bg-green-600 text-white" : "bg-amber-500 hover:bg-amber-400 text-black"
                     }`}>
-                    {saved ? <><IconCheck size={16} /> Saved!</> : "Save Changes"}
+                    {saved ? <><IconCheck size={16} /> {t('Saved!')}</> : t('Save Changes')}
                   </button>
                 </div>
               </form>
