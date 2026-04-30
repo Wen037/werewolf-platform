@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO } from '../types';
+import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue } from '../types';
 
 export const RealGameService = {
   // ── Venues ────────────────────────────────────────────────────────────────
@@ -18,6 +18,9 @@ export const RealGameService = {
 
   rateVenue: (id: string, rating: number): Promise<void> =>
     api.post(`/venues/${id}/rate`, { rating }),
+
+  updateVenue: (id: string, fields: Partial<GameVenue>): Promise<GameVenueDTO> =>
+    api.patch(`/venues/${id}`, fields),
 
   getSessionsByVenue: (venueId: string): Promise<GameSessionDTO[]> =>
     api.get(`/venues/${venueId}/sessions`),
@@ -69,4 +72,8 @@ export const RealGameService = {
 
   unfollowUser: (userId: string): Promise<{ message: string }> =>
     api.delete(`/users/${userId}/follow`),
+
+  // Admin only
+  adjustCredit: (userId: string, delta: number): Promise<{ userId: string; creditScore: number }> =>
+    api.patch(`/admin/users/${userId}/credit`, { delta }),
 };
