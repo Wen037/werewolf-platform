@@ -92,6 +92,7 @@ export const zh: Record<string, string> = {
   // ── Game Spaces ───────────────────────────────────────────────────
   'Game Spaces':        '游戏场地',
   'Add Space':          '添加场地',
+  'Add a Space':        '添加场地',
   'Limit Reached':      '已达上限',
   'My Spaces':          '我的场地',
   'All Spaces':         '全部场地',
@@ -104,6 +105,8 @@ export const zh: Record<string, string> = {
   'Subscribed':         '已订阅',
   'Unsubscribe':        '取消订阅',
   'Free':               '免费',
+  'used':               '已用',
+  'person/hr':          '人/小时',
   'Discover the best places to hunt in Singapore.':
                         '发现新加坡最好的狼人杀场地。',
 

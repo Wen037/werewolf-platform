@@ -23,7 +23,7 @@ export default function GameSpacePage() {
   const [reportData, setReportData] = useState<{ isOpen: boolean; name: string } | null>(null);
   const [showToast, setShowToast] = useState(false);
   const navigate = useNavigate();
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   const currentUser = AuthService.getCurrentUser();
 
@@ -240,7 +240,7 @@ export default function GameSpacePage() {
               {venue.pricePerHour === 0
                 ? t("Free")
                 : venue.priceType === "per_person"
-                  ? `$${venue.pricePerHour}/person/hr`
+                  ? `$${venue.pricePerHour}/${t('person/hr')}`
                   : `$${venue.pricePerHour}/hr`}
             </span>
           )}
@@ -264,8 +264,12 @@ export default function GameSpacePage() {
         <Plus size={22} className="text-amber-400" />
       </div>
       <div className="text-center px-4">
-        <p className="text-amber-400 font-semibold text-sm">Add a Space</p>
-        <p className="text-neutral-500 text-xs mt-0.5">Slot {slotIndex + 1} of {MAX_SPACES_PER_USER} available</p>
+        <p className="text-amber-400 font-semibold text-sm">{t('Add a Space')}</p>
+        <p className="text-neutral-500 text-xs mt-0.5">
+          {lang === 'zh'
+            ? `第 ${slotIndex + 1} / ${MAX_SPACES_PER_USER} 个空位`
+            : `Slot ${slotIndex + 1} of ${MAX_SPACES_PER_USER} available`}
+        </p>
       </div>
     </motion.div>
   );
@@ -364,7 +368,7 @@ export default function GameSpacePage() {
                 {t('My Spaces')}
               </h2>
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
-                {slotsUsed} / {MAX_SPACES_PER_USER} used
+                {slotsUsed} / {MAX_SPACES_PER_USER} {t('used')}
               </span>
               {!canAddMore && (
                 <span className="text-xs text-neutral-500">Limit reached</span>
