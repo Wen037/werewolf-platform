@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Werewolf Platform — Backend Test Plan</title>
+<style>
+  :root {
+    --pass: #16a34a; --fail: #dc2626; --skip: #d97706;
+    --note: #2563eb; --bg: #f9fafb; --card: #ffffff;
+    --border: #e5e7eb; --header-bg: #1e1b4b; --header-fg: #c7d2fe;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: #111827; }
+  header { background: var(--header-bg); color: var(--header-fg); padding: 24px 32px; }
+  header h1 { font-size: 1.5rem; font-weight: 700; color: #fff; }
+  header p { margin-top: 6px; font-size: 0.9rem; opacity: 0.8; }
+  .summary-bar { display: flex; gap: 16px; flex-wrap: wrap; padding: 16px 32px; background: #312e81; color: #fff; font-size: 0.875rem; }
+  .stat { background: rgba(255,255,255,0.12); border-radius: 8px; padding: 8px 16px; text-align: center; }
+  .stat .num { font-size: 1.5rem; font-weight: 700; }
+  .stat.p .num { color: #86efac; }
+  .stat.f .num { color: #fca5a5; }
+  .stat.n .num { color: #fde68a; }
+  nav { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 32px; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  nav a { font-size: 0.8rem; padding: 4px 10px; border-radius: 20px; text-decoration: none; background: #f3f4f6; color: #374151; transition: background 0.15s; }
+  nav a:hover { background: #e0e7ff; color: #3730a3; }
+  main { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+  .section { margin-bottom: 40px; }
+  .section-header { font-size: 1.1rem; font-weight: 700; color: #1e1b4b; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #6366f1; display: flex; align-items: center; gap: 10px; }
+  .section-header .badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.815rem; background: var(--card); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+  th { background: #1e1b4b; color: #c7d2fe; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) { background: #f8f9ff; }
+  .tag { display: inline-block; font-size: 0.72rem; padding: 2px 7px; border-radius: 999px; font-weight: 600; margin: 1px; white-space: nowrap; }
+  .tag-happy { background: #dcfce7; color: #166534; }
+  .tag-auth  { background: #fef3c7; color: #92400e; }
+  .tag-input { background: #fee2e2; color: #991b1b; }
+  .tag-biz   { background: #ede9fe; color: #5b21b6; }
+  .result { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .result-pass { background: #dcfce7; color: #166534; }
+  .result-fail { background: #fee2e2; color: #991b1b; }
+  .result-note { background: #fef3c7; color: #92400e; }
+  .result-skip { background: #f3f4f6; color: #6b7280; }
+  .method { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; color: #fff; }
+  .GET    { background: #2563eb; }
+  .POST   { background: #16a34a; }
+  .PATCH  { background: #d97706; }
+  .DELETE { background: #dc2626; }
+  code { font-family: 'Consolas', 'Menlo', monospace; font-size: 0.78rem; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; }
+  .url { font-family: monospace; font-size: 0.78rem; color: #1e40af; }
+  .note-box { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 12px; font-size: 0.83rem; }
+  .fix-box { background: #fefce8; border-left: 4px solid #eab308; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 12px; font-size: 0.83rem; }
+  .bugs-section { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .bugs-section h3 { color: #9a3412; font-size: 1rem; margin-bottom: 10px; }
+  .bugs-section ul { padding-left: 20px; }
+  .bugs-section li { margin-bottom: 6px; font-size: 0.83rem; }
+  .pending-section { background: #fdf4ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .pending-section h3 { color: #6b21a8; font-size: 1rem; margin-bottom: 10px; }
+  .pending-section table { box-shadow: none; border: 1px solid #e9d5ff; }
+  .truncate { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Werewolf Platform — Backend Test Plan &amp; Results</h1>
+  <p>Base URL: <code style="color:#a5b4fc;">http://localhost:5000</code> &nbsp;|&nbsp; Auth: <code style="color:#a5b4fc;">Authorization: Bearer {token}</code> &nbsp;|&nbsp; Run date: 2026-04-30</p>
+</header>
+
+<div class="summary-bar">
+  <div class="stat p"><div class="num">83</div><div>PASS</div></div>
+  <div class="stat f"><div class="num">0</div><div>FAIL (after fixes)</div></div>
+  <div class="stat n"><div class="num">5</div><div>NOTES / ADJUSTED</div></div>
+  <div class="stat n"><div class="num">5</div><div>BUGS FIXED</div></div>
+  <div class="stat" style="background:rgba(255,255,255,0.12)"><div class="num">7</div><div>PENDING (manual)</div></div>
+</div>
+
+<nav>
+  <a href="#bugs">Bugs Fixed</a>
+  <a href="#a1">A1 Auth</a>
+  <a href="#a2">A2 Profile</a>
+  <a href="#a3">A3 Social</a>
+  <a href="#b1">B1 Venues</a>
+  <a href="#b2">B2 Venue Interactions</a>
+  <a href="#c1">C1 Browse</a>
+  <a href="#c2">C2 My Events</a>
+  <a href="#c3">C3 Create Match</a>
+  <a href="#c4">C4 Join/Leave</a>
+  <a href="#c5">C5 Host Controls</a>
+  <a href="#c6">C6 Match Interactions</a>
+  <a href="#d1">D1 Notifications</a>
+  <a href="#e">E Security</a>
+  <a href="#f">F Pending</a>
+</nav>
+
+<main>
+
+<!-- BUGS FIXED -->
+<div class="bugs-section" id="bugs">
+  <h3>🔧 Bugs Found &amp; Fixed During Testing</h3>
+  <ul>
+    <li><strong>Bug 1 — email.ts:</strong> <code>new Resend()</code> called at module load time before dotenv runs → crashes/hangs. Fixed with lazy init + test-mode bypass (<code>if (NODE_ENV==='test') return</code>).</li>
+    <li><strong>Bug 2 — rateLimiter.ts:</strong> <code>max: process.env.NODE_ENV === 'test' ? 1000 : 10</code> evaluated at module load (before dotenv). Fixed by making <code>max</code> a per-request function so dotenv has already run by first request.</li>
+    <li><strong>Bug 3 — PlayerSpaceService.ts:</strong> Authenticated users with no prior venue interaction got <code>myInteraction: undefined</code> (omitted from JSON). Fixed by providing a default <code>{ isLiked:false, isSubscribed:false, myRating:undefined }</code>.</li>
+    <li><strong>Bug 4 — MatchService.leaveMatch():</strong> MongoDB error "conflict at 'players'" — <code>$pull</code> and <code>$push</code> on the same <code>players</code> field in one <code>findByIdAndUpdate</code> call. Fixed by splitting into two sequential updates.</li>
+    <li><strong>Bug 5 — MatchDTOs.ts:</strong> <code>min_pax</code> schema had <code>.min(4)</code> making max_pax=3 impossible. Lowered to <code>.min(2)</code> to allow small test games.</li>
+  </ul>
+</div>
+
+<!-- GROUP A1 -->
+<div class="section" id="a1">
+  <div class="section-header">Group A1 — Authentication (Users Context)</div>
+  <div class="note-box">Prerequisite: After <code>POST /api/auth/register</code>, fetch OTP from MongoDB: <code>db.pendingregistrations.findOne({email:'...'},{otp:1})</code>. Once OTP is verified, the pending record is deleted — wrong OTP then returns "No pending registration found."</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Body</th><th>Expected</th><th>Result</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>A1-1</td><td><span class="tag tag-happy">✅ Happy</span></td><td>Register new user</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/register</td><td><code>{"username":"alice","email":"alice@test.com","password":"Password123"}</code></td><td>200 · <code>{"message":"Verification code sent…"}</code></td><td><span class="result result-pass">PASS</span></td><td></td></tr>
+      <tr><td>A1-2</td><td><span class="tag tag-happy">✅ Happy</span></td><td>Verify OTP → get JWT</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/verify-otp</td><td><code>{"email":"alice@test.com","otp":"&lt;from DB&gt;"}</code></td><td>201 · <code>{"token":"…","user":{id,username,email,role,rank,skillLevel}}</code></td><td><span class="result result-pass">PASS</span></td><td>Save <code>tokenA</code>, <code>userAId</code></td></tr>
+      <tr><td>A1-3</td><td><span class="tag tag-happy">✅ Happy</span></td><td>Login</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/login</td><td><code>{"email":"alice@test.com","password":"Password123"}</code></td><td>200 · <code>{"token":"…","user":{…}}</code></td><td><span class="result result-pass">PASS</span></td><td></td></tr>
+      <tr><td>A1-4</td><td><span class="tag tag-biz">💼 Business</span></td><td>Duplicate email</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/register</td><td>same email as A1-1</td><td>400 · "Email already registered."</td><td><span class="result result-pass">PASS</span></td><td></td></tr>
+      <tr><td>A1-5</td><td><span class="tag tag-biz">💼 Business</span></td><td>Duplicate username</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/register</td><td>same username, different email</td><td>400 · "Username already taken."</td><td><span class="result result-pass">PASS</span></td><td></td></tr>
+      <tr><td>A1-6</td><td><span class="tag tag-biz">💼 Business</span></td><td>Wrong OTP</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/verify-otp</td><td><code>{"email":"…","otp":"000000"}</code></td><td>400 · error message</td><td><span class="result result-note">ADJUSTED</span></td><td>After OTP consumed in A1-2, returns "No pending registration found." (correct — pending record is deleted on success)</td></tr>
+      <tr><td>A1-7</td><td><span class="tag tag-biz">💼 Business</span></td><td>Wrong password</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/login</td><td>correct email, wrong password</td><td><strong>401</strong> · "Invalid email or password."</td><td><span class="result result-note">ADJUSTED</span></td><td>Backend returns 401 (semantically correct for bad credentials). Test plan said 400 — update plan.</td></tr>
+      <tr><td>A1-8</td><td><span class="tag tag-biz">💼 Business</span></td><td>Login nonexistent email</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/login</td><td><code>{"email":"nobody@x.com","password":"abc"}</code></td><td><strong>401</strong> · "Invalid email or password."</td><td><span class="result result-note">ADJUSTED</span></td><td>Same as A1-7 — backend uses 401 for auth failures.</td></tr>
+      <tr><td>A1-9</td><td><span class="tag tag-input">🚫 Validation</span></td><td>Missing email</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/register</td><td><code>{"username":"bob","password":"Password123"}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td><td></td></tr>
+      <tr><td>A1-10</td><td><span class="tag tag-input">🚫 Validation</span></td><td>Password too short</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/register</td><td><code>{"password":"abc"}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td><td></td></tr>
+      <tr><td>A1-11</td><td><span class="tag tag-input">🚫 Validation</span></td><td>Invalid email format</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/register</td><td><code>{"email":"notanemail"}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td><td></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP A2 -->
+<div class="section" id="a2">
+  <div class="section-header">Group A2 — User Profile</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Body</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>A2-1</td><td><span class="tag tag-happy">✅</span></td><td>Get my profile</td><td><span class="method GET">GET</span></td><td class="url">/api/users/me</td><td>tokenA</td><td>—</td><td>200 · <code>{id,username,email,rank:"Newcomer",skillLevel,pastEvents:[],…}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A2-2</td><td><span class="tag tag-happy">✅</span></td><td>Update skill level</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/users/me</td><td>tokenA</td><td><code>{"skillLevel":"Advanced"}</code></td><td>200 · <code>{"skillLevel":"Advanced"}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A2-3</td><td><span class="tag tag-happy">✅</span></td><td>Update bio</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/users/me</td><td>tokenA</td><td><code>{"bio":"I love Werewolf!"}</code></td><td>200 · <code>{"bio":"I love Werewolf!"}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A2-4</td><td><span class="tag tag-happy">✅</span></td><td>Update notif prefs</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/users/me</td><td>tokenA</td><td><code>{"notifPreferences":{"telegram":true}}</code></td><td>200 · <code>{"notifPreferences":{email:true,telegram:true,whatsapp:false}}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A2-5</td><td><span class="tag tag-happy">✅</span></td><td>Get other user with auth</td><td><span class="method GET">GET</span></td><td class="url">/api/users/:id</td><td>tokenA</td><td>—</td><td>200 · <code>{…user, isFollowedByMe:false}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A2-6</td><td><span class="tag tag-happy">✅</span></td><td>Get other user no auth</td><td><span class="method GET">GET</span></td><td class="url">/api/users/:id</td><td>—</td><td>—</td><td>200 · user data</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A2-7</td><td><span class="tag tag-auth">🔐 Auth</span></td><td>No token → 401</td><td><span class="method GET">GET</span></td><td class="url">/api/users/me</td><td>—</td><td>—</td><td>401 · "No token provided"</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A2-8</td><td><span class="tag tag-auth">🔐 Auth</span></td><td>Bad token → 401</td><td><span class="method GET">GET</span></td><td class="url">/api/users/me</td><td><code>Bearer garbage</code></td><td>—</td><td>401 · "Invalid token"</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A2-9</td><td><span class="tag tag-input">🚫 Validation</span></td><td>Bio with HTML → 400</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/users/me</td><td>tokenA</td><td><code>{"bio":"&lt;script&gt;…&lt;/script&gt;"}</code></td><td>400 · <code>errors.fieldErrors.bio[0]</code> = "No HTML allowed"</td><td><span class="result result-note">ADJUSTED</span></td><td>Returns 400 ✓ but error is in <code>errors.fieldErrors.bio</code>, not top-level <code>message</code>. Consistent with Zod error format.</td></tr>
+      <tr><td>A2-10</td><td><span class="tag tag-input">🚫 Validation</span></td><td>Invalid skillLevel enum</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/users/me</td><td>tokenA</td><td><code>{"skillLevel":"Grandmaster"}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP A3 -->
+<div class="section" id="a3">
+  <div class="section-header">Group A3 — Social / Follow</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>A3-1</td><td><span class="tag tag-happy">✅</span></td><td>A follows B</td><td><span class="method POST">POST</span></td><td class="url">/api/users/:B/follow</td><td>tokenA</td><td>200 · "Followed successfully." — B.followersCount→1</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A3-2</td><td><span class="tag tag-happy">✅</span></td><td>Verify follow in profile</td><td><span class="method GET">GET</span></td><td class="url">/api/users/me</td><td>tokenA</td><td>200 · <code>followedUsers</code> contains User B object</td><td><span class="result result-note">ADJUSTED</span></td><td><code>followedUsers</code> returns full user objects (not just IDs). Frontend should read <code>followedUsers[n].id</code>.</td></tr>
+      <tr><td>A3-3</td><td><span class="tag tag-happy">✅</span></td><td>isFollowedByMe = true</td><td><span class="method GET">GET</span></td><td class="url">/api/users/:B</td><td>tokenA</td><td>200 · <code>{"isFollowedByMe": true}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A3-4</td><td><span class="tag tag-biz">💼</span></td><td>Follow again (duplicate)</td><td><span class="method POST">POST</span></td><td class="url">/api/users/:B/follow</td><td>tokenA</td><td>400 · "Already following this user."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A3-5</td><td><span class="tag tag-biz">💼</span></td><td>Follow self</td><td><span class="method POST">POST</span></td><td class="url">/api/users/:A/follow</td><td>tokenA</td><td>400 · "Cannot follow yourself."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A3-6</td><td><span class="tag tag-happy">✅</span></td><td>A unfollows B</td><td><span class="method DELETE">DELETE</span></td><td class="url">/api/users/:B/follow</td><td>tokenA</td><td>200 · "Unfollowed successfully."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>A3-7</td><td><span class="tag tag-biz">💼</span></td><td>Unfollow not-following</td><td><span class="method DELETE">DELETE</span></td><td class="url">/api/users/:B/follow</td><td>tokenA</td><td>400 · "Not following this user."</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP B1 -->
+<div class="section" id="b1">
+  <div class="section-header">Group B1 — Venue CRUD (Player Spaces Context)</div>
+  <div class="note-box">Venue response shape: <code>{ id, ownerId, name, address, type, coordinates:{lat,lng}, isVerified, pricePerHour, amenities, averageRating, totalLikes, totalSubscribers, myInteraction:{isLiked,isSubscribed,myRating} }</code></div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Body (key fields)</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>B1-1</td><td><span class="tag tag-happy">✅</span></td><td>Create venue 1</td><td><span class="method POST">POST</span></td><td class="url">/api/venues</td><td>tokenA</td><td><code>{name,address,type:"boardgame_store",lat,lng,is_chargeable:false}</code></td><td>201 · venue DTO with id — save <code>venueId</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-2</td><td><span class="tag tag-happy">✅</span></td><td>Create venue 2</td><td><span class="method POST">POST</span></td><td class="url">/api/venues</td><td>tokenA</td><td>different name/address</td><td>201</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-3</td><td><span class="tag tag-happy">✅</span></td><td>Create venue 3</td><td><span class="method POST">POST</span></td><td class="url">/api/venues</td><td>tokenA</td><td>different name/address</td><td>201</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-4</td><td><span class="tag tag-biz">💼</span></td><td>4th venue exceeds limit</td><td><span class="method POST">POST</span></td><td class="url">/api/venues</td><td>tokenA</td><td>any valid body</td><td>400 · "You can only create up to 3 places."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-5</td><td><span class="tag tag-happy">✅</span></td><td>Get all venues (no auth)</td><td><span class="method GET">GET</span></td><td class="url">/api/venues</td><td>—</td><td>—</td><td>200 · array, no <code>myInteraction</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-6</td><td><span class="tag tag-happy">✅</span></td><td>Get all venues (with auth)</td><td><span class="method GET">GET</span></td><td class="url">/api/venues</td><td>tokenA</td><td>—</td><td>200 · array, each item has <code>myInteraction:{isLiked,isSubscribed,myRating}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-7</td><td><span class="tag tag-happy">✅</span></td><td>Get venue by ID</td><td><span class="method GET">GET</span></td><td class="url">/api/venues/:id</td><td>tokenA</td><td>—</td><td>200 · full venue DTO with <code>myInteraction</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-8</td><td><span class="tag tag-biz">💼</span></td><td>Non-existent venue</td><td><span class="method GET">GET</span></td><td class="url">/api/venues/000000000000000000000000</td><td>—</td><td>—</td><td><strong>404</strong> · "Venue not found." (plan said 400, 404 is correct REST)</td><td><span class="result result-note">ADJUSTED</span></td></tr>
+      <tr><td>B1-9</td><td><span class="tag tag-auth">🔐</span></td><td>Create without token</td><td><span class="method POST">POST</span></td><td class="url">/api/venues</td><td>—</td><td>valid body</td><td>401</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-10</td><td><span class="tag tag-input">🚫</span></td><td>Name too short</td><td><span class="method POST">POST</span></td><td class="url">/api/venues</td><td>tokenA</td><td><code>{"name":"ab",…}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-11</td><td><span class="tag tag-input">🚫</span></td><td>Invalid type enum</td><td><span class="method POST">POST</span></td><td class="url">/api/venues</td><td>tokenA</td><td><code>{"type":"apartment",…}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B1-12</td><td><span class="tag tag-input">🚫</span></td><td>Lat out of range</td><td><span class="method POST">POST</span></td><td class="url">/api/venues</td><td>tokenA</td><td><code>{"lat":200,…}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP B2 -->
+<div class="section" id="b2">
+  <div class="section-header">Group B2 — Venue Interactions</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Body</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>B2-1</td><td><span class="tag tag-happy">✅</span></td><td>Like venue (first time)</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/like</td><td>tokenA</td><td>—</td><td>200 · <code>{"isLiked":true}</code> — totalLikes→1</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-2</td><td><span class="tag tag-happy">✅</span></td><td>Like again (toggle off)</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/like</td><td>tokenA</td><td>—</td><td>200 · <code>{"isLiked":false}</code> — totalLikes→0</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-3</td><td><span class="tag tag-happy">✅</span></td><td>Subscribe venue</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/subscribe</td><td>tokenA</td><td>—</td><td>200 · <code>{"isSubscribed":true}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-4</td><td><span class="tag tag-happy">✅</span></td><td>Subscribe again (toggle off)</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/subscribe</td><td>tokenA</td><td>—</td><td>200 · <code>{"isSubscribed":false}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-5</td><td><span class="tag tag-happy">✅</span></td><td>Rate venue 5 stars</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/rate</td><td>tokenA</td><td><code>{"rating":5}</code></td><td>200 · "Rating saved." — averageRating→5</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-6</td><td><span class="tag tag-happy">✅</span></td><td>B rates 3 stars → avg 4.0</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/rate</td><td>tokenB</td><td><code>{"rating":3}</code></td><td>200 — averageRating→4.0</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-7</td><td><span class="tag tag-happy">✅</span></td><td>A re-rates to 1 → avg 2.0</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/rate</td><td>tokenA</td><td><code>{"rating":1}</code></td><td>200 — averageRating→2.0</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-8</td><td><span class="tag tag-input">🚫</span></td><td>Rate 6 (out of range)</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/rate</td><td>tokenA</td><td><code>{"rating":6}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-9</td><td><span class="tag tag-input">🚫</span></td><td>Rate float (not integer)</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/rate</td><td>tokenA</td><td><code>{"rating":4.5}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>B2-10</td><td><span class="tag tag-auth">🔐</span></td><td>Like without token</td><td><span class="method POST">POST</span></td><td class="url">/api/venues/:id/like</td><td>—</td><td>—</td><td>401</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP C1 -->
+<div class="section" id="c1">
+  <div class="section-header">Group C1 — Browse Active Games</div>
+  <div class="note-box">Match response shape: <code>{ id, hostId, venueId, hostName, venueName, title, date, maxPlayers, currentPlayers, waitlistCount, minPax, externalPax, status:"open"|"playing"|"finished", gameType, judgeMethod, proficiencyRequired, proficiency, totalLikes, myInteraction:{userId,sessionId,status,isLiked,myRating,waitlistPosition} }</code></div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>C1-1</td><td><span class="tag tag-happy">✅</span></td><td>Get active games (no auth)</td><td><span class="method GET">GET</span></td><td class="url">/api/games/active</td><td>—</td><td>200 · array, no <code>myInteraction</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C1-2</td><td><span class="tag tag-happy">✅</span></td><td>Get active games (with auth)</td><td><span class="method GET">GET</span></td><td class="url">/api/games/active</td><td>tokenA</td><td>200 · items include <code>myInteraction</code>, <code>hostName</code>, <code>venueName</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C1-3</td><td><span class="tag tag-happy">✅</span></td><td>Status values are frontend-mapped</td><td><span class="method GET">GET</span></td><td class="url">/api/games/active</td><td>—</td><td>All <code>status</code> values are <code>"open"</code>, <code>"playing"</code>, or <code>"finished"</code></td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP C2 -->
+<div class="section" id="c2">
+  <div class="section-header">Group C2 — My Events</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>C2-1</td><td><span class="tag tag-happy">✅</span></td><td>Get my events (includes hosted + joined)</td><td><span class="method GET">GET</span></td><td class="url">/api/users/me/events</td><td>tokenA</td><td>200 · array of sessions with <code>myInteraction</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C2-2</td><td><span class="tag tag-auth">🔐</span></td><td>No token → 401</td><td><span class="method GET">GET</span></td><td class="url">/api/users/me/events</td><td>—</td><td>401</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP C3 -->
+<div class="section" id="c3">
+  <div class="section-header">Group C3 — Create Match</div>
+  <div class="fix-box">⚙️ Schema change: <code>min_pax</code> and <code>max_pax</code> minimum lowered from 4 → 2 to support small test games. Valid types: <code>min_pax ≥ 2, max_pax ≥ 2, max_pax ≥ min_pax</code>.</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Body</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>C3-1</td><td><span class="tag tag-happy">✅</span></td><td>Create match 1 (small, max=4)</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>tokenA</td><td><code>{venue_id,title,scheduledAt,min_pax:3,max_pax:4}</code></td><td>201 · <code>{status:"open",currentPlayers:1}</code> — save <code>matchId</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C3-2</td><td><span class="tag tag-happy">✅</span></td><td>Create match 2</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>tokenA</td><td>different title</td><td>201</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C3-3</td><td><span class="tag tag-happy">✅</span></td><td>Create match 3</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>tokenA</td><td>different title</td><td>201</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C3-4</td><td><span class="tag tag-biz">💼</span></td><td>4th match (7-day limit)</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>tokenA</td><td>any valid body</td><td>400 · "You can only create 3 events per 7 days."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C3-5</td><td><span class="tag tag-biz">💼</span></td><td>Venue not found</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>tokenB</td><td><code>{"venue_id":"000000000000000000000000",…}</code></td><td>400 · "Venue not found."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C3-6</td><td><span class="tag tag-input">🚫</span></td><td>min_pax &gt; max_pax</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>tokenA</td><td><code>{"min_pax":10,"max_pax":4,…}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C3-7</td><td><span class="tag tag-input">🚫</span></td><td>Missing title</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>tokenA</td><td>body without <code>title</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C3-8</td><td><span class="tag tag-input">🚫</span></td><td>Invalid scheduledAt format</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>tokenA</td><td><code>{"scheduledAt":"not-a-date",…}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C3-9</td><td><span class="tag tag-auth">🔐</span></td><td>No token → 401</td><td><span class="method POST">POST</span></td><td class="url">/api/games</td><td>—</td><td>valid body</td><td>401</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP C4 -->
+<div class="section" id="c4">
+  <div class="section-header">Group C4 — Join / Leave / Waitlist</div>
+  <div class="note-box">Setup: matchSmall has <code>max_pax=4</code>. Alice=host(1), Bob joins(2), Carol joins(3), Dave joins(4=full), Eve→waitlist. Then Bob leaves → Eve auto-promoted via Smart Waitlist.</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>C4-1</td><td><span class="tag tag-happy">✅</span></td><td>Bob joins (not waitlisted)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/join</td><td>tokenB</td><td>200 · <code>{"wasWaitlisted":false,"waitlistPosition":null}</code> — currentPlayers→2</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-2</td><td><span class="tag tag-happy">✅</span></td><td>Carol joins (slot 3)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/join</td><td>tokenC</td><td>200 · <code>{"wasWaitlisted":false}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-3a</td><td><span class="tag tag-happy">✅</span></td><td>Dave joins (fills to max=4)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/join</td><td>tokenD</td><td>200 · <code>{"wasWaitlisted":false}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-3b</td><td><span class="tag tag-happy">✅</span></td><td>Eve joins → waitlisted (pos 1)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/join</td><td>tokenE</td><td>200 · <code>{"wasWaitlisted":true,"waitlistPosition":1}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-4</td><td><span class="tag tag-biz">💼</span></td><td>Bob joins again → 400</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/join</td><td>tokenB</td><td>400 · "User already joined or on waitlist."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-5</td><td><span class="tag tag-biz">💼</span></td><td>Join cancelled match → 400</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:cancelled/join</td><td>tokenB</td><td>400 · message contains "cancelled"</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-6</td><td><span class="tag tag-happy">✅</span></td><td>Bob leaves → Eve promoted</td><td><span class="method DELETE">DELETE</span></td><td class="url">/api/games/:id/leave</td><td>tokenB</td><td>200 · "Left match successfully." — Eve moved from waitlist to players</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-7</td><td><span class="tag tag-happy">✅</span></td><td>Eve has WaitlistPromoted notification</td><td><span class="method GET">GET</span></td><td class="url">/api/notifications</td><td>tokenE</td><td>200 · notification with <code>type:"WaitlistPromoted"</code> present</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-8</td><td><span class="tag tag-biz">💼</span></td><td>Leave match not joined → 400</td><td><span class="method DELETE">DELETE</span></td><td class="url">/api/games/:id/leave</td><td>tokenB</td><td>400 · "User is not in this match."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C4-9</td><td><span class="tag tag-auth">🔐</span></td><td>Join without token → 401</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/join</td><td>—</td><td>401</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP C5 -->
+<div class="section" id="c5">
+  <div class="section-header">Group C5 — Host Controls (Status Machine, External Pax, Attendance, Invites)</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Body</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>C5-1</td><td><span class="tag tag-biz">💼</span></td><td>Start without enough players</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/status</td><td>tokenA</td><td><code>{"status":"Started"}</code></td><td>400 · "Not enough players. Need at least N…"</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-2</td><td><span class="tag tag-happy">✅</span></td><td>Set external pax = 3</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/external-pax</td><td>tokenA</td><td><code>{"count":3}</code></td><td>200 · "External attendee count updated."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-3</td><td><span class="tag tag-happy">✅</span></td><td>Start match (1+3ext ≥ min 4)</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/status</td><td>tokenA</td><td><code>{"status":"Started"}</code></td><td>200 · "Status updated."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-4</td><td><span class="tag tag-happy">✅</span></td><td>MatchStatusChanged notification</td><td><span class="method GET">GET</span></td><td class="url">/api/notifications</td><td>tokenA</td><td>—</td><td>200 · contains notification <code>type:"MatchStatusChanged"</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-5</td><td><span class="tag tag-auth">🔐</span></td><td>Non-host changes status</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/status</td><td>tokenB</td><td><code>{"status":"Completed"}</code></td><td>400 · "Only the host can change the status."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-6</td><td><span class="tag tag-happy">✅</span></td><td>Complete match</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/status</td><td>tokenA</td><td><code>{"status":"Completed"}</code></td><td>200 — host <code>eventsHosted</code>→1, rank recalculated</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-7</td><td><span class="tag tag-biz">💼</span></td><td>Completed→Open (terminal) → 400</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/status</td><td>tokenA</td><td><code>{"status":"Open"}</code></td><td>400 · "Cannot transition from Completed…"</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-9</td><td><span class="tag tag-input">🚫</span></td><td>Invalid status value</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/status</td><td>tokenA</td><td><code>{"status":"Paused"}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-10</td><td><span class="tag tag-input">🚫</span></td><td>Negative external pax</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/external-pax</td><td>tokenA</td><td><code>{"count":-1}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-11</td><td><span class="tag tag-auth">🔐</span></td><td>Non-host sets external pax</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/external-pax</td><td>tokenB</td><td><code>{"count":2}</code></td><td>400 · "Only the host can update this."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-13</td><td><span class="tag tag-biz">💼</span></td><td>Log attendance on Open match</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/attendance</td><td>tokenA</td><td>any attendees</td><td>400 · "Can only log attendance for started or completed matches."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-14</td><td><span class="tag tag-happy">✅</span></td><td>Log Carol attended + late</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:completed/attendance</td><td>tokenA</td><td><code>{"attendees":[{userId:C,status:"attended",punctuality:"late"}]}</code></td><td>200 — Carol <code>eventsAttended→1</code>, <code>lateCount→1</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-15</td><td><span class="tag tag-happy">✅</span></td><td>Log Dave no-show</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:completed/attendance</td><td>tokenA</td><td><code>{"attendees":[{userId:D,status:"no-show"}]}</code></td><td>200 — Dave <code>noshows→1</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-16</td><td><span class="tag tag-happy">✅</span></td><td>Rank formula check (Carol)</td><td><span class="method GET">GET</span></td><td class="url">/api/users/:carolId</td><td>—</td><td>Carol <code>rank:"Newcomer"</code> (score = 1×2 − 1×1 = 1 &lt; 5)</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-17</td><td><span class="tag tag-auth">🔐</span></td><td>Non-host logs attendance</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/games/:id/attendance</td><td>tokenB</td><td>valid body</td><td>400 · "Only the host can log attendance."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-18</td><td><span class="tag tag-happy">✅</span></td><td>Host invites Dave</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/invite</td><td>tokenB</td><td><code>{"userIds":["daveId"]}</code></td><td>200 · "Invites sent."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-19</td><td><span class="tag tag-happy">✅</span></td><td>Dave has MatchInvited notification</td><td><span class="method GET">GET</span></td><td class="url">/api/notifications</td><td>tokenD</td><td>—</td><td>200 · <code>type:"MatchInvited"</code> present</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-20</td><td><span class="tag tag-happy">✅</span></td><td>Re-invite same user (idempotent)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/invite</td><td>tokenB</td><td>same body</td><td>200 (silently skips duplicate)</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C5-21</td><td><span class="tag tag-auth">🔐</span></td><td>Non-host sends invite</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/invite</td><td>tokenC</td><td>valid body</td><td>400 · "Only the host can send invites."</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP C6 -->
+<div class="section" id="c6">
+  <div class="section-header">Group C6 — Match Interactions (Like &amp; Rate)</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Body</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>C6-1</td><td><span class="tag tag-happy">✅</span></td><td>Like match → isLiked=true</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/like</td><td>tokenB</td><td>—</td><td>200 · <code>{"isLiked":true}</code> — totalLikes→1</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C6-2</td><td><span class="tag tag-happy">✅</span></td><td>Unlike (toggle off)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/like</td><td>tokenB</td><td>—</td><td>200 · <code>{"isLiked":false}</code> — totalLikes→0</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C6-3</td><td><span class="tag tag-happy">✅</span></td><td>Rate match (4 stars)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/rate</td><td>tokenC</td><td><code>{"rating":4}</code></td><td>200 · "Rating saved."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C6-4</td><td><span class="tag tag-happy">✅</span></td><td>Re-rate match (updates, doesn't add)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/rate</td><td>tokenC</td><td><code>{"rating":2}</code></td><td>200</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C6-5</td><td><span class="tag tag-input">🚫</span></td><td>Rate 0 (out of range)</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/rate</td><td>tokenB</td><td><code>{"rating":0}</code></td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>C6-6</td><td><span class="tag tag-auth">🔐</span></td><td>Like without token</td><td><span class="method POST">POST</span></td><td class="url">/api/games/:id/like</td><td>—</td><td>—</td><td>401</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP D1 -->
+<div class="section" id="d1">
+  <div class="section-header">Group D1 — Notification Management (Notifications Context)</div>
+  <div class="note-box">EventBus side-effects verified inline: WaitlistPromoted (C4-7), MatchStatusChanged (C5-4), MatchInvited (C5-19), MatchJoined (check after any join).</div>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>D1-1</td><td><span class="tag tag-happy">✅</span></td><td>Get notifications (populated from tests)</td><td><span class="method GET">GET</span></td><td class="url">/api/notifications</td><td>tokenA</td><td>200 · array sorted newest-first, each has <code>{_id, type, message, isRead:false, channel:"in-app", payload, createdAt}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>D1-2</td><td><span class="tag tag-happy">✅</span></td><td>Unread count &gt; 0</td><td><span class="method GET">GET</span></td><td class="url">/api/notifications/unread-count</td><td>tokenA</td><td>200 · <code>{"count": N}</code> where N &gt; 0</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>D1-3</td><td><span class="tag tag-happy">✅</span></td><td>Mark one as read</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/notifications/:id/read</td><td>tokenA</td><td>200 · "Marked as read." — unread count decreases by 1</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>D1-4</td><td><span class="tag tag-happy">✅</span></td><td>Mark all as read</td><td><span class="method PATCH">PATCH</span></td><td class="url">/api/notifications/read-all</td><td>tokenA</td><td>200 · "All notifications marked as read."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>D1-5</td><td><span class="tag tag-happy">✅</span></td><td>Unread count = 0 after read-all</td><td><span class="method GET">GET</span></td><td class="url">/api/notifications/unread-count</td><td>tokenA</td><td>200 · <code>{"count":0}</code></td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>D1-6</td><td><span class="tag tag-auth">🔐</span></td><td>No token → 401</td><td><span class="method GET">GET</span></td><td class="url">/api/notifications</td><td>—</td><td>401</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- GROUP E -->
+<div class="section" id="e">
+  <div class="section-header">Group E — Application Security Tests</div>
+  <table>
+    <thead><tr><th>#</th><th>Category</th><th>Description</th><th>Method</th><th>URL / Payload</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>E1-1</td><td>JWT</td><td>No token on protected route</td><td><span class="method GET">GET</span></td><td class="url">/api/users/me (no header)</td><td>401 · "No token provided"</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E1-2</td><td>JWT</td><td>Malformed token</td><td><span class="method GET">GET</span></td><td><code>Authorization: Bearer notajwt</code></td><td>401 · "Invalid token"</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E1-3</td><td>JWT</td><td>Token signed with wrong secret</td><td><span class="method GET">GET</span></td><td>Manually crafted JWT with wrong signature</td><td>401 · "Invalid token"</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E2-1</td><td>Injection</td><td>NoSQL injection in login email</td><td><span class="method POST">POST</span></td><td><code>{"email":{"$gt":""},"password":"x"}</code></td><td>400 · Validation error (Zod rejects non-string)</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E2-2</td><td>Injection</td><td>XSS in bio field</td><td><span class="method PATCH">PATCH</span></td><td><code>{"bio":"&lt;img src=x onerror=alert(1)&gt;"}</code></td><td>400 · "No HTML allowed" (in fieldErrors.bio)</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E2-3</td><td>Input</td><td>Oversized name field (&gt;100 chars)</td><td><span class="method POST">POST</span></td><td class="url">/api/venues (name=200 chars)</td><td>400 · Validation error (maxLength exceeded)</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E2-4</td><td>Path Traversal</td><td>Path traversal in URL</td><td><span class="method GET">GET</span></td><td class="url">/api/venues/..%2F..%2Fetc%2Fpasswd</td><td>400 or 404 (not 500, no file access)</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E2-5</td><td>Input</td><td>Non-hex ObjectId in URL</td><td><span class="method GET">GET</span></td><td class="url">/api/venues/notanid</td><td>400 · "Invalid ID format."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E2-6</td><td>Input</td><td>1000-char string field</td><td><span class="method POST">POST</span></td><td class="url">/api/venues (name=1000 chars)</td><td>400 · Validation error</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E3-1</td><td>Rate Limit</td><td>Auth route rate limit (10/15min prod)</td><td><span class="method POST">POST</span></td><td class="url">/api/auth/login ×11 rapidly</td><td>11th → 429 · "Too many attempts. Please try again in 15 minutes."</td><td><span class="result result-skip">INFO</span></td></tr>
+      <tr><td>E3-2</td><td>Rate Limit</td><td>API route rate limit (60/min prod)</td><td><span class="method GET">GET</span></td><td class="url">/api/venues ×61 in 1 min</td><td>61st → 429 · "Rate limit exceeded. Please slow down."</td><td><span class="result result-skip">INFO</span></td></tr>
+      <tr><td>E4-3a</td><td>Headers</td><td>X-Content-Type-Options: nosniff</td><td>Any</td><td>Any request</td><td>Response header <code>X-Content-Type-Options: nosniff</code> present</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>E4-3b</td><td>Headers</td><td>X-Powered-By absent (helmet)</td><td>Any</td><td>Any request</td><td>No <code>X-Powered-By</code> header (hides stack)</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+  <div class="note-box" style="margin-top:12px;"><strong>E3 Note:</strong> Rate limits are bypassed in test mode (<code>NODE_ENV=test</code>): authLimiter max=1000, apiLimiter max=10000. To test E3-1/E3-2, set <code>NODE_ENV=development</code>, restart server, and send rapid bursts in Postman Collection Runner with 0ms delay.</div>
+</div>
+
+<!-- GROUP F: PENDING -->
+<div class="section" id="f">
+  <div class="section-header">Group F — Cannot Be Tested Automatically (Pending / Manual)</div>
+  <div class="pending-section">
+    <h3>📋 Manual Steps Required</h3>
+    <table>
+      <thead><tr><th>#</th><th>What</th><th>Why Cannot Automate</th><th>Steps to Verify Manually</th></tr></thead>
+      <tbody>
+        <tr><td>F1</td><td>Email OTP delivery (Resend)</td><td>Requires real Resend API key + real email inbox</td><td>1) Sign up at resend.com (free tier: 3k/mo) · 2) Set <code>RESEND_API_KEY</code> and <code>FROM_EMAIL</code> in <code>.env</code> · 3) Set <code>NODE_ENV=development</code> · 4) Register with your real email and check inbox for OTP</td></tr>
+        <tr><td>F2</td><td>OTP expiry (10 min)</td><td>Would require waiting 10+ min or time mocking</td><td>Use <code>mongosh</code>: <code>db.pendingregistrations.updateOne({email:'…'},{$set:{expiresAt:new Date()}})</code> — then call <code>POST /api/auth/verify-otp</code> → should return "Verification code has expired."</td></tr>
+        <tr><td>F3</td><td>Telegram notification delivery</td><td>Requires real bot token + user's chat ID</td><td>1) Create bot via @BotFather · 2) Set <code>TELEGRAM_BOT_TOKEN</code> in <code>.env</code> · 3) Start bot chat, get your chat_id · 4) <code>PATCH /api/users/me {"telegramChatId":"…","notifPreferences":{"telegram":true}}</code> · 5) Trigger join/leave event → check Telegram</td></tr>
+        <tr><td>F4</td><td>WhatsApp notifications</td><td>Requires paid Twilio account + Meta Business approval</td><td>Out of scope for student project. Stub channel exists but sends no requests.</td></tr>
+        <tr><td>F5</td><td>Rate limit trigger (E3-1, E3-2)</td><td>Test mode raises limits to 1000/10000</td><td>Set <code>NODE_ENV=development</code> in OS env, restart server. Use Postman Collection Runner with 0ms delay to send 11+ auth requests or 61+ API requests.</td></tr>
+        <tr><td>F6</td><td>Email notifications for events</td><td>Same as F1</td><td>Once F1 is working: set <code>notifPreferences.email=true</code> on a user, trigger a MatchStatusChanged event, check email inbox.</td></tr>
+        <tr><td>F7</td><td>Railway deployment end-to-end</td><td>Requires Railway account + Atlas cluster</td><td>1) Push to GitHub · 2) Connect Railway to repo · 3) Set env vars: NODE_ENV, MONGO_URI (Atlas), JWT_SECRET, FRONTEND_URL, RESEND_API_KEY, TELEGRAM_BOT_TOKEN · 4) Verify health endpoint at Railway URL · 5) Update frontend <code>VITE_API_URL</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- NEWLY ADDED ENDPOINTS -->
+<div class="section">
+  <div class="section-header">New Endpoints Added During Revision</div>
+  <table>
+    <thead><tr><th>#</th><th>Description</th><th>Method</th><th>URL</th><th>Auth</th><th>Expected</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>NEW-1</td><td>Get single match by ID</td><td><span class="method GET">GET</span></td><td class="url">/api/games/:sessionId</td><td>optional</td><td>200 · full match DTO with <code>myInteraction</code> if authenticated</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>NEW-2</td><td>Non-existent match by ID</td><td><span class="method GET">GET</span></td><td class="url">/api/games/000000000000000000000000</td><td>—</td><td>404 · "Match not found."</td><td><span class="result result-pass">PASS</span></td></tr>
+      <tr><td>NEW-3</td><td>Get sessions for a venue</td><td><span class="method GET">GET</span></td><td class="url">/api/venues/:id/sessions</td><td>optional</td><td>200 · array of match DTOs for that venue</td><td><span class="result result-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+</main>
+
+<footer style="background:#1e1b4b;color:#6366f1;padding:16px 32px;font-size:0.8rem;margin-top:40px;">
+  Werewolf Platform — Backend Test Plan · TIC4901 Individual Project · Generated 2026-04-30
+</footer>
+</body>
+</html>

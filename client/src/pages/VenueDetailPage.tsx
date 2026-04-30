@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
-import type { GameVenueDTO, GameSessionDTO } from "../types";
+import { AuthService } from "../services/auth.service";
+import type { GameVenueDTO, GameSessionDTO, VenueSpaceType, VenuePrivacy } from "../types";
+import { VENUE_TYPE_LABELS, DEFAULT_PRIVACY, getVenuePermissions, getDisplayAddress } from "../types";
 import { AppLayout } from "../components/layout/AppLayout";
 import { ReportModal } from "../components/ReportModal";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, BadgeCheck, Bell, BellOff, X as XIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   IconArrowLeft,
@@ -22,6 +25,11 @@ import {
   IconTrophy,
   IconX,
   IconCurrencyDollar,
+  IconEdit,
+  IconPhoto,
+  IconCash,
+  IconBuildingStore,
+  IconCheck,
 } from "@tabler/icons-react";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -195,6 +203,7 @@ interface DrawerProps {
 
 function EventsDrawer({ kind, events, onClose }: DrawerProps) {
   const isUpcoming = kind === "upcoming";
+  const { t } = useLang();
 
   return (
     <>
@@ -225,7 +234,7 @@ function EventsDrawer({ kind, events, onClose }: DrawerProps) {
               : <IconHistory size={20} className="text-neutral-400" />
             }
             <h2 className="text-lg font-bold text-white">
-              {isUpcoming ? "Coming Events" : "Event History"}
+              {isUpcoming ? t("Coming Events") : t("Event History")}
             </h2>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 border border-white/10">
               {events.length}
@@ -243,7 +252,7 @@ function EventsDrawer({ kind, events, onClose }: DrawerProps) {
         <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-3">
           {events.length === 0 ? (
             <p className="text-neutral-500 text-sm text-center mt-12">
-              {isUpcoming ? "No upcoming events scheduled here yet." : "No past events recorded here."}
+              {isUpcoming ? t("No upcoming events scheduled here yet.") : t("No past events recorded here.")}
             </p>
           ) : isUpcoming ? (
             events.map((ev, i) => <UpcomingCard key={ev.id} event={ev} index={i} />)
@@ -256,16 +265,488 @@ function EventsDrawer({ kind, events, onClose }: DrawerProps) {
   );
 }
 
+// ── Edit Space Modal (owner only) ─────────────────────────────────────────
+
+interface EditSpaceModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  venue: GameVenueDTO;
+  onSave: (updated: Partial<GameVenueDTO>) => void;
+}
+
+const SPACE_TYPES: VenueSpaceType[] = ['boardgame_store', 'house', 'work', 'school', 'other'];
+const PRIVACY_OPTIONS: { value: VenuePrivacy; label: string; hint: string }[] = [
+  { value: 'public',      label: 'Public',      hint: 'Full address shown to everyone' },
+  { value: 'approximate', label: 'Approximate',  hint: 'District shown; full address on request' },
+  { value: 'private',     label: 'Private',      hint: 'Area only; shared after player joins' },
+];
+
+function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps) {
+  const [form, setForm] = useState({
+    name:         venue.name,
+    address:      venue.address,
+    area:         venue.area ?? "",
+    privacy:      (venue.privacy ?? "public") as VenuePrivacy,
+    description:  venue.description,
+    imageUrl:     venue.imageUrl,
+    pricePerHour: venue.pricePerHour,
+    priceType:    (venue.priceType ?? "per_session") as "per_person" | "per_session",
+    type:         (venue.type ?? "boardgame_store") as VenueSpaceType,
+    openingHours: venue.openingHours ?? "",
+    maxPax:       venue.maxPax ?? "",
+    rules:        venue.rules ?? "",
+    amenities:    venue.amenities.join(", "),
+  });
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        name:         venue.name,
+        address:      venue.address,
+        area:         venue.area ?? "",
+        privacy:      (venue.privacy ?? "public") as VenuePrivacy,
+        description:  venue.description,
+        imageUrl:     venue.imageUrl,
+        pricePerHour: venue.pricePerHour,
+        priceType:    (venue.priceType ?? "per_session") as "per_person" | "per_session",
+        type:         (venue.type ?? "boardgame_store") as VenueSpaceType,
+        openingHours: venue.openingHours ?? "",
+        maxPax:       venue.maxPax ?? "",
+        rules:        venue.rules ?? "",
+        amenities:    venue.amenities.join(", "),
+      });
+      setSaved(false);
+    }
+  }, [isOpen, venue]);
+
+  const set = (k: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // When space type changes, auto-suggest the most appropriate privacy level
+  const handleTypeChange = (t: VenueSpaceType) => {
+    setForm(f => ({ ...f, type: t, privacy: DEFAULT_PRIVACY[t] }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      name:         form.name,
+      address:      form.address,
+      area:         form.area || undefined,
+      privacy:      form.privacy,
+      description:  form.description,
+      imageUrl:     form.imageUrl,
+      pricePerHour: Number(form.pricePerHour),
+      priceType:    form.priceType,
+      type:         form.type,
+      openingHours: form.openingHours || undefined,
+      maxPax:       form.maxPax !== "" ? Number(form.maxPax) : undefined,
+      amenities:    form.amenities.split(",").map(a => a.trim()).filter(Boolean),
+      rules:        form.rules || undefined,
+    });
+    setSaved(true);
+    setTimeout(onClose, 1200);
+  };
+
+  const inputCls = "w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-neutral-600 [color-scheme:dark]";
+  const labelCls = "text-xs font-semibold text-neutral-400 mb-1.5 block uppercase tracking-wider";
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={onClose} className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100]" />
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
+            <div className="bg-neutral-900 border border-amber-500/20 w-full max-w-xl rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh]">
+
+              {/* Header */}
+              <div className="flex justify-between items-center p-5 border-b border-white/5">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <IconEdit size={20} className="text-amber-400" /> Edit Space
+                  </h2>
+                  <p className="text-xs text-neutral-400 mt-0.5">Only you (the owner) can edit this listing</p>
+                </div>
+                <button onClick={onClose} className="text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors">
+                  <IconX size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="overflow-y-auto custom-scrollbar">
+                <div className="p-5 space-y-5">
+
+                  {/* ── Space type ── */}
+                  <div>
+                    <label className={labelCls}><IconBuildingStore size={11} className="inline mr-1" />Space Type</label>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                      {SPACE_TYPES.map(t => (
+                        <button key={t} type="button" onClick={() => handleTypeChange(t)}
+                          className={`py-2 px-1 rounded-xl text-[11px] font-semibold border transition-all text-center ${
+                            form.type === t
+                              ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
+                              : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
+                          }`}>
+                          {VENUE_TYPE_LABELS[t]}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Space-type hints */}
+                    {form.type === 'house' && (
+                      <p className="mt-2 text-[11px] text-amber-400/80">Home venues default to private — only the district is shown publicly.</p>
+                    )}
+                    {(form.type === 'work' || form.type === 'school') && (
+                      <p className="mt-2 text-[11px] text-sky-400/80">Office / school venues default to approximate — full address shared on request.</p>
+                    )}
+                  </div>
+
+                  {/* ── Privacy ── */}
+                  <div>
+                    <label className={labelCls}>Address Privacy</label>
+                    <div className="flex gap-2">
+                      {PRIVACY_OPTIONS.map(opt => (
+                        <button key={opt.value} type="button"
+                          onClick={() => setForm(f => ({ ...f, privacy: opt.value }))}
+                          className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                            form.privacy === opt.value
+                              ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
+                              : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
+                          }`}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-neutral-500">
+                      {PRIVACY_OPTIONS.find(o => o.value === form.privacy)?.hint}
+                    </p>
+                  </div>
+
+                  {/* ── Name ── */}
+                  <div>
+                    <label className={labelCls}>Space Name</label>
+                    <input value={form.name} onChange={set("name")} required className={inputCls} placeholder="e.g. Wolf's Den" />
+                  </div>
+
+                  {/* ── Address ── */}
+                  <div>
+                    <label className={labelCls}><IconMapPin size={11} className="inline mr-1" />
+                      {form.privacy === 'public' ? 'Full Address (shown publicly)' : 'Full Address (kept private)'}
+                    </label>
+                    <input value={form.address} onChange={set("address")} required className={inputCls}
+                      placeholder="e.g. 60A Prinsep Street, Singapore" />
+                    {form.privacy !== 'public' && (
+                      <p className="mt-1 text-[11px] text-amber-400/80">This exact address is hidden from the public listing.</p>
+                    )}
+                  </div>
+
+                  {/* ── Area label (shown when address is not public) ── */}
+                  {form.privacy !== 'public' && (
+                    <div>
+                      <label className={labelCls}>Public Area Label</label>
+                      <input value={form.area} onChange={set("area")} className={inputCls}
+                        placeholder="e.g. Yishun, Jurong East" />
+                      <p className="mt-1 text-[11px] text-neutral-500">Shown on the listing as "Yishun area" so players know the general location.</p>
+                    </div>
+                  )}
+
+                  {/* ── Price + max pax ── */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls}><IconCash size={11} className="inline mr-1" />Price / hr (0 = Free)</label>
+                      <input type="number" min={0} step={0.5} value={form.pricePerHour} onChange={set("pricePerHour")} required className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}><IconUsers size={11} className="inline mr-1" />Max Capacity</label>
+                      <input type="number" min={1} max={500} value={form.maxPax} onChange={set("maxPax")}
+                        className={inputCls} placeholder="e.g. 20" />
+                    </div>
+                  </div>
+
+                  {/* Pricing Model — only when chargeable */}
+                  {Number(form.pricePerHour) > 0 && (
+                    <div>
+                      <label className={labelCls}>Pricing Model</label>
+                      <div className="flex gap-3">
+                        {(["per_session", "per_person"] as const).map(opt => (
+                          <button key={opt} type="button"
+                            onClick={() => setForm(f => ({ ...f, priceType: opt }))}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                              form.priceType === opt
+                                ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
+                                : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
+                            }`}>
+                            {opt === "per_session" ? "$/hr (whole space)" : "$/person/hr"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Opening hours ── */}
+                  <div>
+                    <label className={labelCls}><IconClock size={11} className="inline mr-1" />Opening / Available Hours</label>
+                    <input value={form.openingHours} onChange={set("openingHours")} className={inputCls}
+                      placeholder="e.g. Mon–Fri 2pm–11pm, Sat–Sun 12pm–2am" />
+                  </div>
+
+                  {/* ── Image URL ── */}
+                  <div>
+                    <label className={labelCls}><IconPhoto size={11} className="inline mr-1" />Image URL</label>
+                    <input value={form.imageUrl} onChange={set("imageUrl")} className={inputCls} placeholder="https://..." />
+                    {form.imageUrl && (
+                      <img src={form.imageUrl} alt="preview" className="mt-2 w-full h-28 object-cover rounded-xl border border-white/10 opacity-80" />
+                    )}
+                  </div>
+
+                  {/* ── Description ── */}
+                  <div>
+                    <label className={labelCls}>Description</label>
+                    <textarea value={form.description} onChange={set("description")} rows={3}
+                      className={`${inputCls} resize-none`} placeholder="Describe the space..." />
+                  </div>
+
+                  {/* ── Amenities ── */}
+                  <div>
+                    <label className={labelCls}>Amenities <span className="normal-case font-normal text-neutral-500">(comma-separated)</span></label>
+                    <input value={form.amenities} onChange={set("amenities")} className={inputCls}
+                      placeholder="WiFi, Snacks, Private Room" />
+                  </div>
+
+                  {/* ── Rules ── */}
+                  <div>
+                    <label className={labelCls}>House Rules <span className="normal-case font-normal text-neutral-500">(optional)</span></label>
+                    <textarea value={form.rules} onChange={set("rules")} rows={2}
+                      className={`${inputCls} resize-none`} placeholder="e.g. No smoking, remove shoes at entrance..." />
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-5 pb-5 flex gap-3">
+                  <button type="button" onClick={onClose}
+                    className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10">
+                    Cancel
+                  </button>
+                  <button type="submit"
+                    className={`flex-1 py-3 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2 ${
+                      saved ? "bg-green-600 text-white" : "bg-amber-500 hover:bg-amber-400 text-black"
+                    }`}>
+                    {saved ? <><IconCheck size={16} /> Saved!</> : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ── Booking Modal ──────────────────────────────────────────────────────────
+
+interface BookingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  venueName: string;
+  pricePerHour?: number;
+  priceType?: "per_person" | "per_session";
+}
+
+function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: BookingModalProps) {
+  const { t } = useLang();
+  const [form, setForm] = useState({
+    date: "", time: "", duration: "2", pax: 8, name: "", contact: "", notes: "",
+  });
+  const [submitted, setSubmitted] = useState(false);
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const handleClose = () => { onClose(); setTimeout(() => setSubmitted(false), 300); };
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setSubmitted(true); };
+
+  const isFree = pricePerHour === 0;
+  const dur = parseFloat(form.duration);
+  const rawCost = pricePerHour !== undefined && !isFree
+    ? priceType === "per_person"
+      ? pricePerHour * form.pax * dur
+      : pricePerHour * dur
+    : null;
+  const estCost = pricePerHour !== undefined
+    ? isFree ? "Free" : `$${rawCost!.toFixed(0)}`
+    : null;
+  const costBreakdown = rawCost !== null && pricePerHour !== undefined
+    ? priceType === "per_person"
+      ? `${form.pax} pax × $${pricePerHour}/person × ${dur}hr`
+      : `$${pricePerHour}/hr × ${dur}hr`
+    : null;
+
+  const inputCls = "w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 transition-all placeholder:text-neutral-600 [color-scheme:dark]";
+  const labelCls = "text-xs font-semibold text-neutral-400 mb-1.5 block uppercase tracking-wider";
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={handleClose} className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100]" />
+
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
+          >
+            <div className="bg-neutral-900 border border-white/10 w-full max-w-lg rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh]">
+
+              {/* Header */}
+              <div className="flex justify-between items-center p-5 border-b border-white/5">
+                <div>
+                  <h2 className="text-xl font-bold text-white">{t('Book a Session')}</h2>
+                  <p className="text-xs text-neutral-400 mt-0.5">{venueName}</p>
+                </div>
+                <button onClick={handleClose} className="text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors">
+                  <IconX size={18} />
+                </button>
+              </div>
+
+              {submitted ? (
+                <div className="flex flex-col items-center justify-center py-16 px-8 text-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center">
+                    <IconCircleCheck size={36} className="text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-lg">Enquiry Sent!</p>
+                    <p className="text-neutral-400 text-sm mt-1">The venue will reach out to confirm your booking via the contact you provided.</p>
+                  </div>
+                  <button onClick={handleClose} className="mt-2 px-8 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl transition-colors">
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="overflow-y-auto custom-scrollbar">
+                  <div className="p-5 space-y-4">
+
+                    {/* Date + Time */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelCls}>Date</label>
+                        <input type="date" required value={form.date} onChange={set("date")} className={inputCls} />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Start Time</label>
+                        <input type="time" required value={form.time} onChange={set("time")} className={inputCls} />
+                      </div>
+                    </div>
+
+                    {/* Duration + Pax */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelCls}>Duration</label>
+                        <select value={form.duration} onChange={set("duration")} className={inputCls}>
+                          {["1", "1.5", "2", "2.5", "3", "4"].map(h => (
+                            <option key={h} value={h} className="bg-neutral-900">{h} hr{parseFloat(h) > 1 ? "s" : ""}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelCls}>No. of Pax</label>
+                        <input type="number" min={2} max={50} required value={form.pax}
+                          onChange={e => setForm(f => ({ ...f, pax: parseInt(e.target.value) || 2 }))}
+                          className={inputCls} />
+                      </div>
+                    </div>
+
+                    {/* Cost estimate */}
+                    {estCost && (
+                      <div className="bg-white/5 rounded-xl px-4 py-2.5 flex justify-between items-center border border-white/5">
+                        <span className="text-neutral-400 text-xs">Estimated cost</span>
+                        <span className="text-white font-bold">
+                          {isFree
+                            ? <span className="text-green-400">Free</span>
+                            : <>{estCost} <span className="text-neutral-500 font-normal text-xs">({costBreakdown})</span></>}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Name + Contact */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelCls}>Your Name</label>
+                        <input type="text" required placeholder="e.g. Alex Tan" value={form.name} onChange={set("name")} className={inputCls} />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Contact</label>
+                        <input type="text" required placeholder="Phone or email" value={form.contact} onChange={set("contact")} className={inputCls} />
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className={labelCls}>Notes <span className="text-neutral-600 normal-case font-normal">(optional)</span></label>
+                      <textarea placeholder="Special requests, setup needs..." value={form.notes} onChange={set("notes")}
+                        className={`${inputCls} min-h-[80px] resize-none`} />
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-5 pb-5 flex gap-3">
+                    <button type="button" onClick={handleClose}
+                      className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10">
+                      Cancel
+                    </button>
+                    <button type="submit"
+                      className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-all text-sm">
+                      Send Enquiry
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function VenueDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [venue, setVenue]       = useState<GameVenueDTO | null>(null);
-  const [sessions, setSessions] = useState<GameSessionDTO[]>([]);
-  const [isReportOpen, setIsReportOpen] = useState(false);
-  const [showToast, setShowToast]       = useState(false);
-  const [drawer, setDrawer]             = useState<"upcoming" | "past" | null>(null);
+  const { t } = useLang();
+  const [venue, setVenue]         = useState<GameVenueDTO | null>(null);
+  const [sessions, setSessions]   = useState<GameSessionDTO[]>([]);
+  const [isReportOpen, setIsReportOpen]   = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen]       = useState(false);
+  const [showToast, setShowToast]         = useState(false);
+  const [drawer, setDrawer]               = useState<"upcoming" | "past" | null>(null);
+
+  const currentUser = AuthService.getCurrentUser();
+  const permissions = venue ? getVenuePermissions(venue, currentUser) : { canEdit: false, canVerify: false, canDelete: false };
+
+  const handleSaveEdit = async (updated: Partial<GameVenueDTO>) => {
+    if (!venue) return;
+    setVenue(v => v ? { ...v, ...updated } : v);
+    try {
+      await GameService.updateVenue(venue.id, updated);
+    } catch {
+      // revert optimistic update on error
+      setVenue(venue);
+    }
+  };
+
+  const openDirections = () => {
+    if (!venue) return;
+    const url = venue.coordinates
+      ? `https://www.google.com/maps/dir/?api=1&destination=${venue.coordinates.lat},${venue.coordinates.lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.address)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -278,10 +759,50 @@ export default function VenueDetailPage() {
   const now = Date.now();
   const comingEvents  = useMemo(() => sessions.filter(s => s.status !== "finished" || new Date(s.date).getTime() > now), [sessions, now]);
   const historyEvents = useMemo(() => sessions.filter(s => s.status === "finished"), [sessions]);
+  const pendingApprovals = useMemo(
+    () => permissions.canEdit ? sessions.filter(s => s.status !== "finished" && s.venueApprovalStatus === "pending") : [],
+    [sessions, permissions.canEdit]
+  );
+
+  const handleApprove = (sessionId: string) => {
+    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, venueApprovalStatus: 'confirmed' as const } : s));
+  };
+  const handleReject = (sessionId: string) => {
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+  };
 
   const triggerToast = () => {
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleSubscribe = async () => {
+    if (!venue || !id) return;
+    const prev = venue.myInteraction?.isSubscribed ?? false;
+    setVenue(v => v ? {
+      ...v,
+      myInteraction: {
+        userId: v.myInteraction?.userId ?? "",
+        venueId: id,
+        isLiked: v.myInteraction?.isLiked ?? false,
+        isSubscribed: !prev,
+        myRating: v.myInteraction?.myRating,
+      },
+    } : v);
+    try {
+      await GameService.subscribeVenue(id);
+    } catch {
+      setVenue(v => v ? {
+        ...v,
+        myInteraction: {
+          userId: v.myInteraction?.userId ?? "",
+          venueId: id,
+          isLiked: v.myInteraction?.isLiked ?? false,
+          isSubscribed: prev,
+          myRating: v.myInteraction?.myRating,
+        },
+      } : v);
+    }
   };
 
   const handleLike = async () => {
@@ -327,6 +848,7 @@ export default function VenueDetailPage() {
   }
 
   const isLiked = venue.myInteraction?.isLiked ?? false;
+  const isSubscribed = venue.myInteraction?.isSubscribed ?? false;
 
   return (
     <AppLayout>
@@ -350,6 +872,16 @@ export default function VenueDetailPage() {
           onSuccess={triggerToast} targetType="Space" targetName={venue.name}
         />
 
+        <BookingModal
+          isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)}
+          venueName={venue.name} pricePerHour={venue.pricePerHour} priceType={venue.priceType}
+        />
+
+        <EditSpaceModal
+          isOpen={isEditOpen} onClose={() => setIsEditOpen(false)}
+          venue={venue} onSave={handleSaveEdit}
+        />
+
         {/* Slide-over Drawer */}
         <AnimatePresence>
           {drawer && (
@@ -365,11 +897,18 @@ export default function VenueDetailPage() {
         <div className="flex items-center justify-between mb-6">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors group">
             <IconArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="font-medium">Back to Directory</span>
+            <span className="font-medium">{t('Back to Directory')}</span>
           </button>
-          <button onClick={() => setIsReportOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-sm font-bold">
-            <IconAlertTriangle size={16} /><span>Report Space</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {permissions.canEdit && (
+              <button onClick={() => setIsEditOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all text-sm font-bold">
+                <IconEdit size={16} /><span>{t('Edit Space')}</span>
+              </button>
+            )}
+            <button onClick={() => setIsReportOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-sm font-bold">
+              <IconAlertTriangle size={16} /><span>{t('Report Space')}</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
@@ -382,20 +921,78 @@ export default function VenueDetailPage() {
               <img src={venue.imageUrl} alt={venue.name} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
               <div className="absolute bottom-6 left-6 md:left-10">
-                <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">{venue.name}</h1>
+                <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 flex items-center gap-3">
+                  {venue.name}
+                  {venue.isVerified && (
+                    <span className="flex items-center gap-1 text-sm font-semibold text-green-400 bg-green-500/15 border border-green-500/30 px-2.5 py-1 rounded-full shrink-0">
+                      <BadgeCheck size={16} /> Verified
+                    </span>
+                  )}
+                </h1>
                 <p className="text-neutral-300 flex items-center gap-2 text-lg">
-                  <IconMapPin size={20} className="text-red-500" /> {venue.address}
+                  <IconMapPin size={20} className="text-red-500" />
+                  {getDisplayAddress(venue)}
+                  {venue.privacy && venue.privacy !== 'public' && (
+                    <span className="text-xs text-neutral-400 bg-white/10 px-2 py-0.5 rounded-full">
+                      {venue.privacy === 'private' ? 'Address shared after joining' : 'Approximate area'}
+                    </span>
+                  )}
                 </p>
+                {venue.pricePerHour !== undefined && (
+                  <div className="mt-2 inline-flex items-center gap-1.5">
+                    <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+                      venue.pricePerHour === 0
+                        ? "bg-green-500/25 text-green-400 border border-green-500/30"
+                        : "bg-black/40 text-green-400 border border-green-500/20"
+                    }`}>
+                      {venue.pricePerHour === 0
+                        ? "Free entry"
+                        : venue.priceType === "per_person"
+                          ? `$${venue.pricePerHour} / person / hr`
+                          : `$${venue.pricePerHour} / hr`}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* About */}
             <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
-              <h2 className="text-xl font-bold text-white mb-4">About this Place</h2>
-              <p className="text-neutral-400 leading-relaxed mb-8">
+              <h2 className="text-xl font-bold text-white mb-4">{t('About this Place')}</h2>
+              <p className="text-neutral-400 leading-relaxed mb-6">
                 {venue.description || "A mysterious gathering place for werewolves and villagers alike."}
               </p>
-              <h3 className="text-lg font-bold text-white mb-4">Amenities</h3>
+
+              {/* Meta info row */}
+              <div className="flex flex-wrap gap-3 mb-6">
+                {venue.openingHours && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconClock size={14} className="text-amber-400" />
+                    {venue.openingHours}
+                  </div>
+                )}
+                {venue.type && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconBuildingStore size={14} className="text-sky-400" />
+                    {VENUE_TYPE_LABELS[venue.type]}
+                  </div>
+                )}
+                {venue.maxPax && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconUsers size={14} className="text-green-400" />
+                    Up to {venue.maxPax} pax
+                  </div>
+                )}
+              </div>
+
+              {venue.rules && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/15">
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">{t('House Rules')}</p>
+                  <p className="text-sm text-neutral-300">{venue.rules}</p>
+                </div>
+              )}
+
+              <h3 className="text-lg font-bold text-white mb-4">{t('Amenities')}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {venue.amenities.map(am => (
                   <div key={am} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 text-neutral-300">
@@ -406,11 +1003,64 @@ export default function VenueDetailPage() {
               </div>
             </div>
 
+            {/* ── Pending Approvals (owner only) ── */}
+            {pendingApprovals.length > 0 && (
+              <div className="bg-amber-950/20 border border-amber-500/25 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
+                <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
+                  <IconCalendarEvent size={22} className="text-amber-400" />
+                  {t('Pending Approvals')}
+                  <span className="ml-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    {pendingApprovals.length}
+                  </span>
+                </h2>
+                <div className="space-y-3">
+                  {pendingApprovals.map((event, i) => (
+                    <motion.div
+                      key={event.id}
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="flex items-center justify-between gap-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/15 hover:bg-amber-500/10 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <ProficiencyBadge value={event.proficiency} />
+                          <span className="text-xs text-neutral-500 flex items-center gap-1">
+                            <IconClock size={11} /> {formatEventDate(event.date)}
+                          </span>
+                        </div>
+                        <p className="text-white font-semibold text-sm truncate">{event.title}</p>
+                        <p className="text-neutral-500 text-xs mt-0.5">
+                          Host: <span className="text-amber-300 font-medium">{event.hostName ?? "Unknown"}</span>
+                          {" · "}{event.currentPlayers}/{event.maxPlayers} players
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleReject(event.id)}
+                          className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
+                          title="Reject"
+                        >
+                          <XIcon size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleApprove(event.id)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-500/15 border border-green-500/25 text-green-400 hover:bg-green-500/25 transition-all text-xs font-bold"
+                        >
+                          <IconCheck size={14} /> Approve
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* ── Coming Events ── */}
             <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
               <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
                 <IconCalendarEvent size={22} className="text-red-400" />
-                Coming Events
+                {t('Coming Events')}
                 {comingEvents.length > 0 && (
                   <span className="ml-2 text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">
                     {comingEvents.length}
@@ -419,7 +1069,7 @@ export default function VenueDetailPage() {
               </h2>
 
               {comingEvents.length === 0 ? (
-                <p className="text-neutral-500 text-sm">No upcoming events scheduled here yet.</p>
+                <p className="text-neutral-500 text-sm">{t('No upcoming events scheduled here yet.')}</p>
               ) : (
                 <div className="space-y-3">
                   {comingEvents.map((event, i) => {
@@ -434,7 +1084,7 @@ export default function VenueDetailPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isFull ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" : "bg-green-500/10 text-green-400 border-green-500/20"}`}>
-                              {isFull ? "FULL" : "OPEN"}
+                              {isFull ? t("FULL") : t("OPEN")}
                             </span>
                             <ProficiencyBadge value={event.proficiency} />
                             <span className="text-xs text-neutral-500 flex items-center gap-1">
@@ -462,7 +1112,7 @@ export default function VenueDetailPage() {
                                 : "bg-red-600 hover:bg-red-500 text-white active:scale-95"
                             }`}
                           >
-                            {isFull ? "Full" : "Join"}
+                            {isFull ? t("FULL") : t("Join")}
                           </button>
                         </div>
                       </motion.div>
@@ -476,7 +1126,7 @@ export default function VenueDetailPage() {
             <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
               <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
                 <IconHistory size={22} className="text-neutral-400" />
-                Event History
+                {t('Event History')}
                 {historyEvents.length > 0 && (
                   <span className="ml-2 text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 border border-white/10">
                     {historyEvents.length}
@@ -552,11 +1202,25 @@ export default function VenueDetailPage() {
               </div>
 
               <div className="space-y-3">
-                <button className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setIsBookingOpen(true)}
+                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                   <IconPlus size={20} /> Book Now
                 </button>
-                <button className="w-full py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl border border-white/10 flex items-center justify-center gap-2 transition-all">
-                  <IconNavigation size={20} /> Directions
+                <button
+                  onClick={openDirections}
+                  className="w-full py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl border border-white/10 flex items-center justify-center gap-2 transition-all">
+                  <IconNavigation size={20} /> {t('Directions')}
+                </button>
+                <button
+                  onClick={handleSubscribe}
+                  className={`w-full py-4 font-bold rounded-2xl border flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                    isSubscribed
+                      ? "bg-sky-500/15 border-sky-500/30 text-sky-400 hover:bg-sky-500/20"
+                      : "bg-neutral-800 hover:bg-neutral-700 text-white border-white/10"
+                  }`}>
+                  {isSubscribed ? <BellOff size={20} /> : <Bell size={20} />}
+                  {isSubscribed ? t("Subscribed") : t("Subscribe")}
                 </button>
               </div>
 

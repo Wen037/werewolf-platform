@@ -1,36 +1,114 @@
 "use client";
 import React, { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "../ui/sidebar";
-// 1. IMPORT IconMail for the Contact Us button
-import { IconLogin, IconLogout, IconMail } from "@tabler/icons-react"; 
-import { useNavigate, useLocation } from "react-router-dom";
+import { IconLogin, IconLogout, IconMail } from "@tabler/icons-react";
+import { useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { FireflyBackground } from "../ui/firefly-background";
 import { motion } from "framer-motion";
 
-// 2. IMPORT ContactModal
 import { ContactModal } from "../ContactModal";
+import { AuthModal } from "../AuthModal";
+import { AuthService } from "../../services/auth.service";
+import { getUsernameColor } from "../../types";
+import { useLang } from "../../context/LanguageContext";
 
-// Mock Data
-const MOCK_IS_LOGGED_IN = true; 
-const MOCK_USER_NAME = "Hunter_01";
+// ── Debug mock users (dev only) ───────────────────────────────────────────
+const DEBUG_USERS = [
+  { label: "AlphaWolf (Grandmaster 152cr)", id: "u1",  username: "AlphaWolf",    email: "alpha@wolf.sg",     role: "player"    as const, skillLevel: "Expert"       as const, isVerified: true,  creditScore: 152 },
+  { label: "SeerSally (Advanced)",      id: "u2",  username: "SeerSally",    email: "sally@seer.sg",     role: "player"    as const, skillLevel: "Advanced"     as const, isVerified: true,  creditScore: 138 },
+  { label: "ModeratorMike (Admin)",     id: "u8",  username: "ModeratorMike",email: "mike@host.sg",      role: "admin"     as const, skillLevel: "Expert"       as const, isVerified: true,  creditScore: 200 },
+  { label: "NoobHunter (Newbie 100cr)", id: "u3",  username: "NoobHunter",   email: "hunter@game.sg",    role: "player"    as const, skillLevel: "Beginner"     as const, isVerified: false, creditScore: 100 },
+  { label: "JesterJack (⚠ Flagged 96cr)",id:"u14", username: "JesterJack",  email: "jack@fool.sg",      role: "player"    as const, skillLevel: "Beginner"     as const, isVerified: false, creditScore: 96  },
+  { label: "WolfDenOwner (Wolf's Den)", id: "u16", username: "WolfDenOwner", email: "owner@wolfsden.sg", role: "player"    as const, skillLevel: "Intermediate" as const, isVerified: true,  creditScore: 120 },
+  { label: "Wen037 (Web Admin 👑)",     id: "u17", username: "Wen037",       email: "e1062715@u.nus.edu",role: "web_admin" as const, skillLevel: "Expert"       as const, isVerified: true,  creditScore: 999 },
+];
+
+function DebugPanel() {
+  const [open, setOpen] = React.useState(false);
+  if (!import.meta.env.DEV) return null;
+
+  const loginAs = (u: typeof DEBUG_USERS[number]) => {
+    localStorage.setItem("token", "debug-fake-token-" + u.id);
+    localStorage.setItem("user", JSON.stringify({
+      id: u.id, username: u.username, email: u.email,
+      role: u.role, skillLevel: u.skillLevel, isVerified: u.isVerified, creditScore: u.creditScore,
+    }));
+    window.location.reload();
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.reload();
+  };
+
+  const current = AuthService.getCurrentUser();
+
+  return (
+    <div className="fixed bottom-4 right-4 z-[300] flex flex-col items-end gap-2">
+      {open && (
+        <div className="bg-neutral-900 border border-yellow-500/40 rounded-2xl p-4 shadow-2xl w-56 space-y-2">
+          <p className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">🐛 Debug — Quick Login</p>
+          {current && (
+            <p className="text-neutral-400 text-[11px] truncate">
+              Logged in as <span className="text-white font-semibold">{current.username}</span>
+            </p>
+          )}
+          <div className="space-y-1.5">
+            {DEBUG_USERS.map(u => (
+              <button
+                key={u.id}
+                onClick={() => loginAs(u)}
+                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                  current?.id === u.id
+                    ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                    : "bg-white/5 text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                {current?.id === u.id ? "✓ " : ""}{u.label}
+              </button>
+            ))}
+          </div>
+          {current && (
+            <button
+              onClick={logout}
+              className="w-full text-center px-3 py-2 rounded-xl text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors mt-1"
+            >
+              Logout
+            </button>
+          )}
+        </div>
+      )}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="px-3 py-1.5 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-xs font-bold hover:bg-yellow-500/30 transition-colors shadow-lg"
+      >
+        🐛 Debug
+      </button>
+    </div>
+  );
+}
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  
-  // 3. ADD STATE for Contact Modal
-  const [isContactOpen, setContactOpen] = useState(false);
+  const isLoggedIn = AuthService.isLoggedIn();
+  const currentUser = AuthService.getCurrentUser();
+  const userName = currentUser?.username ?? "Guest";
 
-  const navigate = useNavigate();
+  const [isContactOpen, setContactOpen] = useState(false);
+  const [isAuthOpen, setAuthOpen] = useState(false);
+
   const location = useLocation();
+  const { lang, toggle, t } = useLang();
 
   const getPageTitle = (path: string) => {
     switch (path) {
-      case "/lobby": return "Game Map";
-      case "/gamespace": return "Game Space";
-      case "/my-events": return "My Events";
-      case "/profile": return "My Profile";
-      default: return "Dashboard"; 
+      case "/lobby":     return t("Game Map");
+      case "/gamespace": return t("Game Space");
+      case "/my-events": return t("My Events");
+      case "/profile":   return t("My Profile");
+      default:           return t("Dashboard");
     }
   };
 
@@ -38,7 +116,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const links = [
     {
-      label: "Find Games",
+      label: t("Find Games"),
       href: "/lobby",
       icon: (
         <img src="/findGame.png" alt="Wolf" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
@@ -46,7 +124,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       visible: true,
     },
     {
-      label: "Game Space",
+      label: t("Game Space"),
       href: "/gamespace",
       icon: (
         <img src="/Space.png" alt="Village" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
@@ -54,30 +132,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       visible: true,
     },
     {
-      label: "My Events",
+      label: t("My Events"),
       href: "/myevents",
       icon: (
         <img src="/myEvents.png" alt="Scroll" className="h-6 w-6 flex-shrink-0 rounded-full bg-white/10 p-0.5" />
       ),
-      visible: MOCK_IS_LOGGED_IN,
+      visible: isLoggedIn,
     },
     {
-      label: "My Profile",
+      label: t("My Profile"),
       href: "/myprofile",
       icon: (
         <img src="/logo_white.png" alt="Profile" className="h-6 w-6 flex-shrink-0 rounded-full" />
       ),
-      visible: MOCK_IS_LOGGED_IN,
+      visible: isLoggedIn,
     },
   ];
 
   return (
     <FireflyBackground className="h-screen w-full">
-      
-      {/* 4. RENDER the Contact Modal */}
-      <ContactModal 
-        isOpen={isContactOpen} 
-        onClose={() => setContactOpen(false)} 
+
+      <DebugPanel />
+
+      <ContactModal
+        isOpen={isContactOpen}
+        onClose={() => setContactOpen(false)}
+      />
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setAuthOpen(false)}
       />
 
       <div
@@ -102,22 +185,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             
             {/* 5. ADDED FLEX COLUMN TO STACK LOGOUT & CONTACT US */}
             <div className="border-t border-white/5 pt-4 flex flex-col gap-2">
-               {MOCK_IS_LOGGED_IN ? (
+               {isLoggedIn ? (
                  <SidebarLink
-                   link={{ label: "Logout", href: "#", icon: <IconLogout className="h-6 w-6 text-neutral-200" /> }}
-                   onClick={() => navigate("/")}
+                   link={{ label: t("Logout"), href: "#", icon: <IconLogout className="h-6 w-6 text-neutral-200" /> }}
+                   onClick={() => AuthService.logout()}
                  />
                ) : (
                  <SidebarLink
-                   link={{ label: "Login", href: "/login", icon: <IconLogin className="h-6 w-6 text-neutral-200" /> }}
+                   link={{ label: t("Login"), href: "#", icon: <IconLogin className="h-6 w-6 text-neutral-200" /> }}
+                   onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}
                  />
                )}
-               
-               {/* 6. ADDED CONTACT US SIDEBAR LINK */}
+
                <SidebarLink
-                 link={{ label: "Contact Us", href: "#", icon: <IconMail className="h-6 w-6 text-neutral-200" /> }}
+                 link={{ label: t("Contact Us"), href: "#", icon: <IconMail className="h-6 w-6 text-neutral-200" /> }}
                  onClick={(e) => {
-                   e.preventDefault(); // Prevents href="#" from jumping to top of page
+                   e.preventDefault();
                    setContactOpen(true);
                  }}
                />
@@ -151,16 +234,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
               {/* User Info */}
               <div className="flex items-center gap-3">
+                {/* Language toggle */}
+                <button
+                  onClick={toggle}
+                  className="px-2.5 py-1 rounded-full border border-white/15 text-neutral-400 hover:text-white hover:border-white/30 text-xs font-semibold transition-colors tracking-wide"
+                  title={lang === 'en' ? 'Switch to Chinese' : '切换英文'}
+                >
+                  {lang === 'en' ? '中文' : 'EN'}
+                </button>
                 <span className="text-neutral-300 text-sm hidden md:inline">
-                    {MOCK_IS_LOGGED_IN ? (
-                      <>Welcome back, <span className="text-white font-medium">{MOCK_USER_NAME}</span></>
+                    {isLoggedIn ? (
+                      <>{t('Welcome back,')} <span className={`font-medium ${currentUser ? getUsernameColor(currentUser) : 'text-white'}`}>{userName}</span></>
                     ) : (
-                      "Guest View"
+                      t("Guest View")
                     )}
                 </span>
-                {MOCK_IS_LOGGED_IN && (
+                {isLoggedIn && (
                   <div className="h-8 w-8 rounded-full bg-red-900/40 border border-red-500/30 flex items-center justify-center text-red-100 text-xs font-bold shadow-[0_0_10px_rgba(220,38,38,0.3)]">
-                      {MOCK_USER_NAME.substring(0, 2).toUpperCase()}
+                      {userName.substring(0, 2).toUpperCase()}
                   </div>
                 )}
               </div>

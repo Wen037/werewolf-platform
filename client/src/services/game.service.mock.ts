@@ -1,22 +1,38 @@
 import { MOCK_GAMES, MOCK_VENUES, MOCK_SESSION_INTERACTIONS, MOCK_USERS, MOCK_USER_SUBSCRIPTIONS, MOCK_VENUE_INTERACTIONS } from "../data/mockDB";
-import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO } from "../types";
+import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue } from "../types";
 
+// ── Debug: switch user ID to test owner-specific features ─────────────────
+// "u1"  → AlphaWolf  (regular player, non-owner)
+// "u16" → WolfDenOwner (owner of v9 Wolf's Den — unlocks Edit Space button)
 const CURRENT_USER_ID = "u1";
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const MockGameService = {
   getAllVenues: async (): Promise<GameVenueDTO[]> => {
     await delay(300);
-    return MOCK_VENUES.map(v => ({
-      ...v,
-      myInteraction: MOCK_VENUE_INTERACTIONS.find(i => i.userId === CURRENT_USER_ID && i.venueId === v.id),
-    }));
+    return MOCK_VENUES.map(v => {
+      const pending = MOCK_GAMES.filter(
+        g => g.venueId === v.id && g.status !== 'finished' && g.venueApprovalStatus === 'pending'
+      ).length;
+      return {
+        ...v,
+        myInteraction: MOCK_VENUE_INTERACTIONS.find(i => i.userId === CURRENT_USER_ID && i.venueId === v.id),
+        pendingApplicationsCount: pending > 0 ? pending : undefined,
+      };
+    });
   },
 
   getVenueById: async (id: string): Promise<GameVenueDTO> => {
     await delay(200);
     const v = MOCK_VENUES.find(v => v.id === id)!;
-    return { ...v, myInteraction: MOCK_VENUE_INTERACTIONS.find(i => i.userId === CURRENT_USER_ID && i.venueId === id) };
+    const pending = MOCK_GAMES.filter(
+      g => g.venueId === id && g.status !== 'finished' && g.venueApprovalStatus === 'pending'
+    ).length;
+    return {
+      ...v,
+      myInteraction: MOCK_VENUE_INTERACTIONS.find(i => i.userId === CURRENT_USER_ID && i.venueId === id),
+      pendingApplicationsCount: pending > 0 ? pending : undefined,
+    };
   },
 
   likeVenue: async (id: string) => {
@@ -137,6 +153,16 @@ export const MockGameService = {
     return { ...user, skillLevel: user.skillLevel || "Intermediate", pastEvents, followedUsers, followedVenues, likedGamesCount };
   },
 
+  updateVenue: async (id: string, fields: Partial<GameVenue>): Promise<GameVenueDTO> => {
+    await delay(300);
+    const idx = MOCK_VENUES.findIndex(v => v.id === id);
+    if (idx === -1) throw new Error('Venue not found');
+    if (MOCK_VENUES[idx].ownerId !== CURRENT_USER_ID) throw new Error('Forbidden');
+    Object.assign(MOCK_VENUES[idx], fields);
+    console.log(`[Mock] updateVenue ${id}`, fields);
+    return { ...MOCK_VENUES[idx], myInteraction: MOCK_VENUE_INTERACTIONS.find(i => i.userId === CURRENT_USER_ID && i.venueId === id) };
+  },
+
   updateProfile: async (fields: object) => {
     await delay(200);
     console.log("[Mock] updateProfile", fields);
@@ -162,5 +188,14 @@ export const MockGameService = {
     await delay(200);
     console.log(`[Mock] unfollowUser ${userId}`);
     return { message: "Unfollowed." };
+  },
+
+  adjustCredit: async (userId: string, delta: number) => {
+    await delay(200);
+    const user = MOCK_USERS.find(u => u.id === userId);
+    if (user) { user.creditScore = (user.creditScore ?? 100) + delta; }
+    const newScore = user?.creditScore ?? 100;
+    console.log(`[Mock] adjustCredit ${userId} by ${delta} → ${newScore}`);
+    return { userId, creditScore: newScore };
   },
 };

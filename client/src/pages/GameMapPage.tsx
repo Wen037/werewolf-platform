@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLang } from "../context/LanguageContext";
 import { MapContainer, TileLayer, Marker, useMap, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -68,13 +69,14 @@ function MapUpdater({ userLoc, venues }: { userLoc: { lat: number, lng: number }
 }
 
 // Extend Types Locally for UI State
-type VenueUI = GameVenue & { isLiked?: boolean };
-type GameUI = GameSession & { isLiked?: boolean, venueDetails?: GameVenue };
+type VenueUI = GameVenue & { isLiked?: boolean; isSubscribed?: boolean };
+type GameUI = GameSession & { isLiked?: boolean; isSubscribed?: boolean; venueDetails?: GameVenue };
 
 export default function GameMapPage() {
   const [venues, setVenues] = useState<VenueUI[]>([]);
   const [games, setGames] = useState<GameUI[]>([]);
   const [mode, setMode] = useState<"places" | "events">("places");
+  const { t } = useLang();
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [userLoc, setUserLoc] = useState<{ lat: number, lng: number } | null>(null);
   const [reportData, setReportData] = useState<{ isOpen: boolean; name: string, type: "Space" | "Event" } | null>(null);
@@ -105,6 +107,30 @@ export default function GameMapPage() {
   };
 
   const getVenueForGame = (venueId: string) => venues.find(v => v.id === venueId);
+
+  // --- SUBSCRIBE HANDLERS ---
+  const handleSubscribeVenue = (e: React.MouseEvent, venueId: string) => {
+    e.stopPropagation();
+    setVenues(prev => prev.map(v => {
+      if (v.id !== venueId) return v;
+      const updated = { ...v, isSubscribed: !v.isSubscribed };
+      if (selectedItem?.id === venueId) setSelectedItem(updated);
+      GameService.subscribeVenue(venueId).catch(() => {
+        setVenues(p => p.map(x => x.id === venueId ? { ...x, isSubscribed: v.isSubscribed } : x));
+      });
+      return updated;
+    }));
+  };
+
+  const handleSubscribeEvent = (e: React.MouseEvent, gameId: string) => {
+    e.stopPropagation();
+    setGames(prev => prev.map(g => {
+      if (g.id !== gameId) return g;
+      const updated = { ...g, isSubscribed: !g.isSubscribed };
+      if (selectedItem?.id === gameId) setSelectedItem(updated);
+      return updated;
+    }));
+  };
 
   // --- LIKE HANDLERS ---
   const handleLikeVenue = (e: React.MouseEvent, venueId: string) => {
@@ -151,7 +177,7 @@ export default function GameMapPage() {
             className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl backdrop-blur-md pointer-events-none"
           >
             <CheckCircle className="w-5 h-5 text-green-500" />
-            <span className="text-white font-bold text-sm tracking-wide">Report Submitted</span>
+            <span className="text-white font-bold text-sm tracking-wide">{t('Report Submitted')}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -162,13 +188,13 @@ export default function GameMapPage() {
             onClick={() => { setMode("places"); setSelectedItem(null); }}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === "places" ? "bg-black text-white shadow-md" : "text-neutral-500 hover:bg-neutral-100"}`}
           >
-            Venues
+            {t('Venues')}
           </button>
-          <button 
+          <button
             onClick={() => { setMode("events"); setSelectedItem(null); }}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === "events" ? "bg-red-600 text-white shadow-md" : "text-neutral-500 hover:bg-neutral-100"}`}
           >
-            Events
+            {t('Events')}
           </button>
         </div>
 
@@ -265,7 +291,16 @@ export default function GameMapPage() {
                         ))}
                       </div>
                       <div className="space-y-2 mt-auto">
-                        <button className="w-full py-2.5 bg-black/90 hover:bg-black text-white rounded-lg font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors"><Bell size={14} /> Subscribe</button>
+                        <button
+                          onClick={(e) => handleSubscribeVenue(e, selectedItem.id)}
+                          className={`w-full py-2.5 rounded-lg font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors ${
+                            selectedItem.isSubscribed
+                              ? "bg-sky-500/20 border border-sky-500/40 text-sky-300"
+                              : "bg-black/90 hover:bg-black text-white"
+                          }`}
+                        >
+                          <Bell size={14} /> {selectedItem.isSubscribed ? t("Subscribed") : t("Subscribe")}
+                        </button>
                         <button onClick={() => openGoogleMaps(selectedItem.coordinates.lat, selectedItem.coordinates.lng)} className="w-full py-2.5 bg-white/50 border border-neutral-300 text-neutral-800 hover:bg-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"><Navigation size={14} /> Google Maps</button>
                       </div>
                     </>
@@ -273,18 +308,24 @@ export default function GameMapPage() {
                     <>
                       <div className="flex justify-between items-start mb-1">
                         <div className="pr-2">
-                           <span className="inline-block text-[10px] font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-1.5 py-0.5 rounded mb-1">RECRUITING</span>
+                           <span className="inline-block text-[10px] font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-1.5 py-0.5 rounded mb-1">{t('RECRUITING')}</span>
                            <h3 className="text-lg font-bold leading-tight text-white">{selectedItem.title}</h3>
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0 translate-x-2 mt-4">
-                          <button 
+                          <button
                             onClick={(e) => handleLikeEvent(e, selectedItem.id)}
                             className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-neutral-900/5 transition-all group"
                           >
                             <Heart size={18} className={`transition-all duration-300 ${selectedItem.isLiked ? 'text-red-500 fill-red-500 scale-110' : 'text-red-500 group-hover:text-red-400'}`} />
                             <span className="text-xs font-bold text-neutral-500">{selectedItem.totalLikes || 0}</span>
                           </button>
-                          <button 
+                          <button
+                            onClick={(e) => handleSubscribeEvent(e, selectedItem.id)}
+                            className={`p-1.5 rounded-lg border transition-all ${selectedItem.isSubscribed ? 'text-sky-400 border-sky-500/30 bg-sky-500/10' : 'text-neutral-400 border-transparent hover:bg-white/10 hover:text-sky-300'}`}
+                          >
+                            <Bell size={18} />
+                          </button>
+                          <button
                             onClick={(e) => { e.stopPropagation(); setReportData({ isOpen: true, name: selectedItem.title, type: "Event" }); }}
                             className="p-1.5 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/30 text-neutral-500 hover:text-red-500 transition-all"
                           >
@@ -295,12 +336,12 @@ export default function GameMapPage() {
                       <div className="bg-white/10 p-2.5 rounded-lg mb-3 border border-white/5 flex items-center gap-2 backdrop-blur-sm">
                          <div className="bg-black/40 p-1.5 rounded"><Clock size={14} className="text-yellow-400"/></div>
                          <div>
-                            <div className="text-[10px] text-neutral-400 uppercase tracking-wider">Game Time</div>
+                            <div className="text-[10px] text-neutral-400 uppercase tracking-wider">{t('Game Time')}</div>
                             <div className="text-sm font-bold text-white font-mono">{formatGameTime(selectedItem.date)}</div>
                          </div>
                       </div>
                       <div className="bg-white/10 p-2.5 rounded-lg mb-3 border border-white/5 backdrop-blur-sm">
-                         <div className="text-[10px] text-neutral-500 mb-0.5 uppercase tracking-wider">Location</div>
+                         <div className="text-[10px] text-neutral-500 mb-0.5 uppercase tracking-wider">{t('Location')}</div>
                          <div className="font-semibold text-neutral-200 text-xs flex items-center gap-1">
                             <MapPin size={12} className="text-neutral-400 shrink-0"/> <span className="truncate">{selectedItem.venueDetails?.name}</span>
                          </div>
@@ -312,8 +353,8 @@ export default function GameMapPage() {
                         <div className="text-xs font-bold text-neutral-400"><span className="text-white">{selectedItem.currentPlayers}</span>/{selectedItem.maxPlayers}</div>
                       </div>
                       <div className="space-y-2 mt-auto">
-                        <button className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white rounded-lg font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-colors">Join Game</button>
-                        <button onClick={() => selectedItem.venueDetails && openGoogleMaps(selectedItem.venueDetails.coordinates.lat, selectedItem.venueDetails.coordinates.lng)} className="w-full py-2.5 bg-white/20 border border-white/20 text-neutral-200 hover:bg-white/20 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"><Navigation size={14} /> Google Maps</button>
+                        <button className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white rounded-lg font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-colors">{t('Join Game')}</button>
+                        <button onClick={() => selectedItem.venueDetails && openGoogleMaps(selectedItem.venueDetails.coordinates.lat, selectedItem.venueDetails.coordinates.lng)} className="w-full py-2.5 bg-white/20 border border-white/20 text-neutral-200 hover:bg-white/20 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"><Navigation size={14} /> {t('Google Maps')}</button>
                       </div>
                     </>
                   )}

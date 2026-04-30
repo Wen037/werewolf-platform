@@ -2,27 +2,45 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthModal } from "../components/AuthModal";
 import { ContactModal } from "../components/ContactModal";
+import { useLang } from "../context/LanguageContext";
 
 // ── Parallax master config ──────────────────────────────────────────
 const C = {
   LERP: 0.31,
-  SHIFT: [0, 0.0, 0.10, 0.15, 0.25, 0.35, 0.22, 0.50],
+  SHIFT: [0, 0.235, 0.10, 0.15, 0.25, 0.35, 0.22, 0.50],
   EDGE_GLOW: 0.45,
   L: [
     null,
-    { name: "Sky",      spd: 0,    alpha: 1.0, visible: true, scale: 3.0,  groundY: 0.98, slope: 0.3,   tint: 3,    bright: 0.32 },
-    { name: "Forest",   spd: 1.0,  alpha: 1.0, visible: true, scale: 0.91, groundY: 0.65, slope: -0.3,  tint: -7,   bright: 0.96 },
-    { name: "Campfire", spd: 1.24, alpha: 1.0, visible: true, scale: 0.61, groundY: 0.89, slope: 0,     tint: 3,    bright: 0.56, bowlDepth: 0.08, bowlW: 0.61 },
-    { name: "Bushes",   spd: 1.3,  alpha: 1.0, visible: true, scale: 1.25, groundY: 0.96, slope: -0.14, tint: -123, bright: 0.8  },
-    { name: "Wolves",   spd: 1.84, alpha: 1.0, visible: true, scale: 0.93, groundY: 0.93, slope: -0.04, tint: 0,    bright: 1.0  },
-    { name: "Fog",      spd: 0.61, alpha: 1.0, visible: true, scale: 0.67, groundY: 0.59, slope: 0,     tint: -38,  bright: 0.43 },
-    { name: "NearTree", spd: 2.41, alpha: 1.0, visible: true, scale: 1.01, groundY: 0.99, slope: 0.03,  tint: -134, bright: 0.61 },
+    { name: "Sky",      spd: 0,    alpha: 1.0,  visible: true, scale: 3.0,  groundY: 0.98,  slope: 0.3,   tint: 3,    bright: 1.33 },
+    { name: "Forest",   spd: 1.0,  alpha: 1.0,  visible: true, scale: 0.74, groundY: 0.72,  slope: -0.3,  tint: -7,   bright: 0.96 },
+    { name: "Campfire", spd: 1.24, alpha: 1.0,  visible: true, scale: 0.61, groundY: 0.975, slope: 0,     tint: -10,  bright: 0.56, bowlDepth: 0.08, bowlW: 0.61 },
+    { name: "Bushes",   spd: 1.3,  alpha: 1.0,  visible: true, scale: 1.25, groundY: 0.96,  slope: -0.14, tint: -123, bright: 0.8  },
+    { name: "Wolves",   spd: 1.84, alpha: 1.0,  visible: true, scale: 1.1,  groundY: 0.975, slope: -0.04, tint: -42,  bright: 1.0  },
+    { name: "Fog",      spd: 0.61, alpha: 1.0,  visible: true, scale: 0.67, groundY: 0.56,  slope: 0,     tint: -38,  bright: 0.43 },
+    { name: "NearTree", spd: 2.41, alpha: 0.96, visible: true, scale: 1.01, groundY: 0.99,  slope: 0.03,  tint: -16,  bright: 0.61 },
   ] as any[],
   MOON_GLOW: 237,
   FIRE_SPD:  0.29,
   BLINK_SPD: 0.2,
   BGTREE_H:  0.30,
 };
+
+// ── Deep-clone defaults for reset ──────────────────────────────────
+const C_DEFAULTS = JSON.parse(JSON.stringify(C));
+
+// ── Restore persisted tuning (runs once at module load) ────────────
+const HP_STORAGE_KEY = "hp_scene_config";
+;(() => {
+  try {
+    const raw = localStorage.getItem(HP_STORAGE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    (["LERP","EDGE_GLOW","MOON_GLOW","FIRE_SPD","BLINK_SPD","BGTREE_H"] as const)
+      .forEach(k => { if (s[k] !== undefined) (C as any)[k] = s[k]; });
+    if (Array.isArray(s.SHIFT)) s.SHIFT.forEach((v: number, i: number) => { C.SHIFT[i] = v; });
+    if (Array.isArray(s.L)) s.L.forEach((l: any, i: number) => { if (l && C.L[i]) Object.assign(C.L[i], l); });
+  } catch {}
+})();
 
 const IMG_FILES: Record<string, string> = {
   l2:      "/layer2Tree.png",
@@ -51,12 +69,149 @@ const btnStyle: React.CSSProperties = {
   boxShadow: "0 0 18px rgba(180,130,0,0.12), inset 0 0 12px rgba(255,180,0,0.04)",
 };
 
+// ── Dev Scene Tuner ────────────────────────────────────────────────
+function HomepageTuner() {
+  const [open, setOpen] = useState(false);
+  const [, setTick] = useState(0);
+
+  const bump = () => {
+    try { localStorage.setItem(HP_STORAGE_KEY, JSON.stringify(C)); } catch {}
+    setTick(n => n + 1);
+  };
+
+  const copyConfig = () => {
+    const out = `const C = ${JSON.stringify(C, null, 2)};`;
+    navigator.clipboard.writeText(out);
+  };
+
+  const resetDefaults = () => {
+    (["LERP","EDGE_GLOW","MOON_GLOW","FIRE_SPD","BLINK_SPD","BGTREE_H"] as const)
+      .forEach(k => { (C as any)[k] = (C_DEFAULTS as any)[k]; });
+    C.SHIFT = [...C_DEFAULTS.SHIFT];
+    C_DEFAULTS.L.forEach((l: any, i: number) => { if (l && C.L[i]) Object.assign(C.L[i], l); });
+    localStorage.removeItem(HP_STORAGE_KEY);
+    setTick(n => n + 1);
+  };
+
+  const SliderRow = ({
+    label, get, set, min, max, step,
+  }: {
+    label: string; get: () => number; set: (v: number) => void;
+    min: number; max: number; step: number;
+  }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 0" }}>
+      <span style={{ color: "#9ca3af", fontSize: 10, width: 58, flexShrink: 0 }}>{label}</span>
+      <input
+        type="range" min={min} max={max} step={step} value={get()}
+        onChange={e => { set(parseFloat(e.target.value)); bump(); }}
+        style={{ flex: 1, height: 3, accentColor: "#f59e0b" }}
+      />
+      <input
+        type="number" min={min} max={max} step={step} value={get()}
+        onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) { set(v); bump(); } }}
+        style={{
+          width: 48, fontSize: 10, background: "#1f2937", color: "#fcd34d",
+          border: "1px solid #374151", borderRadius: 3, padding: "0 4px", textAlign: "right",
+        }}
+      />
+    </div>
+  );
+
+  if (!open) return (
+    <button
+      onClick={() => setOpen(true)}
+      style={{
+        position: "fixed", left: 12, bottom: 12, zIndex: 9999,
+        background: "rgba(15,10,5,0.85)", border: "1px solid rgba(180,120,30,0.5)",
+        color: "#fbbf24", fontSize: 11, padding: "5px 10px", borderRadius: 4,
+        cursor: "pointer", fontFamily: "monospace",
+      }}
+    >
+      ⚙ Tune Scene
+    </button>
+  );
+
+  return (
+    <div style={{
+      position: "fixed", left: 0, top: 0, height: "100%", width: 268,
+      zIndex: 9999, background: "rgba(7,5,3,0.96)", borderRight: "1px solid #1f2937",
+      overflowY: "auto", fontFamily: "monospace",
+    }}>
+      {/* Header */}
+      <div style={{
+        position: "sticky", top: 0, background: "#0c0a06", borderBottom: "1px solid #1f2937",
+        padding: "6px 8px", display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <span style={{ color: "#fbbf24", fontWeight: 700, fontSize: 13 }}>⚙ Scene Tuner</span>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button onClick={copyConfig} style={{
+            fontSize: 10, color: "#6ee7b7", background: "none",
+            border: "1px solid #374151", borderRadius: 3, padding: "2px 6px", cursor: "pointer",
+          }}>Copy C</button>
+          <button onClick={resetDefaults} style={{
+            fontSize: 10, color: "#f87171", background: "none",
+            border: "1px solid #374151", borderRadius: 3, padding: "2px 6px", cursor: "pointer",
+          }}>Reset</button>
+          <button onClick={() => setOpen(false)} style={{
+            fontSize: 12, color: "#9ca3af", background: "none", border: "none", cursor: "pointer",
+          }}>✕</button>
+        </div>
+      </div>
+
+      {/* Global */}
+      <div style={{ padding: "6px 8px", borderBottom: "1px solid #1f2937" }}>
+        <div style={{ color: "#f59e0b", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Global</div>
+        <SliderRow label="LERP"      get={() => C.LERP}      set={v => { C.LERP = v; }}      min={0.01} max={1}   step={0.01} />
+        <SliderRow label="EDGE_GLOW" get={() => C.EDGE_GLOW} set={v => { C.EDGE_GLOW = v; }} min={0}    max={1}   step={0.01} />
+        <SliderRow label="MOON_GLOW" get={() => C.MOON_GLOW} set={v => { C.MOON_GLOW = v; }} min={50}   max={500} step={1}    />
+        <SliderRow label="FIRE_SPD"  get={() => C.FIRE_SPD}  set={v => { C.FIRE_SPD = v; }}  min={0}    max={1}   step={0.01} />
+        <SliderRow label="BLINK_SPD" get={() => C.BLINK_SPD} set={v => { C.BLINK_SPD = v; }} min={0}    max={1}   step={0.01} />
+        <SliderRow label="BGTREE_H"  get={() => C.BGTREE_H}  set={v => { C.BGTREE_H = v; }}  min={0}    max={0.6} step={0.005} />
+      </div>
+
+      {/* Per-layer */}
+      {(C.L as any[]).filter(Boolean).map((layer: any, rawIdx: number) => {
+        const i = rawIdx + 1;
+        return (
+          <div key={i} style={{ padding: "6px 8px", borderBottom: "1px solid #1f2937" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+              <span style={{ color: "#f59e0b", fontSize: 11, fontWeight: 700 }}>L{i} — {layer.name}</span>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#9ca3af", fontSize: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox" checked={layer.visible}
+                  onChange={e => { layer.visible = e.target.checked; bump(); }}
+                />
+                vis
+              </label>
+            </div>
+            <SliderRow label="spd"     get={() => layer.spd}     set={v => { layer.spd = v; }}     min={0}    max={3}    step={0.01}  />
+            <SliderRow label="scale"   get={() => layer.scale}   set={v => { layer.scale = v; }}   min={0.1}  max={4}    step={0.01}  />
+            <SliderRow label="groundY" get={() => layer.groundY} set={v => { layer.groundY = v; }} min={0.3}  max={1.15} step={0.005} />
+            <SliderRow label="slope"   get={() => layer.slope}   set={v => { layer.slope = v; }}   min={-0.5} max={0.5}  step={0.005} />
+            <SliderRow label="alpha"   get={() => layer.alpha}   set={v => { layer.alpha = v; }}   min={0}    max={1}    step={0.01}  />
+            <SliderRow label="tint"    get={() => layer.tint}    set={v => { layer.tint = v; }}    min={-180} max={180}  step={1}     />
+            <SliderRow label="bright"  get={() => layer.bright}  set={v => { layer.bright = v; }}  min={0}    max={2}    step={0.01}  />
+            <SliderRow label="SHIFT"   get={() => C.SHIFT[i]}    set={v => { C.SHIFT[i] = v; }}    min={-0.5} max={0.8}  step={0.005} />
+            {layer.bowlDepth !== undefined && (
+              <SliderRow label="bowlDepth" get={() => layer.bowlDepth} set={v => { layer.bowlDepth = v; }} min={0} max={0.3} step={0.005} />
+            )}
+            {layer.bowlW !== undefined && (
+              <SliderRow label="bowlW" get={() => layer.bowlW} set={v => { layer.bowlW = v; }} min={0.1} max={2} step={0.01} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isAuthOpen, setAuthOpen] = useState(false);
   const [authView, setAuthView] = useState<"login" | "register">("login");
   const [isContactOpen, setContactOpen] = useState(false);
   const navigate = useNavigate();
+  const { lang, toggle, t } = useLang();
 
   const openAuth = (view: "login" | "register") => {
     setAuthView(view);
@@ -151,6 +306,7 @@ export default function HomePage() {
     // ── Layer save/restore with alpha+filter ───────────────────────
     function beginLayer(i: number) {
       const L = C.L[i]; ctx.save();
+      if (!L.visible) { ctx.globalAlpha = 0; return; }
       if (L.alpha < 0.999) ctx.globalAlpha = L.alpha;
       if (L.tint !== 0 || Math.abs(L.bright - 1) > 0.01)
         ctx.filter = `hue-rotate(${L.tint}deg) brightness(${L.bright})`;
@@ -254,28 +410,6 @@ export default function HomePage() {
         });
       }
 
-      const eyeDefs: [number, number, string][] = [[0.14, 0.0, "blood"], [0.50, 2.3, "yellow"], [0.83, 4.7, "blood"]];
-      const RX2 = 10, RY2 = 5;
-      eyeDefs.forEach(([rx, phase, col]) => {
-        const cyclePos = (time * C.BLINK_SPD * 3 + phase) % (Math.PI * 2);
-        if (cyclePos < 0.28) return;
-        const ex = W * rx + ox, ey = gfn(ex) - H * 0.26;
-        const isBlood = col === "blood";
-        const irisC = isBlood ? "#8b0000" : "#c8a800";
-        const rimC  = isBlood ? "#cc0000" : "#ffe040";
-        [-18, 18].forEach(dx => {
-          const px = ex + dx;
-          ctx.save();
-          ctx.beginPath(); ctx.ellipse(px, ey, RX2, RY2, 0, 0, Math.PI * 2);
-          ctx.fillStyle = irisC; ctx.fill();
-          ctx.strokeStyle = rimC; ctx.lineWidth = 1.2; ctx.stroke();
-          ctx.beginPath(); ctx.ellipse(px, ey, RX2 * 0.18, RY2 * 0.82, 0, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(0,0,0,0.95)"; ctx.fill();
-          ctx.beginPath(); ctx.ellipse(px - RX2 * 0.28, ey - RY2 * 0.3, RX2 * 0.14, RY2 * 0.28, 0, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.fill();
-          ctx.restore();
-        });
-      });
       endLayer();
     }
 
@@ -360,7 +494,7 @@ export default function HomePage() {
 
       const w1x = W * 0.32 + ox;
       if (IMGS.wolfR) {
-        const wdh = H * 0.38 * sc, wdw = wdh / IMGS.wolfR.height * IMGS.wolfR.width;
+        const wdh = H * 0.57 * sc, wdw = wdh / IMGS.wolfR.height * IMGS.wolfR.width;
         wolfGlow(w1x, gfn(w1x), wdh, wdw);
         drawChar(IMGS.wolfR, w1x, gfn(w1x), wdh, 1);
         const sg1 = ctx.createLinearGradient(w1x - wdw * 0.5, 0, w1x + wdw * 0.4, 0);
@@ -368,9 +502,9 @@ export default function HomePage() {
         ctx.fillStyle = sg1; ctx.fillRect(w1x - wdw * 0.5 - 2, gfn(w1x) - wdh - 2, wdw * 0.85, wdh + 4);
       }
 
-      const w2x = W * 1.08 + ox;
       if (IMGS.wolfL) {
-        const wdh = H * 0.35 * sc, wdw = wdh / IMGS.wolfL.height * IMGS.wolfL.width;
+        const wdh = H * 0.525 * sc, wdw = wdh / IMGS.wolfL.height * IMGS.wolfL.width;
+        const w2x = W * 1.08 + wdw * 0.5 + ox;
         wolfGlow(w2x, gfn(w2x), wdh, wdw);
         drawChar(IMGS.wolfL, w2x, gfn(w2x), wdh, 1);
         const sg2 = ctx.createLinearGradient(w2x - wdw * 0.4, 0, w2x + wdw * 0.5, 0);
@@ -536,13 +670,20 @@ export default function HomePage() {
         className="absolute inset-0 flex flex-col items-center justify-start pointer-events-none z-50"
         style={{ paddingTop: "6vh" }}
       >
-        <div className="absolute top-0 w-full p-6 flex justify-end pointer-events-auto">
+        <div className="absolute top-0 w-full p-6 flex justify-end gap-3 pointer-events-auto">
+          <button
+            onClick={toggle}
+            className="text-neutral-400 hover:text-white font-medium text-sm transition-colors border border-white/20 hover:border-white/40 px-4 py-2 rounded-full"
+            style={{ fontFamily: "'Cinzel', serif" }}
+          >
+            {lang === 'en' ? '中文' : 'EN'}
+          </button>
           <button
             onClick={() => setContactOpen(true)}
             className="text-neutral-400 hover:text-white font-medium text-sm transition-colors border border-transparent hover:border-white/20 px-4 py-2 rounded-full"
             style={{ fontFamily: "'Cinzel', serif" }}
           >
-            Contact Us
+            {t('Contact Us')}
           </button>
         </div>
 
@@ -573,7 +714,7 @@ export default function HomePage() {
             textTransform: "uppercase",
           }}
         >
-          A Night of Deception
+          {t('A Night of Deception')}
         </p>
 
         {/* Buttons — absolutely positioned in the lower third of the screen */}
@@ -601,7 +742,7 @@ export default function HomePage() {
               b.style.textShadow = "0 0 12px rgba(255,160,0,0.4)";
             }}
           >
-            Login / Register
+            {t('Login / Register')}
           </button>
 
           <button
@@ -624,10 +765,12 @@ export default function HomePage() {
               b.style.textShadow = "0 0 12px rgba(255,160,0,0.4)";
             }}
           >
-            Find a Game
+            {t('Find a Game')}
           </button>
         </div>
       </div>
+
+      {import.meta.env.DEV && <HomepageTuner />}
     </div>
   );
 }
