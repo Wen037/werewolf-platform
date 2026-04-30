@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-05-01 — Session 10: Host Control Panel UI — Resize, Collapse, Icon
+
+**Frontend changes (complete):**
+
+- **Panel resize** (`HostControlPanel.tsx`): panel now fills the full content area (width `max-w-[calc(100vw-56px)]` minus sidebar); was previously `max-w-md` (448 px)
+- **Collapse toggle** (`HostControlPanel.tsx`): `isCollapsed` state added; panel shrinks to `w-12` when collapsed; `>` (ChevronRight) button on left edge toggles open/close; collapsed state shows "Host Control" text vertically; CSS `transition-[width] duration-300` for smooth animation
+- **Icon swap** (`MyEventsPage.tsx`, `HostControlPanel.tsx`): replaced `Shield` with `Settings` (gear/wrench) icon on host event card manage button — Shield was semantically wrong; gear correctly implies "configure / manage"
+- **InfoTab wide layout** (`HostControlPanel.tsx`): redesigned to two-column grid to use the larger panel space — Row 1: title + date/time in `grid-cols-5`, Row 2: max players + proficiency pills, Row 3: description + social group side by side (`grid-cols-2`)
+
+**No backend changes this session.**
+
+---
+
 ## 2026-05-01 — Session 9: Host Control Panel Bug Fixes (6 items)
 
 **Frontend changes (complete):**

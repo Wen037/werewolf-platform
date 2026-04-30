@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Users, Settings, ClipboardCheck, AlertTriangle,
   UserMinus, UserPlus, CheckCircle2, XCircle, ShieldAlert,
-  ChevronRight, Play, Trophy, Search, MessageSquare, Send,
+  ChevronRight, ChevronLeft, Play, Trophy, Search, MessageSquare, Send,
   Lock, UserCheck, Globe, FileEdit,
   Calendar, Clock, Activity, FileText, Link2, QrCode, Save, CheckCircle,
 } from "lucide-react";
@@ -132,146 +132,153 @@ function InfoTab({ event, onEventUpdate }: {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
 
-      {/* Title */}
-      <div>
-        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-          <FileText size={12} className="text-red-400" /> Event Title
-        </label>
-        <input
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          className="w-full bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 placeholder:text-neutral-600"
-        />
-      </div>
-
-      {/* Date + Time */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
+      {/* ── Row 1: Title + Date/Time ──────────────────────────── */}
+      <div className="grid grid-cols-5 gap-4">
+        {/* Title — wider */}
+        <div className="col-span-3">
           <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-            <Calendar size={12} className="text-red-400" /> Date
+            <FileText size={12} className="text-red-400" /> Event Title
           </label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="w-full bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 [color-scheme:dark]"
+          <input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            className="w-full bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 placeholder:text-neutral-600"
           />
         </div>
-        <div>
-          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-            <Clock size={12} className="text-red-400" /> Time
-          </label>
-          <input type="time" value={time} onChange={e => setTime(e.target.value)}
-            className="w-full bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 [color-scheme:dark]"
-          />
-        </div>
-      </div>
-
-      {/* Max Players */}
-      <div>
-        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-          <Users size={12} className="text-red-400" /> Max Players
-        </label>
-        <div className="relative">
-          <select
-            value={maxPlayers}
-            onChange={e => setMaxPlayers(Number(e.target.value))}
-            className="w-full bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:border-red-500/50 cursor-pointer pr-8"
-          >
-            {Array.from({ length: 15 }, (_, i) => i + 4).map(n => (
-              <option key={n} value={n} disabled={n < (event.currentPlayers ?? 0)} className="bg-neutral-900">
-                {n} Players{n < (event.currentPlayers ?? 0) ? " (below current)" : ""}
-              </option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none text-neutral-500">
-            <svg className="w-3 h-3 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"/></svg>
-          </div>
-        </div>
-        {(event.currentPlayers ?? 0) > 0 && (
-          <p className="text-neutral-600 text-xs mt-1">{event.currentPlayers} registered</p>
-        )}
-      </div>
-
-      {/* Proficiency */}
-      <div>
-        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-          <Activity size={12} className="text-red-400" /> Proficiency
-        </label>
-        <div className="flex flex-wrap gap-1.5">
-          {PROFICIENCY_LEVELS.map(level => (
-            <button key={level} type="button" onClick={() => setProficiency(level)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                proficiency === level
-                  ? "bg-red-600/30 border-red-500/50 text-red-300"
-                  : "bg-transparent border-white/10 text-neutral-500 hover:border-white/20 hover:text-neutral-300"
-              }`}
-            >
-              {level}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Description */}
-      <div>
-        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 block">Description</label>
-        <textarea
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="Add special rules or notes for players…"
-          rows={3}
-          className="w-full bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 resize-none placeholder:text-neutral-600"
-        />
-      </div>
-
-      {/* Social Group */}
-      <div className="border border-white/8 rounded-xl p-4 bg-white/2 space-y-3">
-        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
-          <Link2 size={12} className="text-red-400" /> Social Group Link
-          <span className="text-[10px] font-normal text-neutral-600 ml-1">— joined players only</span>
-        </label>
-        <div className="grid grid-cols-2 gap-1.5">
-          {GROUP_PLATFORMS.map(p => (
-            <button key={p.type} type="button"
-              onClick={() => setGroupType(prev => prev === p.type ? null : p.type)}
-              className={`py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                groupType === p.type ? p.color : "border-white/10 text-neutral-600 hover:border-white/20 hover:text-neutral-400"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        {groupType && (
-          <div className="space-y-2">
-            <input
-              value={groupLink}
-              onChange={e => setGroupLink(e.target.value)}
-              placeholder={selectedPlatform?.placeholder}
-              className="w-full bg-neutral-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500/40 placeholder:text-neutral-600"
+        {/* Date + Time stacked */}
+        <div className="col-span-2 grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
+              <Calendar size={12} className="text-red-400" /> Date
+            </label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              className="w-full bg-neutral-800 border border-white/10 rounded-xl px-2 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 [color-scheme:dark]"
             />
-            {groupLink.trim() && (
-              <div>
-                <button type="button" onClick={() => setShowQR(p => !p)}
-                  className="flex items-center gap-1 text-xs text-neutral-500 hover:text-white transition-colors"
-                >
-                  <QrCode size={12} /> {showQR ? "Hide QR" : "Preview QR"}
-                </button>
-                {showQR && (
-                  <div className="flex justify-center mt-2">
-                    <div className="bg-white rounded-xl p-3">
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&margin=6&data=${encodeURIComponent(groupLink.trim())}`}
-                        alt="QR" className="w-32 h-32"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
-        )}
-        {!groupType && <p className="text-neutral-600 text-xs">Select a platform to add a group invite link.</p>}
+          <div>
+            <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
+              <Clock size={12} className="text-red-400" /> Time
+            </label>
+            <input type="time" value={time} onChange={e => setTime(e.target.value)}
+              className="w-full bg-neutral-800 border border-white/10 rounded-xl px-2 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 [color-scheme:dark]"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 2: Max Players + Proficiency ─────────────────── */}
+      <div className="grid grid-cols-5 gap-4">
+        {/* Max Players */}
+        <div className="col-span-1">
+          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
+            <Users size={12} className="text-red-400" /> Max Pax
+          </label>
+          <div className="relative">
+            <select
+              value={maxPlayers}
+              onChange={e => setMaxPlayers(Number(e.target.value))}
+              className="w-full bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:border-red-500/50 cursor-pointer pr-7"
+            >
+              {Array.from({ length: 15 }, (_, i) => i + 4).map(n => (
+                <option key={n} value={n} disabled={n < (event.currentPlayers ?? 0)} className="bg-neutral-900">
+                  {n}{n < (event.currentPlayers ?? 0) ? "↓" : ""}
+                </option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none text-neutral-500">
+              <svg className="w-3 h-3 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"/></svg>
+            </div>
+          </div>
+          {(event.currentPlayers ?? 0) > 0 && (
+            <p className="text-neutral-600 text-xs mt-1">{event.currentPlayers} registered</p>
+          )}
+        </div>
+        {/* Proficiency */}
+        <div className="col-span-4">
+          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
+            <Activity size={12} className="text-red-400" /> Proficiency
+          </label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {PROFICIENCY_LEVELS.map(level => (
+              <button key={level} type="button" onClick={() => setProficiency(level)}
+                className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
+                  proficiency === level
+                    ? "bg-red-600/30 border-red-500/50 text-red-300"
+                    : "bg-transparent border-white/10 text-neutral-500 hover:border-white/20 hover:text-neutral-300"
+                }`}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 3: Description + Social Group side by side ───── */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Description */}
+        <div>
+          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 block">Description</label>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Add special rules or notes for players…"
+            rows={6}
+            className="w-full h-full min-h-[140px] bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 resize-none placeholder:text-neutral-600"
+          />
+        </div>
+
+        {/* Social Group */}
+        <div className="border border-white/8 rounded-xl p-4 bg-white/2 space-y-3">
+          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Link2 size={12} className="text-red-400" /> Social Group Link
+            <span className="text-[10px] font-normal text-neutral-600 ml-1">— joined players only</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {GROUP_PLATFORMS.map(p => (
+              <button key={p.type} type="button"
+                onClick={() => setGroupType(prev => prev === p.type ? null : p.type)}
+                className={`py-2 rounded-lg text-xs font-bold border transition-all ${
+                  groupType === p.type ? p.color : "border-white/10 text-neutral-600 hover:border-white/20 hover:text-neutral-400"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {groupType && (
+            <div className="space-y-2">
+              <input
+                value={groupLink}
+                onChange={e => setGroupLink(e.target.value)}
+                placeholder={selectedPlatform?.placeholder}
+                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500/40 placeholder:text-neutral-600"
+              />
+              {groupLink.trim() && (
+                <div>
+                  <button type="button" onClick={() => setShowQR(p => !p)}
+                    className="flex items-center gap-1 text-xs text-neutral-500 hover:text-white transition-colors"
+                  >
+                    <QrCode size={12} /> {showQR ? "Hide QR" : "Preview QR"}
+                  </button>
+                  {showQR && (
+                    <div className="flex justify-center mt-2">
+                      <div className="bg-white rounded-xl p-2">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=5&data=${encodeURIComponent(groupLink.trim())}`}
+                          alt="QR" className="w-28 h-28"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {!groupType && <p className="text-neutral-600 text-xs">Select a platform above to add a group invite link.</p>}
+        </div>
       </div>
 
       {/* Error */}
@@ -974,10 +981,11 @@ function DangerTab({ event, roster, onEventCancel }: {
 
 // ── Main Panel ─────────────────────────────────────────────────────────────
 export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel }: HostControlPanelProps) {
-  // Bug 2 fix: default to "info" tab since edit+manage are now both here
   const [activeTab, setActiveTab] = useState<PanelTab>("info");
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [localEvent, setLocalEvent] = useState(event);
+  // Collapse: panel shrinks to a thin strip; > on left edge to toggle
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     loadRoster();
@@ -993,95 +1001,127 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
     onEventUpdate(updated);
   };
 
-  // Bug 6: count pending applicants for badge on Roster tab
   const pendingCount = roster.filter(r => r.interaction.status === 'pending').length;
 
   const TABS: { id: PanelTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: "info",       label: "Info",    icon: <FileEdit size={14} /> },
-    { id: "roster",     label: "Roster",  icon: <Users size={14} />, badge: pendingCount },
-    { id: "manage",     label: "Manage",  icon: <Settings size={14} /> },
-    { id: "attendance", label: "Attend",  icon: <ClipboardCheck size={14} /> },
-    { id: "danger",     label: "Danger",  icon: <AlertTriangle size={14} /> },
+    { id: "info",       label: "Info",       icon: <FileEdit size={15} /> },
+    { id: "roster",     label: "Roster",     icon: <Users size={15} />, badge: pendingCount },
+    { id: "manage",     label: "Manage",     icon: <Settings size={15} /> },
+    { id: "attendance", label: "Attendance", icon: <ClipboardCheck size={15} /> },
+    { id: "danger",     label: "Danger",     icon: <AlertTriangle size={15} /> },
   ];
 
   return (
     <AnimatePresence>
       <>
+        {/* Backdrop — clicking it closes fully */}
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
           onClick={onClose}
         />
+
+        {/* Panel — slides in from right; CSS transition handles collapse width */}
         <motion.div
           initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
           transition={{ type: "spring", damping: 28, stiffness: 260 }}
-          className="fixed top-0 right-0 h-full w-full max-w-md bg-neutral-950 border-l border-white/10 shadow-2xl z-[110] flex flex-col"
+          className={`fixed top-0 right-0 h-full bg-neutral-950 border-l border-white/10 shadow-2xl z-[110] flex transition-[width] duration-300 ease-in-out ${
+            isCollapsed
+              ? "w-12"
+              : "w-full max-w-[calc(100vw-56px)]"   // fills content area (56px = left nav)
+          }`}
+          onClick={e => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="px-6 pt-6 pb-4 border-b border-white/10 shrink-0">
-            <div className="flex items-start justify-between mb-1">
-              <div>
-                <div className="text-[10px] font-bold text-red-500 uppercase tracking-[0.15em] mb-1">Host Control</div>
-                <h2 className="text-white font-bold text-lg leading-tight truncate max-w-[280px]">{localEvent.title}</h2>
-              </div>
-              <button onClick={onClose} className="p-2 text-neutral-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors shrink-0">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                localEvent.status === "open"    ? "text-green-400 border-green-500/30 bg-green-500/10" :
-                localEvent.status === "playing" ? "text-blue-400 border-blue-500/30 bg-blue-500/10" :
-                                                   "text-neutral-400 border-neutral-500/30 bg-neutral-500/10"
-              }`}>
-                {localEvent.status.toUpperCase()}
-              </span>
-              <span className="text-neutral-500 text-xs">{localEvent.venueName}</span>
-            </div>
-          </div>
+          {/* ── Collapse toggle button — sticks out from left edge ── */}
+          <button
+            onClick={() => setIsCollapsed(c => !c)}
+            className="absolute -left-5 top-1/2 -translate-y-1/2 w-5 h-14 bg-neutral-800 hover:bg-neutral-700 border border-white/10 rounded-l-lg flex items-center justify-center text-neutral-400 hover:text-white transition-colors z-20"
+            title={isCollapsed ? "Expand panel" : "Collapse panel"}
+          >
+            {isCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+          </button>
 
-          {/* Tab Bar */}
-          <div className="flex border-b border-white/10 shrink-0">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-bold uppercase tracking-wider transition-colors border-b-2 relative ${
-                  activeTab === tab.id
-                    ? tab.id === "danger" ? "border-red-500 text-red-400" : "border-red-500 text-white"
-                    : "border-transparent text-neutral-600 hover:text-neutral-400"
-                }`}
+          {/* ── Collapsed strip — just rotated title ─────────────── */}
+          {isCollapsed && (
+            <div className="flex flex-col items-center justify-center w-full gap-3 py-6 overflow-hidden">
+              <span
+                className="text-[10px] font-bold text-red-500 uppercase tracking-[0.15em] whitespace-nowrap"
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
               >
-                {tab.icon}
-                {tab.label}
-                {/* Pending badge on Roster tab */}
-                {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-amber-500 rounded-full text-[8px] font-bold text-black flex items-center justify-center">
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+                Host Control
+              </span>
+            </div>
+          )}
 
-          {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-            {activeTab === "info" && (
-              <InfoTab event={localEvent} onEventUpdate={handleEventUpdate} />
-            )}
-            {activeTab === "roster" && (
-              <RosterTab event={localEvent} roster={roster} onRosterChange={loadRoster} onEventUpdate={handleEventUpdate} />
-            )}
-            {activeTab === "manage" && (
-              <ManageTab event={localEvent} onEventUpdate={handleEventUpdate} />
-            )}
-            {activeTab === "attendance" && (
-              <AttendanceTab event={localEvent} roster={roster} onEventUpdate={handleEventUpdate} />
-            )}
-            {activeTab === "danger" && (
-              <DangerTab event={localEvent} roster={roster} onEventCancel={onEventCancel} />
-            )}
-          </div>
+          {/* ── Expanded panel content ────────────────────────────── */}
+          {!isCollapsed && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              {/* Header */}
+              <div className="px-6 pt-5 pb-4 border-b border-white/10 shrink-0">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold text-red-500 uppercase tracking-[0.15em] mb-1">Host Control</div>
+                    <h2 className="text-white font-bold text-xl leading-tight">{localEvent.title}</h2>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        localEvent.status === "open"    ? "text-green-400 border-green-500/30 bg-green-500/10" :
+                        localEvent.status === "playing" ? "text-blue-400 border-blue-500/30 bg-blue-500/10" :
+                                                           "text-neutral-400 border-neutral-500/30 bg-neutral-500/10"
+                      }`}>
+                        {localEvent.status.toUpperCase()}
+                      </span>
+                      <span className="text-neutral-500 text-xs">{localEvent.venueName}</span>
+                    </div>
+                  </div>
+                  <button onClick={onClose} className="p-2 text-neutral-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors shrink-0">
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tab Bar */}
+              <div className="flex border-b border-white/10 shrink-0">
+                {TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 flex flex-col items-center gap-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-colors border-b-2 relative ${
+                      activeTab === tab.id
+                        ? tab.id === "danger" ? "border-red-500 text-red-400" : "border-red-500 text-white"
+                        : "border-transparent text-neutral-600 hover:text-neutral-400"
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                    {tab.badge !== undefined && tab.badge > 0 && (
+                      <span className="absolute top-1.5 right-2 min-w-[16px] h-4 px-1 bg-amber-500 rounded-full text-[8px] font-bold text-black flex items-center justify-center">
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {activeTab === "info" && (
+                  <InfoTab event={localEvent} onEventUpdate={handleEventUpdate} />
+                )}
+                {activeTab === "roster" && (
+                  <RosterTab event={localEvent} roster={roster} onRosterChange={loadRoster} onEventUpdate={handleEventUpdate} />
+                )}
+                {activeTab === "manage" && (
+                  <ManageTab event={localEvent} onEventUpdate={handleEventUpdate} />
+                )}
+                {activeTab === "attendance" && (
+                  <AttendanceTab event={localEvent} roster={roster} onEventUpdate={handleEventUpdate} />
+                )}
+                {activeTab === "danger" && (
+                  <DangerTab event={localEvent} roster={roster} onEventCancel={onEventCancel} />
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
       </>
     </AnimatePresence>

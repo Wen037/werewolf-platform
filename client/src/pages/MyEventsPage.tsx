@@ -5,7 +5,7 @@ import { AuthService } from "../services/auth.service";
 import type { GameSessionDTO } from "../types";
 import { getCreditInfo } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, MapPin, Clock, Share2, Star, Heart, User, Plus, CheckCircle, LogOut, AlertTriangle, X, Shield, ExternalLink, QrCode } from "lucide-react";
+import { Calendar, MapPin, Clock, Share2, Star, Heart, User, Plus, CheckCircle, LogOut, AlertTriangle, X, Settings, ExternalLink, QrCode } from "lucide-react";
 import { CreateEventModal } from "../components/CreateEventModal";
 import { ReportModal } from "../components/ReportModal";
 import { HostControlPanel } from "../components/HostControlPanel";
@@ -415,13 +415,13 @@ export default function MyEventsPage() {
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border text-red-400 border-red-500/30 bg-red-500/10 uppercase tracking-wide mr-1">
                             HOST
                           </span>
-                          {/* Bug 2 fix: single button opens HostControlPanel (Info + Manage combined) */}
+                          {/* Single manage button — Settings (gear/screwdriver) icon */}
                           <button
                             onClick={() => setManagingEvent(event)}
                             className="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-red-500/15 transition-all active:scale-90"
                             title="Manage Event"
                           >
-                            <Shield size={18} />
+                            <Settings size={18} />
                           </button>
                         </>
                       )}
