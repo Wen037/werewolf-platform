@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-05-01 — Session 12: Host Control Panel — Positioning, Guest Bar, Save Button
+
+**Frontend changes (complete):**
+
+- **Panel positioning fix** (`HostControlPanel.tsx`): changed backdrop + panel from `fixed top-16` to `absolute` — panel now sits inside the app content area, never covers the left sidebar or top nav bar; `w-full` naturally equals the content area width (no more `calc(100vw-56px)` hack)
+- **Compact guest bar at top of Roster** (`HostControlPanel.tsx` RosterTab): removed old guests section at the bottom (which required scrolling to find); added a compact always-visible guest bar at the very top of the Roster tab — shows current guest chips, a name input and "+ Add" button inline; remove button (×) per chip
+- **Save button always visible** (`HostControlPanel.tsx`): save button now shows on ALL tabs; on Info + Attendance tabs it's active (red, clickable); on other tabs it shows "Auto-saved" in gray with tooltip explaining changes are saved immediately on those tabs
+
+**No backend changes this session.**
+
+---
+
 ## 2026-05-01 — Session 11: Host Control Panel — Size, Guest Count, Attendance UX
 
 **Frontend changes (complete):**

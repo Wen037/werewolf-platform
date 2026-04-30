@@ -406,6 +406,41 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
   return (
     <div className="space-y-5">
 
+      {/* ── Compact Guest Bar (always visible at top) ─────────────── */}
+      <div className="flex items-center gap-2 p-2.5 bg-neutral-800/50 border border-white/8 rounded-xl">
+        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider shrink-0">Guests</span>
+        <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+          {localGuests.length === 0 && (
+            <span className="text-[10px] text-neutral-600 italic">None added</span>
+          )}
+          {localGuests.map((g, i) => (
+            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-700 border border-white/10 text-[11px] text-neutral-200">
+              {g.name}
+              <button onClick={() => handleRemoveGuest(i)} className="text-neutral-400 hover:text-red-400 transition-colors">
+                <X size={9} />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-1.5 shrink-0">
+          <input
+            type="text"
+            value={guestName}
+            onChange={e => setGuestName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleAddGuest()}
+            placeholder="Name…"
+            className="w-28 bg-neutral-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-red-500/50"
+          />
+          <button
+            onClick={handleAddGuest}
+            disabled={addingGuest || !guestName.trim()}
+            className="px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40 flex items-center gap-1"
+          >
+            <UserPlus size={12} /> Add
+          </button>
+        </div>
+      </div>
+
       {/* ── Pending Applicants (approval queue) ──────────────────────── */}
       {pendingRoster.length > 0 && (
         <div>
@@ -594,43 +629,6 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
             })}
           </div>
         )}
-      </div>
-
-      {/* ── Guests ─────────────────────────────────────────────────── */}
-      <div>
-        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">
-          Guests ({localGuests.length})
-        </h3>
-        <div className="space-y-2 mb-3">
-          {localGuests.map((g, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-800/40 border border-white/5">
-              <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center shrink-0">
-                <UserPlus size={14} className="text-neutral-400" />
-              </div>
-              <span className="text-sm text-neutral-300 flex-1 truncate">{g.name}</span>
-              <button
-                onClick={() => handleRemoveGuest(i)}
-                className="p-1.5 text-neutral-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={guestName}
-            onChange={e => setGuestName(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleAddGuest()}
-            placeholder="Guest name…"
-            className="flex-1 bg-neutral-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-red-500/50"
-          />
-          <button onClick={handleAddGuest} disabled={addingGuest || !guestName.trim()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40">
-            Add
-          </button>
-        </div>
       </div>
 
       {/* Waitlist indicator */}
@@ -1012,7 +1010,8 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
   // Global save: header button triggers save in active tab
   const [saveKey, setSaveKey] = useState(0);
   const [saveState, setSaveState] = useState<{ saving: boolean; saved: boolean }>({ saving: false, saved: false });
-  const hasSaveButton = activeTab === "info" || activeTab === "attendance";
+  // Save is only functional on tabs that have pending state; other tabs auto-save on action
+  const saveEnabled = activeTab === "info" || activeTab === "attendance";
 
   useEffect(() => {
     loadRoster();
@@ -1041,21 +1040,19 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
   return (
     <AnimatePresence>
       <>
-        {/* Backdrop — clicking it closes fully; starts below top nav bar */}
+        {/* Backdrop — absolute inside content area, so nav bar + sidebar stay visible */}
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed top-16 inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm z-[100]"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100]"
           onClick={onClose}
         />
 
-        {/* Panel — slides in from right; CSS transition handles collapse width */}
+        {/* Panel — slides in from right, fills content area height */}
         <motion.div
           initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
           transition={{ type: "spring", damping: 28, stiffness: 260 }}
-          className={`fixed top-16 right-0 h-[calc(100vh-4rem)] bg-neutral-950 border-l border-white/10 shadow-2xl z-[110] flex transition-[width] duration-300 ease-in-out ${
-            isCollapsed
-              ? "w-12"
-              : "w-full max-w-[calc(100vw-56px)]"   // fills content area below nav bar (56px = left nav)
+          className={`absolute top-0 right-0 h-full bg-neutral-950 border-l border-white/10 shadow-2xl z-[110] flex transition-[width] duration-300 ease-in-out ${
+            isCollapsed ? "w-12" : "w-full"
           }`}
           onClick={e => e.stopPropagation()}
         >
@@ -1101,22 +1098,29 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* Global Save button — only shown for tabs that have saveable state */}
-                    {hasSaveButton && (
-                      <button
-                        onClick={() => { setSaveKey(k => k + 1); }}
-                        disabled={saveState.saving || saveState.saved}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all disabled:opacity-60 ${
-                          saveState.saved
-                            ? "border-green-500/40 bg-green-500/15 text-green-400"
-                            : saveState.saving
-                            ? "border-white/10 bg-white/5 text-neutral-400"
-                            : "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
-                        }`}
-                      >
-                        {saveState.saved ? <><CheckCircle size={13} /> Saved!</> : saveState.saving ? <><Save size={13} /> Saving…</> : <><Save size={13} /> Save</>}
-                      </button>
-                    )}
+                    {/* Global Save button — always visible; active only on Info + Attendance tabs */}
+                    <button
+                      onClick={() => { if (saveEnabled) setSaveKey(k => k + 1); }}
+                      disabled={!saveEnabled || saveState.saving || saveState.saved}
+                      title={saveEnabled ? "Save changes" : "Changes on this tab are saved automatically"}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        saveState.saved
+                          ? "border-green-500/40 bg-green-500/15 text-green-400"
+                          : saveState.saving
+                          ? "border-white/10 bg-white/5 text-neutral-400"
+                          : saveEnabled
+                          ? "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                          : "border-white/5 bg-transparent text-neutral-600 cursor-default"
+                      }`}
+                    >
+                      {saveState.saved
+                        ? <><CheckCircle size={13} /> Saved!</>
+                        : saveState.saving
+                        ? <><Save size={13} /> Saving…</>
+                        : saveEnabled
+                        ? <><Save size={13} /> Save</>
+                        : <><Save size={13} /> Auto-saved</>}
+                    </button>
                     <button onClick={onClose} className="p-2 text-neutral-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                       <X size={20} />
                     </button>
