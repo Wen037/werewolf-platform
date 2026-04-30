@@ -77,9 +77,11 @@ function buildISOFromParts(date: string, time: string, originalIso: string): str
   return `${date}T${time}:00${tz}`;
 }
 
-function InfoTab({ event, onEventUpdate }: {
+function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
   event: GameSessionDTO;
   onEventUpdate: (updated: Partial<GameSessionDTO>) => void;
+  saveKey: number;
+  onSaveStateChange: (state: { saving: boolean; saved: boolean }) => void;
 }) {
   const [title, setTitle]             = useState(event.title);
   const [date, setDate]               = useState(() => parseDateTimeParts(event.date).date);
@@ -103,7 +105,7 @@ function InfoTab({ event, onEventUpdate }: {
       setError(`Max cannot be below current count (${event.currentPlayers}).`);
       return;
     }
-    setSaving(true);
+    setSaving(true); onSaveStateChange({ saving: true, saved: false });
     setError("");
     const updatedDate = buildISOFromParts(date, time, event.date);
     const fields = {
@@ -122,14 +124,18 @@ function InfoTab({ event, onEventUpdate }: {
       if (groupLink.trim() !== (event.groupLink ?? "")) changes.push("group link");
       if (changes.length) await (GameService as any).notifyPlayers(event.id, `Event updated: ${changes.join(", ")} changed.`);
       onEventUpdate(fields as Partial<GameSessionDTO>);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setSaved(true); onSaveStateChange({ saving: false, saved: true });
+      setTimeout(() => { setSaved(false); onSaveStateChange({ saving: false, saved: false }); }, 2500);
     } catch (e: any) {
       setError(e?.message ?? "Failed to save.");
+      onSaveStateChange({ saving: false, saved: false });
     } finally {
       setSaving(false);
     }
   };
+
+  // Triggered from header Save button
+  useEffect(() => { if (saveKey > 0) handleSave(); }, [saveKey]);
 
   return (
     <div className="space-y-6">
@@ -288,23 +294,6 @@ function InfoTab({ event, onEventUpdate }: {
         </div>
       )}
 
-      {/* Save */}
-      <button
-        onClick={handleSave}
-        disabled={saving || saved}
-        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60 ${
-          saved ? "bg-green-600 text-white" : "bg-red-600 hover:bg-red-500 text-white"
-        }`}
-      >
-        {saved ? (
-          <><CheckCircle size={15} /> Saved &amp; Notified!</>
-        ) : saving ? (
-          <><Save size={15} /> Saving…</>
-        ) : (
-          <><Save size={15} /> Save Changes</>
-        )}
-      </button>
-      <p className="text-neutral-600 text-xs text-center -mt-2">Registered players will be notified of changes.</p>
     </div>
   );
 }
@@ -477,11 +466,11 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
       <div>
         <div className="flex items-center gap-3 mb-3">
           <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider shrink-0">
-            {t('Players')} ({registeredRoster.length}/{event.maxPlayers})
+            {t('Players')} ({registeredRoster.length + localGuests.length}/{event.maxPlayers})
           </h3>
           <div className="h-1.5 flex-1 bg-neutral-800 rounded-full overflow-hidden">
             <div className="h-full bg-red-600 rounded-full transition-all"
-              style={{ width: `${Math.min(100, (registeredRoster.length / event.maxPlayers) * 100)}%` }} />
+              style={{ width: `${Math.min(100, ((registeredRoster.length + localGuests.length) / event.maxPlayers) * 100)}%` }} />
           </div>
         </div>
 
@@ -658,9 +647,10 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
 }
 
 // ── Manage Tab ─────────────────────────────────────────────────────────────
-function ManageTab({ event, onEventUpdate }: {
+function ManageTab({ event, onEventUpdate, onFinished }: {
   event: GameSessionDTO;
   onEventUpdate: (updated: Partial<GameSessionDTO>) => void;
+  onFinished: () => void;
 }) {
   // Bug 3 fix: default approvalMode is 'approval', not 'open'
   const [localStatus, setLocalStatus] = useState(event.status);
@@ -687,6 +677,8 @@ function ManageTab({ event, onEventUpdate }: {
       await (GameService as any).updateSessionStatus(event.id, status);
       setLocalStatus(status);
       onEventUpdate({ status });
+      // Auto-jump to Attendance tab when host marks session as finished
+      if (status === "finished") onFinished();
     } finally {
       setSavingStatus(false);
     }
@@ -795,10 +787,12 @@ function ManageTab({ event, onEventUpdate }: {
 }
 
 // ── Attendance Tab ─────────────────────────────────────────────────────────
-function AttendanceTab({ event, roster, onEventUpdate }: {
+function AttendanceTab({ event, roster, onEventUpdate, saveKey, onSaveStateChange }: {
   event: GameSessionDTO;
   roster: RosterEntry[];
   onEventUpdate: (updated: Partial<GameSessionDTO>) => void;
+  saveKey: number;
+  onSaveStateChange: (state: { saving: boolean; saved: boolean }) => void;
 }) {
   const [marks, setMarks] = useState<Record<string, 'attended' | 'no-show' | null>>({});
   const [saving, setSaving] = useState(false);
@@ -817,14 +811,15 @@ function AttendanceTab({ event, roster, onEventUpdate }: {
   }, [roster.length]);
 
   const handleSave = async () => {
-    setSaving(true);
+    if (Object.values(marks).every(v => v === null)) return;
+    setSaving(true); onSaveStateChange({ saving: true, saved: false });
     const records = activeRoster
       .filter(r => marks[r.user.id] !== null)
       .map(r => ({ userId: r.user.id, status: marks[r.user.id]! }));
     try {
       await (GameService as any).markAttendance(event.id, records);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setSaved(true); onSaveStateChange({ saving: false, saved: true });
+      setTimeout(() => { setSaved(false); onSaveStateChange({ saving: false, saved: false }); }, 2500);
       if (records.length === activeRoster.length) {
         onEventUpdate({ status: "finished" });
       }
@@ -833,13 +828,50 @@ function AttendanceTab({ event, roster, onEventUpdate }: {
     }
   };
 
+  // Triggered from header Save button
+  useEffect(() => { if (saveKey > 0) handleSave(); }, [saveKey]);
+
+  const handleMarkAll = (status: 'attended' | 'no-show') => {
+    const all: Record<string, 'attended' | 'no-show' | null> = {};
+    for (const { user } of activeRoster) all[user.id] = status;
+    setMarks(all);
+  };
+
+  const handleClearAll = () => {
+    const cleared: Record<string, null> = {};
+    for (const { user } of activeRoster) cleared[user.id] = null;
+    setMarks(cleared);
+  };
+
   if (activeRoster.length === 0) {
     return <p className="text-neutral-600 text-sm italic py-8 text-center">No players to mark attendance for.</p>;
   }
 
   return (
     <div className="space-y-4">
-      <p className="text-neutral-400 text-xs">Mark each player's attendance for this session.</p>
+      {/* Bulk actions */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-neutral-500 shrink-0">Select all:</span>
+        <button
+          onClick={() => handleMarkAll('attended')}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-green-500/30 text-green-400 hover:bg-green-500/10 transition-colors"
+        >
+          <CheckCircle2 size={11} /> All Attended
+        </button>
+        <button
+          onClick={() => handleMarkAll('no-show')}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+        >
+          <XCircle size={11} /> All No-show
+        </button>
+        <button
+          onClick={handleClearAll}
+          className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-neutral-500 hover:text-neutral-300 hover:border-white/20 transition-colors"
+        >
+          Clear
+        </button>
+      </div>
+
       <div className="space-y-2">
         {activeRoster.map(({ user }) => (
           <div key={user.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-800/60 border border-white/5">
@@ -851,7 +883,7 @@ function AttendanceTab({ event, roster, onEventUpdate }: {
             <span className="flex-1 text-sm text-white font-medium truncate">{user.username}</span>
             <div className="flex gap-1.5 shrink-0">
               <button
-                onClick={() => setMarks(prev => ({ ...prev, [user.id]: "attended" }))}
+                onClick={() => setMarks(prev => ({ ...prev, [user.id]: marks[user.id] === "attended" ? null : "attended" }))}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                   marks[user.id] === "attended"
                     ? "bg-green-500/20 border-green-500/40 text-green-400"
@@ -861,7 +893,7 @@ function AttendanceTab({ event, roster, onEventUpdate }: {
                 <CheckCircle2 size={12} /> Attended
               </button>
               <button
-                onClick={() => setMarks(prev => ({ ...prev, [user.id]: "no-show" }))}
+                onClick={() => setMarks(prev => ({ ...prev, [user.id]: marks[user.id] === "no-show" ? null : "no-show" }))}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                   marks[user.id] === "no-show"
                     ? "bg-red-500/20 border-red-500/40 text-red-400"
@@ -874,15 +906,6 @@ function AttendanceTab({ event, roster, onEventUpdate }: {
           </div>
         ))}
       </div>
-      <button
-        onClick={handleSave}
-        disabled={saving || Object.values(marks).every(v => v === null)}
-        className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${
-          saved ? "bg-green-600 text-white" : "bg-red-600 hover:bg-red-500 text-white disabled:opacity-40"
-        }`}
-      >
-        {saved ? "✓ Saved!" : saving ? "Saving…" : "Save Attendance"}
-      </button>
     </div>
   );
 }
@@ -986,6 +1009,10 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
   const [localEvent, setLocalEvent] = useState(event);
   // Collapse: panel shrinks to a thin strip; > on left edge to toggle
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // Global save: header button triggers save in active tab
+  const [saveKey, setSaveKey] = useState(0);
+  const [saveState, setSaveState] = useState<{ saving: boolean; saved: boolean }>({ saving: false, saved: false });
+  const hasSaveButton = activeTab === "info" || activeTab === "attendance";
 
   useEffect(() => {
     loadRoster();
@@ -1014,10 +1041,10 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
   return (
     <AnimatePresence>
       <>
-        {/* Backdrop — clicking it closes fully */}
+        {/* Backdrop — clicking it closes fully; starts below top nav bar */}
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+          className="fixed top-16 inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm z-[100]"
           onClick={onClose}
         />
 
@@ -1025,10 +1052,10 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
         <motion.div
           initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
           transition={{ type: "spring", damping: 28, stiffness: 260 }}
-          className={`fixed top-0 right-0 h-full bg-neutral-950 border-l border-white/10 shadow-2xl z-[110] flex transition-[width] duration-300 ease-in-out ${
+          className={`fixed top-16 right-0 h-[calc(100vh-4rem)] bg-neutral-950 border-l border-white/10 shadow-2xl z-[110] flex transition-[width] duration-300 ease-in-out ${
             isCollapsed
               ? "w-12"
-              : "w-full max-w-[calc(100vw-56px)]"   // fills content area (56px = left nav)
+              : "w-full max-w-[calc(100vw-56px)]"   // fills content area below nav bar (56px = left nav)
           }`}
           onClick={e => e.stopPropagation()}
         >
@@ -1073,9 +1100,27 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
                       <span className="text-neutral-500 text-xs">{localEvent.venueName}</span>
                     </div>
                   </div>
-                  <button onClick={onClose} className="p-2 text-neutral-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors shrink-0">
-                    <X size={20} />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Global Save button — only shown for tabs that have saveable state */}
+                    {hasSaveButton && (
+                      <button
+                        onClick={() => { setSaveKey(k => k + 1); }}
+                        disabled={saveState.saving || saveState.saved}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all disabled:opacity-60 ${
+                          saveState.saved
+                            ? "border-green-500/40 bg-green-500/15 text-green-400"
+                            : saveState.saving
+                            ? "border-white/10 bg-white/5 text-neutral-400"
+                            : "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                        }`}
+                      >
+                        {saveState.saved ? <><CheckCircle size={13} /> Saved!</> : saveState.saving ? <><Save size={13} /> Saving…</> : <><Save size={13} /> Save</>}
+                      </button>
+                    )}
+                    <button onClick={onClose} className="p-2 text-neutral-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                      <X size={20} />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1084,7 +1129,7 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
                 {TABS.map(tab => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => { setActiveTab(tab.id); setSaveState({ saving: false, saved: false }); }}
                     className={`flex-1 flex flex-col items-center gap-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-colors border-b-2 relative ${
                       activeTab === tab.id
                         ? tab.id === "danger" ? "border-red-500 text-red-400" : "border-red-500 text-white"
@@ -1105,16 +1150,19 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
               {/* Tab Content */}
               <div className="flex-1 overflow-y-auto p-6">
                 {activeTab === "info" && (
-                  <InfoTab event={localEvent} onEventUpdate={handleEventUpdate} />
+                  <InfoTab event={localEvent} onEventUpdate={handleEventUpdate}
+                    saveKey={saveKey} onSaveStateChange={setSaveState} />
                 )}
                 {activeTab === "roster" && (
                   <RosterTab event={localEvent} roster={roster} onRosterChange={loadRoster} onEventUpdate={handleEventUpdate} />
                 )}
                 {activeTab === "manage" && (
-                  <ManageTab event={localEvent} onEventUpdate={handleEventUpdate} />
+                  <ManageTab event={localEvent} onEventUpdate={handleEventUpdate}
+                    onFinished={() => { setActiveTab("attendance"); setSaveState({ saving: false, saved: false }); }} />
                 )}
                 {activeTab === "attendance" && (
-                  <AttendanceTab event={localEvent} roster={roster} onEventUpdate={handleEventUpdate} />
+                  <AttendanceTab event={localEvent} roster={roster} onEventUpdate={handleEventUpdate}
+                    saveKey={saveKey} onSaveStateChange={setSaveState} />
                 )}
                 {activeTab === "danger" && (
                   <DangerTab event={localEvent} roster={roster} onEventCancel={onEventCancel} />

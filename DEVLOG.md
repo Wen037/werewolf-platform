@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-05-01 — Session 11: Host Control Panel — Size, Guest Count, Attendance UX
+
+**Frontend changes (complete):**
+
+- **Panel height fix** (`HostControlPanel.tsx`): changed `top-0 h-full` → `top-16 h-[calc(100vh-4rem)]` and backdrop similarly; panel now sits below the top nav bar (`h-16`) instead of covering it
+- **Guest count in PLAYERS header** (`HostControlPanel.tsx` RosterTab): PLAYERS (N/max) count now includes `localGuests.length` so adding a guest visibly increments the counter and progress bar
+- **Mark Finish → auto-jump to Attendance** (`HostControlPanel.tsx` ManageTab): when host changes session status to "Finished", panel automatically switches to Attendance tab; `onFinished` callback propagates the tab switch to the parent
+- **Attendance select all** (`HostControlPanel.tsx` AttendanceTab): added bulk action row with "All Attended" (green), "All No-show" (red), and "Clear" buttons at the top of the list; individual buttons now toggle (click again to deselect)
+- **Global Save button in header** (`HostControlPanel.tsx`): removed inline Save button from InfoTab and AttendanceTab body; added a compact Save button in the panel header (top-right, beside X); appears only when on Info or Attendance tab; `saveKey` counter pattern triggers the active tab's save; `onSaveStateChange` propagates saving/saved state back up to header button; resets on tab switch
+
+**No backend changes this session.**
+
+---
+
 ## 2026-05-01 — Session 10: Host Control Panel UI — Resize, Collapse, Icon
 
 **Frontend changes (complete):**
