@@ -317,7 +317,7 @@ function MatchDetailModal({ event, onClose }: { event: GameSessionDTO | null; on
                     </span>
                     {punctuality && (
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${punctuality === 'punctual' ? 'text-green-400 bg-green-500/10 border-green-500/25' : 'text-orange-400 bg-orange-500/10 border-orange-500/25'}`}>
-                        {punctuality === 'punctual' ? '● On Time' : '● Late'}
+                        {punctuality === 'punctual' ? t('● Completed') : t('● Left Early')}
                       </span>
                     )}
                   </div>
@@ -870,7 +870,7 @@ export default function MyProfilePage() {
                         </div>
                         {event.myInteraction?.punctuality && (
                           <span className={`w-fit text-[10px] px-2 py-1 rounded-md font-bold border uppercase tracking-wider shrink-0 ${event.myInteraction.punctuality === 'punctual' ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-orange-400 bg-orange-400/10 border-orange-400/20'}`}>
-                            {event.myInteraction.punctuality === 'punctual' ? t('● On Time') : t('● Late')}
+                            {event.myInteraction.punctuality === 'punctual' ? t('● Completed') : t('● Left Early')}
                           </span>
                         )}
                         <ChevronRight size={14} className="text-neutral-600 group-hover:text-neutral-400 transition-colors shrink-0" />
