@@ -3,6 +3,7 @@ import { eventBus } from '../../../shared/infra/EventBus';
 import { MatchModel, IMatchDocument } from '../DBSchemas/MatchSchema';
 import { SessionInteractionModel } from '../DBSchemas/SessionInteractionSchema';
 import { MatchInviteModel } from '../DBSchemas/MatchInviteSchema';
+import { NotificationModel } from '../../notifications/DBSchemas/NotificationSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
 import { PlayerSpaceModel } from '../../player-spaces/DBSchemas/PlayerSpaceSchema';
 import { Match, MatchStatus } from '../domain/Match';
@@ -15,6 +16,7 @@ import {
   PROFICIENCY_TO_LABEL,
   RateMatchDTO,
   SessionInteractionDTO,
+  UpdateSessionDTO,
   toFrontendStatus,
 } from '../DTOs/MatchDTOs';
 
@@ -84,6 +86,7 @@ async function enrichWithNamesAndInteraction(
     hostId: d.host_id.toString(),
     venueId: d.venue_id.toString(),
     title: d.title,
+    description: d.description,
     date: d.scheduledAt.toISOString(),
     maxPlayers: d.config.max_pax,
     currentPlayers: d.players.length,
@@ -98,6 +101,15 @@ async function enrichWithNamesAndInteraction(
     judgeMethod: d.config.judge_method,
     proficiencyRequired: d.config.proficiency_required,
     proficiency: PROFICIENCY_TO_LABEL[d.config.proficiency_required] ?? 'All Welcome',
+    approvalMode: d.approvalMode ?? 'approval',
+    venueApprovalStatus: d.venueApprovalStatus ?? 'pending',
+    groupLink: d.groupLink,
+    groupType: d.groupType,
+    guests: (d.guests ?? []).map(g => ({
+      name: g.name,
+      addedBy: g.addedBy.toString(),
+      addedAt: g.addedAt.toISOString(),
+    })),
     myInteraction: interactionMap.get(d._id.toString()),
   }));
 }
@@ -178,11 +190,35 @@ export class MatchService {
   async joinMatch(
     sessionId: string,
     userId: string
-  ): Promise<Result<{ wasWaitlisted: boolean; waitlistPosition: number | undefined }>> {
+  ): Promise<Result<{ wasWaitlisted: boolean; waitlistPosition: number | undefined; status?: string }>> {
     const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
     if (!doc) return Result.fail('Match not found.');
     if (doc.status === 'Cancelled' || doc.status === 'Completed' || doc.status === 'Started') {
       return Result.fail(`Cannot join a match with status: ${doc.status}`);
+    }
+
+    // invite_only: user must have a pending invite
+    if (doc.approvalMode === 'invite_only') {
+      const invite = await MatchInviteModel.findOne({
+        matchId: sessionId,
+        invitedUserId: userId,
+        status: 'pending',
+      });
+      if (!invite) return Result.fail('This event is invite-only.');
+    }
+
+    // approval mode: queue as pending applicant, don't add to players[]
+    if (doc.approvalMode === 'approval') {
+      const existing = await SessionInteractionModel.findOne({ userId, sessionId });
+      if (existing && existing.status !== 'cancelled') {
+        return Result.fail('You have already applied or are registered.');
+      }
+      await SessionInteractionModel.findOneAndUpdate(
+        { userId, sessionId },
+        { $set: { status: 'pending' } },
+        { upsert: true }
+      );
+      return Result.ok({ wasWaitlisted: false, waitlistPosition: undefined, status: 'pending' });
     }
 
     const match = reconstructMatch(doc);
@@ -433,6 +469,325 @@ export class MatchService {
         payload: { invitedUserId: userId, matchId: sessionId, invitedById: hostId },
       });
     }
+
+    return Result.ok();
+  }
+
+  async getRoster(sessionId: string, requesterId: string): Promise<Result<unknown>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== requesterId) return Result.fail('Only the host can view the roster.');
+
+    const allUserIds = [
+      ...doc.players.map(p => p.toString()),
+      ...doc.waitlist.map(w => w.toString()),
+    ];
+
+    const [users, interactions] = await Promise.all([
+      UserModel.find({ _id: { $in: allUserIds } }, 'username avatarUrl creditScore role'),
+      SessionInteractionModel.find({ sessionId }),
+    ]);
+
+    const interactionMap = new Map(interactions.map(i => [i.userId.toString(), i]));
+    const userMap = new Map(users.map(u => [u._id.toString(), u]));
+
+    // pending applicants (approval mode)
+    const pendingInteractions = interactions.filter(i => i.status === 'pending');
+    const pendingUserIds = pendingInteractions.map(i => i.userId.toString());
+    const pendingUsers = await UserModel.find(
+      { _id: { $in: pendingUserIds } },
+      'username avatarUrl creditScore role'
+    );
+    const pendingUserMap = new Map(pendingUsers.map(u => [u._id.toString(), u]));
+
+    const roster = allUserIds.map(uid => {
+      const user = userMap.get(uid);
+      const interaction = interactionMap.get(uid);
+      return {
+        userId: uid,
+        username: user?.username,
+        avatarUrl: user?.avatarUrl,
+        creditScore: user?.creditScore,
+        role: user?.role,
+        interactionStatus: interaction?.status ?? 'registered',
+        punctuality: interaction?.punctuality,
+        isWaitlisted: doc.waitlist.some(w => w.toString() === uid),
+        waitlistPosition: interaction?.waitlistPosition,
+      };
+    });
+
+    const pending = pendingUserIds.map(uid => {
+      const user = pendingUserMap.get(uid);
+      return {
+        userId: uid,
+        username: user?.username,
+        avatarUrl: user?.avatarUrl,
+        creditScore: user?.creditScore,
+        role: user?.role,
+        interactionStatus: 'pending',
+        isWaitlisted: false,
+        waitlistPosition: undefined,
+      };
+    });
+
+    return Result.ok({ roster, pending, guests: doc.guests });
+  }
+
+  async kickPlayer(sessionId: string, hostId: string, targetUserId: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can kick players.');
+    if (targetUserId === hostId) return Result.fail('Host cannot kick themselves.');
+
+    await MatchModel.findByIdAndUpdate(sessionId, {
+      $pull: { players: targetUserId, waitlist: targetUserId },
+    });
+    await SessionInteractionModel.findOneAndUpdate(
+      { userId: targetUserId, sessionId },
+      { $set: { status: 'cancelled' } }
+    );
+    await UserModel.findByIdAndUpdate(targetUserId, { $inc: { creditScore: -0.5 } });
+
+    return Result.ok();
+  }
+
+  async addGuest(sessionId: string, hostId: string, name: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId);
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can add guests.');
+
+    await MatchModel.findByIdAndUpdate(sessionId, {
+      $push: { guests: { name, addedBy: hostId, addedAt: new Date() } },
+    });
+    return Result.ok();
+  }
+
+  async removeGuest(sessionId: string, hostId: string, index: number): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can remove guests.');
+    if (index < 0 || index >= doc.guests.length) return Result.fail('Invalid guest index.');
+
+    // Remove by index: unset then pull null
+    const unsetKey = `guests.${index}`;
+    await MatchModel.findByIdAndUpdate(sessionId, { $unset: { [unsetKey]: 1 } });
+    await MatchModel.findByIdAndUpdate(sessionId, { $pull: { guests: null } });
+    return Result.ok();
+  }
+
+  async messagePlayer(
+    sessionId: string,
+    hostId: string,
+    targetUserId: string,
+    message: string
+  ): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId);
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can message players.');
+
+    await NotificationModel.create({
+      recipientId: targetUserId,
+      type: 'General',
+      message,
+      channel: 'in-app',
+      payload: { matchId: sessionId, fromHostId: hostId },
+    });
+    return Result.ok();
+  }
+
+  async notifyAll(sessionId: string, hostId: string, message: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can send notifications.');
+
+    const recipientIds = doc.players
+      .map(p => p.toString())
+      .filter(id => id !== hostId);
+
+    await NotificationModel.insertMany(
+      recipientIds.map(recipientId => ({
+        recipientId,
+        type: 'General',
+        message,
+        channel: 'in-app',
+        payload: { matchId: sessionId, fromHostId: hostId },
+      }))
+    );
+    return Result.ok();
+  }
+
+  async updateSession(
+    sessionId: string,
+    hostId: string,
+    dto: UpdateSessionDTO
+  ): Promise<Result<GameSessionResponseDTO>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can update this session.');
+
+    const update: Record<string, unknown> = {};
+    if (dto.title !== undefined) update['title'] = dto.title;
+    if (dto.description !== undefined) update['description'] = dto.description;
+    if (dto.scheduledAt !== undefined) update['scheduledAt'] = new Date(dto.scheduledAt);
+    if (dto.max_pax !== undefined) update['config.max_pax'] = dto.max_pax;
+    if (dto.min_pax !== undefined) update['config.min_pax'] = dto.min_pax;
+    if (dto.proficiency_required !== undefined) update['config.proficiency_required'] = dto.proficiency_required;
+    if (dto.game_type !== undefined) update['config.game_type'] = dto.game_type;
+    if (dto.judge_method !== undefined) update['config.judge_method'] = dto.judge_method;
+    if (dto.approvalMode !== undefined) update['approvalMode'] = dto.approvalMode;
+    if (dto.groupLink !== undefined) update['groupLink'] = dto.groupLink;
+    if (dto.groupType !== undefined) update['groupType'] = dto.groupType;
+
+    const updated = await MatchModel.findByIdAndUpdate(
+      sessionId,
+      { $set: update },
+      { new: true }
+    ) as MatchDoc | null;
+    if (!updated) return Result.fail('Match not found after update.');
+
+    const results = await enrichWithNamesAndInteraction([updated], hostId);
+    const result = results[0];
+    if (!result) return Result.fail('Failed to fetch updated match.');
+    return Result.ok(result);
+  }
+
+  async approveApplicant(sessionId: string, hostId: string, userId: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can approve applicants.');
+
+    const interaction = await SessionInteractionModel.findOne({ userId, sessionId });
+    if (!interaction || interaction.status !== 'pending') {
+      return Result.fail('No pending application found for this user.');
+    }
+
+    // Check capacity
+    if (doc.players.length >= doc.config.max_pax) {
+      // Add to waitlist instead
+      await MatchModel.findByIdAndUpdate(sessionId, { $push: { waitlist: userId } });
+      await SessionInteractionModel.findOneAndUpdate(
+        { userId, sessionId },
+        { $set: { status: 'registered', waitlistPosition: doc.waitlist.length + 1 } }
+      );
+    } else {
+      await MatchModel.findByIdAndUpdate(sessionId, { $push: { players: userId } });
+      await SessionInteractionModel.findOneAndUpdate(
+        { userId, sessionId },
+        { $set: { status: 'registered' }, $unset: { waitlistPosition: '' } }
+      );
+    }
+
+    await NotificationModel.create({
+      recipientId: userId,
+      type: 'MatchJoined',
+      message: `Your request to join "${doc.title}" has been approved.`,
+      channel: 'in-app',
+      payload: { matchId: sessionId },
+    });
+
+    return Result.ok();
+  }
+
+  async rejectApplicant(sessionId: string, hostId: string, userId: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId);
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can reject applicants.');
+
+    await SessionInteractionModel.findOneAndUpdate(
+      { userId, sessionId },
+      { $set: { status: 'cancelled' } }
+    );
+
+    await NotificationModel.create({
+      recipientId: userId,
+      type: 'General',
+      message: `Your request to join "${doc.title}" was not accepted.`,
+      channel: 'in-app',
+      payload: { matchId: sessionId },
+    });
+
+    return Result.ok();
+  }
+
+  async cancelWithPenalty(sessionId: string, hostId: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can cancel this session.');
+    if (doc.status === 'Cancelled' || doc.status === 'Completed') {
+      return Result.fail('Session is already finished.');
+    }
+
+    const hoursUntil = (doc.scheduledAt.getTime() - Date.now()) / 3_600_000;
+    let penalty = 0;
+    if (hoursUntil >= 9) penalty = -1.5;
+    else if (hoursUntil >= 5) penalty = -1;
+    else if (hoursUntil >= 3) penalty = -0.5;
+    // 0-2 hours: no penalty
+
+    if (penalty < 0) {
+      await UserModel.findByIdAndUpdate(hostId, { $inc: { creditScore: penalty } });
+    }
+
+    await MatchModel.findByIdAndUpdate(sessionId, {
+      $set: { status: 'Cancelled', cancelledAt: new Date() },
+    });
+    await SessionInteractionModel.updateMany({ sessionId }, { $set: { status: 'cancelled' } });
+
+    eventBus.publish({
+      eventName: 'MatchStatusChanged',
+      occurredOn: new Date(),
+      payload: { matchId: sessionId, newStatus: 'Cancelled', hostId },
+    });
+
+    return Result.ok();
+  }
+
+  async approveVenueSession(sessionId: string, venueOwnerId: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+
+    const venue = await PlayerSpaceModel.findById(doc.venue_id);
+    if (!venue) return Result.fail('Venue not found.');
+    if (venue.owner_id.toString() !== venueOwnerId) {
+      return Result.fail('Only the venue owner can approve sessions.');
+    }
+
+    await MatchModel.findByIdAndUpdate(sessionId, {
+      $set: { venueApprovalStatus: 'confirmed' },
+    });
+
+    await NotificationModel.create({
+      recipientId: doc.host_id.toString(),
+      type: 'General',
+      message: `Your session "${doc.title}" has been approved by the venue.`,
+      channel: 'in-app',
+      payload: { matchId: sessionId },
+    });
+
+    return Result.ok();
+  }
+
+  async rejectVenueSession(sessionId: string, venueOwnerId: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+
+    const venue = await PlayerSpaceModel.findById(doc.venue_id);
+    if (!venue) return Result.fail('Venue not found.');
+    if (venue.owner_id.toString() !== venueOwnerId) {
+      return Result.fail('Only the venue owner can reject sessions.');
+    }
+
+    await MatchModel.findByIdAndUpdate(sessionId, {
+      $set: { venueApprovalStatus: 'rejected' },
+    });
+
+    await NotificationModel.create({
+      recipientId: doc.host_id.toString(),
+      type: 'General',
+      message: `Your session "${doc.title}" was not approved by the venue.`,
+      channel: 'in-app',
+      payload: { matchId: sessionId },
+    });
 
     return Result.ok();
   }

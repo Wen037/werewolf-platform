@@ -33,6 +33,11 @@ logs/
 .vscode/
 .claude/
 .gemini/
+claudeLib/
+CLAUDE.md
+
+# --- Markdown Files ---
+*.md
 *.swp
 *.swo
 .DS_Store

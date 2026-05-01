@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ISessionInteractionDocument extends Document {
   userId: mongoose.Types.ObjectId;
   sessionId: mongoose.Types.ObjectId;
-  status: 'registered' | 'attended' | 'no-show' | 'cancelled';
+  status: 'registered' | 'attended' | 'no-show' | 'cancelled' | 'pending';
   isLiked: boolean;
   myRating?: number;
   punctuality?: 'punctual' | 'late';
@@ -15,7 +15,7 @@ const SessionInteractionSchema = new Schema<ISessionInteractionDocument>({
   sessionId: { type: Schema.Types.ObjectId, ref: 'Match', required: true },
   status: {
     type: String,
-    enum: ['registered', 'attended', 'no-show', 'cancelled'],
+    enum: ['registered', 'attended', 'no-show', 'cancelled', 'pending'],
     default: 'registered',
   },
   isLiked: { type: Boolean, default: false },
