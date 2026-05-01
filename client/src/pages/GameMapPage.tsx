@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, X, Navigation, Heart, Bell, Clock, CheckCircle } from "lucide-react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { ReportModal } from "../components/ReportModal";
+import { useNavigate } from "react-router-dom";
 
 // --- ICONS ---
 const googleUserIcon = new L.DivIcon({
@@ -70,7 +71,9 @@ function MapUpdater({ userLoc, venues }: { userLoc: { lat: number, lng: number }
 
 // Extend Types Locally for UI State
 type VenueUI = GameVenue & { isLiked?: boolean; isSubscribed?: boolean };
-type GameUI = GameSession & { isLiked?: boolean; isSubscribed?: boolean; venueDetails?: GameVenue };
+type GameUI = GameSession & { isLiked?: boolean; isSubscribed?: boolean; venueDetails?: GameVenue; joinedPlayerAvatars?: string[]; venueImageUrl?: string };
+
+type JoinState = "idle" | "joining" | "joined" | "pending";
 
 export default function GameMapPage() {
   const [venues, setVenues] = useState<VenueUI[]>([]);
@@ -81,6 +84,8 @@ export default function GameMapPage() {
   const [userLoc, setUserLoc] = useState<{ lat: number, lng: number } | null>(null);
   const [reportData, setReportData] = useState<{ isOpen: boolean; name: string, type: "Space" | "Event" } | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [joinStates, setJoinStates] = useState<Record<string, JoinState>>({});
+  const navigate = useNavigate();
 
   const triggerToast = () => {
     setShowToast(true);
@@ -92,6 +97,14 @@ export default function GameMapPage() {
       .then(([vData, gData]) => {
         setVenues(vData.map(v => ({ ...v, isLiked: false })));
         setGames(gData.map(g => ({ ...g, isLiked: false })));
+        // Initialize join states from existing interactions
+        const initial: Record<string, JoinState> = {};
+        for (const g of gData) {
+          const s = (g as any).myInteraction?.status;
+          if (s === "registered" || s === "attended") initial[g.id] = "joined";
+          else if (s === "pending") initial[g.id] = "pending";
+        }
+        setJoinStates(initial);
       });
 
     if (navigator.geolocation) {
@@ -163,6 +176,43 @@ export default function GameMapPage() {
       }
       return g;
     }));
+  };
+
+  const handleJoinGame = async (gameId: string) => {
+    const current = joinStates[gameId] ?? "idle";
+    if (current !== "idle") return;
+    setJoinStates(prev => ({ ...prev, [gameId]: "joining" }));
+    try {
+      const result = await GameService.joinGame(gameId);
+      const next: JoinState = result.wasWaitlisted ? "pending" : "joined";
+      setJoinStates(prev => ({ ...prev, [gameId]: next }));
+      setGames(prev => prev.map(g => {
+        if (g.id !== gameId) return g;
+        const updated = { ...g, currentPlayers: result.wasWaitlisted ? g.currentPlayers : g.currentPlayers + 1 };
+        if (selectedItem?.id === gameId) setSelectedItem({ ...selectedItem, currentPlayers: updated.currentPlayers });
+        return updated;
+      }));
+    } catch {
+      setJoinStates(prev => ({ ...prev, [gameId]: "idle" }));
+    }
+  };
+
+  const getJoinLabel = (gameId: string, approvalMode?: string, isFull?: boolean) => {
+    const state = joinStates[gameId] ?? "idle";
+    if (state === "joining") return t("Joining...");
+    if (state === "joined") return t("Joined");
+    if (state === "pending") return t("Pending Approval");
+    if (isFull) return t("Full");
+    if (approvalMode === "approval") return t("Apply to Join");
+    return t("Join Game");
+  };
+
+  const getJoinBtnCls = (gameId: string, isFull?: boolean) => {
+    const state = joinStates[gameId] ?? "idle";
+    if (state === "joined") return "bg-green-600/80 text-white cursor-default";
+    if (state === "pending") return "bg-amber-500/20 border border-amber-500/40 text-amber-300 cursor-default";
+    if (isFull) return "bg-neutral-700 text-neutral-500 cursor-not-allowed";
+    return "bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white";
   };
 
   return (
@@ -246,18 +296,22 @@ export default function GameMapPage() {
                 ${mode === 'places' ? 'bg-white/10 border-white/40' : 'bg-black/15 border-white/10'}
             `}>
                 <div className="h-32 relative shrink-0 group">
-                  <button 
+                  <button
                     onClick={() => setSelectedItem(null)}
                     className="absolute top-2 right-2 bg-black/50 hover:bg-black/50 text-white p-1 rounded-full backdrop-blur-sm transition-colors z-10"
                   >
                     <X size={16} />
                   </button>
-                  <img 
-                    src={selectedItem.imageUrl || selectedItem.venueDetails?.imageUrl} 
-                    className="w-full h-full object-cover" 
-                    alt="Detail" 
+                  <img
+                    src={selectedItem.imageUrl || selectedItem.venueDetails?.imageUrl || selectedItem.venueImageUrl}
+                    className={`w-full h-full object-cover transition-opacity ${mode === 'places' ? 'cursor-pointer hover:opacity-90' : 'cursor-pointer hover:opacity-90'}`}
+                    alt="Detail"
+                    onClick={() => {
+                      if (mode === 'places') navigate(`/gamespace/${selectedItem.id}`);
+                      else navigate(`/event/${selectedItem.id}`);
+                    }}
                   />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${mode === 'places' ? 'from-white/75' : 'from-black/75'} to-transparent`}></div>
+                  <div className={`absolute inset-0 bg-gradient-to-t ${mode === 'places' ? 'from-white/75' : 'from-black/75'} to-transparent pointer-events-none`}></div>
                 </div>
 
                 <div className={`p-4 flex-1 overflow-y-auto ${mode === 'places' ? 'text-neutral-900' : 'text-neutral-100'}`}>
@@ -348,12 +402,20 @@ export default function GameMapPage() {
                       </div>
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex -space-x-1.5">
-                          {[1,2,3].map(i => <div key={i} className="h-6 w-6 rounded-full bg-neutral-600 border border-neutral-700"/>)}
+                          {selectedItem.joinedPlayerAvatars?.slice(0, 4).map((url: string, i: number) => (
+                            <img key={i} src={url} alt="" className="h-6 w-6 rounded-full border border-neutral-700 object-cover bg-neutral-700" />
+                          )) ?? [1,2,3].map(i => <div key={i} className="h-6 w-6 rounded-full bg-neutral-600 border border-neutral-700"/>)}
                         </div>
                         <div className="text-xs font-bold text-neutral-400"><span className="text-white">{selectedItem.currentPlayers}</span>/{selectedItem.maxPlayers}</div>
                       </div>
                       <div className="space-y-2 mt-auto">
-                        <button className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white rounded-lg font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-colors">{t('Join Game')}</button>
+                        <button
+                          onClick={() => handleJoinGame(selectedItem.id)}
+                          disabled={(joinStates[selectedItem.id] ?? "idle") !== "idle" || selectedItem.currentPlayers >= selectedItem.maxPlayers}
+                          className={`w-full py-2.5 rounded-lg font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-colors ${getJoinBtnCls(selectedItem.id, selectedItem.currentPlayers >= selectedItem.maxPlayers)}`}
+                        >
+                          {getJoinLabel(selectedItem.id, selectedItem.approvalMode, selectedItem.currentPlayers >= selectedItem.maxPlayers)}
+                        </button>
                         <button onClick={() => selectedItem.venueDetails && openGoogleMaps(selectedItem.venueDetails.coordinates.lat, selectedItem.venueDetails.coordinates.lng)} className="w-full py-2.5 bg-white/20 border border-white/20 text-neutral-200 hover:bg-white/20 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"><Navigation size={14} /> {t('Google Maps')}</button>
                       </div>
                     </>

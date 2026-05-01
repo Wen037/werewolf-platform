@@ -83,6 +83,7 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
   saveKey: number;
   onSaveStateChange: (state: { saving: boolean; saved: boolean }) => void;
 }) {
+  const { t } = useLang();
   const [title, setTitle]             = useState(event.title);
   const [date, setDate]               = useState(() => parseDateTimeParts(event.date).date);
   const [time, setTime]               = useState(() => parseDateTimeParts(event.date).time);
@@ -99,8 +100,8 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
   const selectedPlatform = GROUP_PLATFORMS.find(p => p.type === groupType);
 
   const handleSave = async () => {
-    if (!title.trim()) { setError("Title is required."); return; }
-    if (!date || !time) { setError("Date and time are required."); return; }
+    if (!title.trim()) { setError(t("Title is required.")); return; }
+    if (!date || !time) { setError(t("Date and time are required.")); return; }
     if (maxPlayers < (event.currentPlayers ?? 0)) {
       setError(`Max cannot be below current count (${event.currentPlayers}).`);
       return;
@@ -145,7 +146,7 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
         {/* Title — wider */}
         <div className="col-span-3">
           <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-            <FileText size={12} className="text-red-400" /> Event Title
+            <FileText size={12} className="text-red-400" /> {t('Event Title')}
           </label>
           <input
             value={title}
@@ -157,7 +158,7 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
         <div className="col-span-2 grid grid-cols-2 gap-2">
           <div>
             <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-              <Calendar size={12} className="text-red-400" /> Date
+              <Calendar size={12} className="text-red-400" /> {t('Date')}
             </label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
               className="w-full bg-neutral-800 border border-white/10 rounded-xl px-2 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 [color-scheme:dark]"
@@ -165,7 +166,7 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
           </div>
           <div>
             <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-              <Clock size={12} className="text-red-400" /> Time
+              <Clock size={12} className="text-red-400" /> {t('Time')}
             </label>
             <input type="time" value={time} onChange={e => setTime(e.target.value)}
               className="w-full bg-neutral-800 border border-white/10 rounded-xl px-2 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 [color-scheme:dark]"
@@ -179,7 +180,7 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
         {/* Max Players */}
         <div className="col-span-1">
           <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-            <Users size={12} className="text-red-400" /> Max Pax
+            <Users size={12} className="text-red-400" /> {t('Max Pax')}
           </label>
           <div className="relative">
             <select
@@ -198,13 +199,13 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
             </div>
           </div>
           {(event.currentPlayers ?? 0) > 0 && (
-            <p className="text-neutral-600 text-xs mt-1">{event.currentPlayers} registered</p>
+            <p className="text-neutral-600 text-xs mt-1">{event.currentPlayers} {t('registered')}</p>
           )}
         </div>
         {/* Proficiency */}
         <div className="col-span-4">
           <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 block">
-            <Activity size={12} className="text-red-400" /> Proficiency
+            <Activity size={12} className="text-red-400" /> {t('Proficiency')}
           </label>
           <div className="flex flex-wrap gap-2 mt-1">
             {PROFICIENCY_LEVELS.map(level => (
@@ -215,7 +216,7 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
                     : "bg-transparent border-white/10 text-neutral-500 hover:border-white/20 hover:text-neutral-300"
                 }`}
               >
-                {level}
+                {t(level)}
               </button>
             ))}
           </div>
@@ -226,11 +227,11 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
       <div className="grid grid-cols-2 gap-4">
         {/* Description */}
         <div>
-          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 block">Description</label>
+          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 block">{t('Description')}</label>
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
-            placeholder="Add special rules or notes for players…"
+            placeholder={t('Add special rules or notes for players…')}
             rows={6}
             className="w-full h-full min-h-[140px] bg-neutral-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500/50 resize-none placeholder:text-neutral-600"
           />
@@ -239,8 +240,8 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
         {/* Social Group */}
         <div className="border border-white/8 rounded-xl p-4 bg-white/2 space-y-3">
           <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Link2 size={12} className="text-red-400" /> Social Group Link
-            <span className="text-[10px] font-normal text-neutral-600 ml-1">— joined players only</span>
+            <Link2 size={12} className="text-red-400" /> {t('Social Group Link')}
+            <span className="text-[10px] font-normal text-neutral-600 ml-1">— {t('joined players only')}</span>
           </label>
           <div className="grid grid-cols-2 gap-2">
             {GROUP_PLATFORMS.map(p => (
@@ -267,7 +268,7 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
                   <button type="button" onClick={() => setShowQR(p => !p)}
                     className="flex items-center gap-1 text-xs text-neutral-500 hover:text-white transition-colors"
                   >
-                    <QrCode size={12} /> {showQR ? "Hide QR" : "Preview QR"}
+                    <QrCode size={12} /> {showQR ? t("Hide QR") : t("Preview QR")}
                   </button>
                   {showQR && (
                     <div className="flex justify-center mt-2">
@@ -283,7 +284,7 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
               )}
             </div>
           )}
-          {!groupType && <p className="text-neutral-600 text-xs">Select a platform above to add a group invite link.</p>}
+          {!groupType && <p className="text-neutral-600 text-xs">{t('Select a platform above to add a group invite link.')}</p>}
         </div>
       </div>
 
@@ -408,10 +409,10 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
 
       {/* ── Compact Guest Bar (always visible at top) ─────────────── */}
       <div className="flex items-center gap-2 p-2.5 bg-neutral-800/50 border border-white/8 rounded-xl">
-        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider shrink-0">Guests</span>
+        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider shrink-0">{t('Guests')}</span>
         <div className="flex flex-wrap gap-1 flex-1 min-w-0">
           {localGuests.length === 0 && (
-            <span className="text-[10px] text-neutral-600 italic">None added</span>
+            <span className="text-[10px] text-neutral-600 italic">{t('None added')}</span>
           )}
           {localGuests.map((g, i) => (
             <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-700 border border-white/10 text-[11px] text-neutral-200">
@@ -428,7 +429,7 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
             value={guestName}
             onChange={e => setGuestName(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleAddGuest()}
-            placeholder="Name…"
+            placeholder={t('Name…')}
             className="w-28 bg-neutral-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-red-500/50"
           />
           <button
@@ -436,7 +437,7 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
             disabled={addingGuest || !guestName.trim()}
             className="px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40 flex items-center gap-1"
           >
-            <UserPlus size={12} /> Add
+            <UserPlus size={12} /> {t('Add')}
           </button>
         </div>
       </div>
@@ -445,7 +446,7 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
       {pendingRoster.length > 0 && (
         <div>
           <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <UserCheck size={12} /> Awaiting Approval ({pendingRoster.length})
+            <UserCheck size={12} /> {t('Awaiting Approval')} ({pendingRoster.length})
           </h3>
           <div className="space-y-2 mb-1">
             {pendingRoster.map(({ user }) => {
@@ -477,7 +478,7 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-40"
                         title="Approve"
                       >
-                        {approvingId === user.id ? "…" : <><CheckCircle2 size={12} /> Accept</>}
+                        {approvingId === user.id ? "…" : <><CheckCircle2 size={12} /> {t('Accept')}</>}
                       </button>
                       <button
                         onClick={() => handleReject(user.id)}
@@ -485,7 +486,7 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
                         title="Reject"
                       >
-                        {rejectingId === user.id ? "…" : <><XCircle size={12} /> Decline</>}
+                        {rejectingId === user.id ? "…" : <><XCircle size={12} /> {t('Decline')}</>}
                       </button>
                     </div>
                   </div>
@@ -515,7 +516,7 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search player…"
+              placeholder={t('Search player…')}
               className="w-full bg-neutral-800 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-white/20"
             />
           </div>
@@ -523,7 +524,7 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
 
         {filtered.length === 0 ? (
           <p className="text-neutral-600 text-sm italic py-4 text-center">
-            {search ? "No player matches that name." : "No registered players yet."}
+            {search ? t("No player matches that name.") : t("No registered players yet.")}
           </p>
         ) : (
           <div className="space-y-2">
@@ -579,23 +580,23 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
                   {panelMode === 'message' && (
                     <div className="bg-blue-950/30 border-t border-blue-500/15 px-3 py-3 space-y-2">
                       <p className="text-blue-300 text-xs font-bold">
-                        Message <span className="text-white">{user.username}</span>
+                        {t('Message')} <span className="text-white">{user.username}</span>
                       </p>
                       <textarea
                         value={msgText}
                         onChange={e => setMsgText(e.target.value)}
-                        placeholder="Type your message…"
+                        placeholder={t('Type your message…')}
                         rows={2}
                         className="w-full bg-neutral-900 border border-blue-500/20 rounded-lg px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-blue-500/40 resize-none"
                       />
                       <div className="flex gap-2">
-                        <button onClick={closePanel} className="flex-1 py-1.5 rounded-lg text-xs font-bold text-neutral-400 border border-white/10 hover:bg-white/5 transition-colors">Cancel</button>
+                        <button onClick={closePanel} className="flex-1 py-1.5 rounded-lg text-xs font-bold text-neutral-400 border border-white/10 hover:bg-white/5 transition-colors">{t('Cancel')}</button>
                         <button
                           onClick={() => handleSendMessage(user.id)}
                           disabled={sending || !msgText.trim() || isSent}
                           className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-40 ${isSent ? "bg-green-600 text-white" : "bg-blue-600 hover:bg-blue-500 text-white"}`}
                         >
-                          {isSent ? "✓ Sent!" : sending ? "Sending…" : <><Send size={12} /> Send</>}
+                          {isSent ? t("✓ Sent!") : sending ? t("Sending…") : <><Send size={12} /> {t('Send')}</>}
                         </button>
                       </div>
                     </div>
@@ -604,22 +605,22 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
                   {panelMode === 'kick' && (
                     <div className="bg-red-950/40 border-t border-red-500/20 px-3 py-3 space-y-2">
                       <p className="text-red-300 text-xs font-bold">
-                        Removing <span className="text-white">{user.username}</span> deducts <span className="text-red-400">−0.5 credit</span>.
+                        {t('Removing')} <span className="text-white">{user.username}</span> {t('deducts −0.5 credit')}.
                       </p>
                       <input
                         value={kickReason}
                         onChange={e => setKickReason(e.target.value)}
-                        placeholder="Reason for removal (required)…"
+                        placeholder={t('Reason for removal (required)…')}
                         className="w-full bg-neutral-900 border border-red-500/20 rounded-lg px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-red-500/40"
                       />
                       <div className="flex gap-2">
-                        <button onClick={closePanel} className="flex-1 py-1.5 rounded-lg text-xs font-bold text-neutral-400 border border-white/10 hover:bg-white/5 transition-colors">Cancel</button>
+                        <button onClick={closePanel} className="flex-1 py-1.5 rounded-lg text-xs font-bold text-neutral-400 border border-white/10 hover:bg-white/5 transition-colors">{t('Cancel')}</button>
                         <button
                           onClick={() => handleKickConfirm(user.id)}
                           disabled={kicking || !kickReason.trim()}
                           className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-40"
                         >
-                          {kicking ? "Removing…" : "Confirm Remove"}
+                          {kicking ? t("Removing…") : t("Confirm Remove")}
                         </button>
                       </div>
                     </div>
@@ -635,9 +636,9 @@ function RosterTab({ event, roster, onRosterChange, onEventUpdate }: {
       {(event.waitlistCount ?? 0) > 0 && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
           <p className="text-amber-400 text-sm font-bold">
-            {event.waitlistCount} player{event.waitlistCount !== 1 ? "s" : ""} on waitlist
+            {event.waitlistCount} {t('players on waitlist')}
           </p>
-          <p className="text-neutral-400 text-xs mt-1">Promoted automatically when a spot opens.</p>
+          <p className="text-neutral-400 text-xs mt-1">{t('Promoted automatically when a spot opens.')}</p>
         </div>
       )}
     </div>
@@ -650,6 +651,7 @@ function ManageTab({ event, onEventUpdate, onFinished }: {
   onEventUpdate: (updated: Partial<GameSessionDTO>) => void;
   onFinished: () => void;
 }) {
+  const { t } = useLang();
   // Bug 3 fix: default approvalMode is 'approval', not 'open'
   const [localStatus, setLocalStatus] = useState(event.status);
   const [localMode, setLocalMode]     = useState(event.approvalMode ?? 'approval');
@@ -657,15 +659,15 @@ function ManageTab({ event, onEventUpdate, onFinished }: {
   const [savingMode, setSavingMode]     = useState(false);
 
   const STATUS_OPTIONS: { value: 'open' | 'playing' | 'finished'; label: string; icon: React.ReactNode; color: string }[] = [
-    { value: "open",     label: "Open",     icon: <ChevronRight size={14} />, color: "border-green-500/40 text-green-400 bg-green-500/10" },
-    { value: "playing",  label: "Playing",  icon: <Play size={14} />,         color: "border-blue-500/40 text-blue-400 bg-blue-500/10" },
-    { value: "finished", label: "Finished", icon: <Trophy size={14} />,       color: "border-neutral-500/40 text-neutral-400 bg-neutral-500/10" },
+    { value: "open",     label: t("Open"),     icon: <ChevronRight size={14} />, color: "border-green-500/40 text-green-400 bg-green-500/10" },
+    { value: "playing",  label: t("Playing"),  icon: <Play size={14} />,         color: "border-blue-500/40 text-blue-400 bg-blue-500/10" },
+    { value: "finished", label: t("Finished"), icon: <Trophy size={14} />,       color: "border-neutral-500/40 text-neutral-400 bg-neutral-500/10" },
   ];
 
   const ENTRY_MODES: { value: 'open' | 'approval' | 'invite_only'; label: string; desc: string; icon: React.ReactNode; color: string }[] = [
-    { value: "open",        label: "Open",        desc: "Anyone can join instantly",     icon: <Globe size={16} />,     color: "border-green-500/40 text-green-400 bg-green-500/10" },
-    { value: "approval",    label: "Approval",    desc: "You review each join request",  icon: <UserCheck size={16} />, color: "border-amber-500/40 text-amber-400 bg-amber-500/10" },
-    { value: "invite_only", label: "Invite Only", desc: "You invite players directly",   icon: <Lock size={16} />,      color: "border-purple-500/40 text-purple-400 bg-purple-500/10" },
+    { value: "open",        label: t("Open"),        desc: t("Anyone can join instantly"),    icon: <Globe size={16} />,     color: "border-green-500/40 text-green-400 bg-green-500/10" },
+    { value: "approval",    label: t("Approval"),    desc: t("You review each join request"), icon: <UserCheck size={16} />, color: "border-amber-500/40 text-amber-400 bg-amber-500/10" },
+    { value: "invite_only", label: t("Invite Only"), desc: t("You invite players directly"),  icon: <Lock size={16} />,      color: "border-purple-500/40 text-purple-400 bg-purple-500/10" },
   ];
 
   const handleStatusChange = async (status: 'open' | 'playing' | 'finished') => {
@@ -698,7 +700,7 @@ function ManageTab({ event, onEventUpdate, onFinished }: {
     <div className="space-y-6">
       {/* Entry Mode */}
       <div>
-        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Entry Mode</h3>
+        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">{t('Entry Mode')}</h3>
         <div className="space-y-2">
           {ENTRY_MODES.map(opt => (
             <button key={opt.value} onClick={() => handleModeChange(opt.value)} disabled={savingMode}
@@ -719,19 +721,19 @@ function ManageTab({ event, onEventUpdate, onFinished }: {
         </div>
         {localMode === "approval" && (
           <p className="text-amber-400 text-xs mt-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-            New join requests appear in the Roster tab for your approval.
+            {t('New join requests appear in the Roster tab for your approval.')}
           </p>
         )}
         {localMode === "invite_only" && (
           <p className="text-purple-400 text-xs mt-2 bg-purple-500/10 border border-purple-500/20 rounded-lg px-3 py-2">
-            Event is hidden from public listing. Only you can see it in My Events.
+            {t('Event is hidden from public listing. Only you can see it in My Events.')}
           </p>
         )}
       </div>
 
       {/* Session Status */}
       <div>
-        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Session Status</h3>
+        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">{t('Session Status')}</h3>
         <div className="flex gap-2">
           {STATUS_OPTIONS.map(opt => (
             <button key={opt.value} onClick={() => handleStatusChange(opt.value)} disabled={savingStatus}
@@ -748,35 +750,35 @@ function ManageTab({ event, onEventUpdate, onFinished }: {
         </div>
         {localStatus === "playing" && (
           <p className="text-blue-400 text-xs mt-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-            Session is live. Players can no longer join or leave.
+            {t('Session is live. Players can no longer join or leave.')}
           </p>
         )}
         {localStatus === "finished" && (
           <p className="text-neutral-400 text-xs mt-2 bg-neutral-800/40 border border-white/5 rounded-lg px-3 py-2">
-            Session closed. Head to the Attendance tab to mark results.
+            {t('Session closed. Head to the Attendance tab to mark results.')}
           </p>
         )}
       </div>
 
       {/* Event Info Summary */}
       <div className="bg-neutral-800/40 border border-white/5 rounded-xl p-4 space-y-2">
-        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Event Info</h3>
+        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">{t('Event Info')}</h3>
         <div className="flex justify-between text-sm">
-          <span className="text-neutral-500">Players</span>
+          <span className="text-neutral-500">{t('Players')}</span>
           <span className="text-white font-bold">{event.currentPlayers} / {event.maxPlayers}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-neutral-500">Proficiency</span>
-          <span className="text-white">{event.proficiency ?? "All Welcome"}</span>
+          <span className="text-neutral-500">{t('Proficiency')}</span>
+          <span className="text-white">{t(event.proficiency ?? "All Welcome")}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-neutral-500">Venue</span>
+          <span className="text-neutral-500">{t('Venue')}</span>
           <span className="text-white truncate max-w-[180px]">{event.venueName}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-neutral-500">Venue Approval</span>
+          <span className="text-neutral-500">{t('Venue Approval')}</span>
           <span className={event.venueApprovalStatus === "confirmed" ? "text-green-400 font-bold" : "text-amber-400"}>
-            {event.venueApprovalStatus === "confirmed" ? "Confirmed" : "Pending"}
+            {event.venueApprovalStatus === "confirmed" ? t("Confirmed") : t("Pending")}
           </span>
         </div>
       </div>
@@ -792,6 +794,7 @@ function AttendanceTab({ event, roster, onEventUpdate, saveKey, onSaveStateChang
   saveKey: number;
   onSaveStateChange: (state: { saving: boolean; saved: boolean }) => void;
 }) {
+  const { t } = useLang();
   const [marks, setMarks] = useState<Record<string, 'attended' | 'no-show' | null>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -842,31 +845,31 @@ function AttendanceTab({ event, roster, onEventUpdate, saveKey, onSaveStateChang
   };
 
   if (activeRoster.length === 0) {
-    return <p className="text-neutral-600 text-sm italic py-8 text-center">No players to mark attendance for.</p>;
+    return <p className="text-neutral-600 text-sm italic py-8 text-center">{t('No players to mark attendance for.')}</p>;
   }
 
   return (
     <div className="space-y-4">
       {/* Bulk actions */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-neutral-500 shrink-0">Select all:</span>
+        <span className="text-xs text-neutral-500 shrink-0">{t('Select all:')}</span>
         <button
           onClick={() => handleMarkAll('attended')}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-green-500/30 text-green-400 hover:bg-green-500/10 transition-colors"
         >
-          <CheckCircle2 size={11} /> All Attended
+          <CheckCircle2 size={11} /> {t('All Attended')}
         </button>
         <button
           onClick={() => handleMarkAll('no-show')}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
         >
-          <XCircle size={11} /> All No-show
+          <XCircle size={11} /> {t('All No-show')}
         </button>
         <button
           onClick={handleClearAll}
           className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-neutral-500 hover:text-neutral-300 hover:border-white/20 transition-colors"
         >
-          Clear
+          {t('Clear')}
         </button>
       </div>
 
@@ -888,7 +891,7 @@ function AttendanceTab({ event, roster, onEventUpdate, saveKey, onSaveStateChang
                     : "bg-transparent border-white/10 text-neutral-500 hover:border-green-500/30 hover:text-green-400"
                 }`}
               >
-                <CheckCircle2 size={12} /> Attended
+                <CheckCircle2 size={12} /> {t('Attended')}
               </button>
               <button
                 onClick={() => setMarks(prev => ({ ...prev, [user.id]: marks[user.id] === "no-show" ? null : "no-show" }))}
@@ -898,7 +901,7 @@ function AttendanceTab({ event, roster, onEventUpdate, saveKey, onSaveStateChang
                     : "bg-transparent border-white/10 text-neutral-500 hover:border-red-500/30 hover:text-red-400"
                 }`}
               >
-                <XCircle size={12} /> No-show
+                <XCircle size={12} /> {t('No-show')}
               </button>
             </div>
           </div>
@@ -914,6 +917,7 @@ function DangerTab({ event, roster, onEventCancel }: {
   roster: RosterEntry[];
   onEventCancel: (sessionId: string) => void;
 }) {
+  const { t } = useLang();
   const [confirming, setConfirming] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -925,10 +929,10 @@ function DangerTab({ event, roster, onEventCancel }: {
     webRegisteredCount <= 8 ? -1 : -1.5;
 
   const penaltyLabel =
-    hostPenalty === 0   ? "No credit penalty" :
-    hostPenalty === -0.5 ? "−0.5 credit (3–4 players affected)" :
-    hostPenalty === -1  ? "−1 credit (5–8 players affected)" :
-                          "−1.5 credit (9+ players affected)";
+    hostPenalty === 0    ? t("No credit penalty") :
+    hostPenalty === -0.5 ? t("−0.5 credit (3–4 players affected)") :
+    hostPenalty === -1   ? t("−1 credit (5–8 players affected)") :
+                           t("−1.5 credit (9+ players affected)");
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -949,10 +953,10 @@ function DangerTab({ event, roster, onEventCancel }: {
       <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
         <div className="flex items-center gap-2 mb-2">
           <ShieldAlert size={16} className="text-red-400 shrink-0" />
-          <span className="text-red-300 font-bold text-sm">Danger Zone</span>
+          <span className="text-red-300 font-bold text-sm">{t('Danger Zone')}</span>
         </div>
         <p className="text-neutral-400 text-xs leading-relaxed">
-          These actions are irreversible. All registered players will be notified and removed.
+          {t('These actions are irreversible. All registered players will be notified and removed.')}
         </p>
       </div>
 
@@ -961,7 +965,7 @@ function DangerTab({ event, roster, onEventCancel }: {
           onClick={() => setConfirming(true)}
           className="w-full py-3 rounded-xl text-sm font-bold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
         >
-          Cancel This Event
+          {t('Cancel This Event')}
         </button>
       ) : (
         <div className="space-y-3">
@@ -969,7 +973,7 @@ function DangerTab({ event, roster, onEventCancel }: {
             Cancel "<span className="text-red-400">{event.title}</span>"?
           </p>
           <p className="text-neutral-400 text-xs text-center">
-            {webRegisteredCount} registered player{webRegisteredCount !== 1 ? "s" : ""} will be removed.
+            {webRegisteredCount} {t('registered players will be removed.')}
           </p>
           {/* Bug 4: show credit penalty */}
           <div className={`rounded-xl px-4 py-2.5 text-xs font-bold text-center ${
@@ -977,21 +981,21 @@ function DangerTab({ event, roster, onEventCancel }: {
               ? "bg-red-500/10 border border-red-500/20 text-red-400"
               : "bg-neutral-800/40 border border-white/5 text-neutral-500"
           }`}>
-            Your credit: {penaltyLabel}
+            {t('Your credit:')} {penaltyLabel}
           </div>
           <div className="flex gap-3">
             <button
               onClick={() => setConfirming(false)}
               className="flex-1 py-2.5 rounded-xl text-sm font-bold border border-white/10 text-neutral-300 hover:bg-white/5 transition-colors"
             >
-              Keep Event
+              {t('Keep Event')}
             </button>
             <button
               onClick={handleCancel}
               disabled={cancelling}
               className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50"
             >
-              {cancelling ? "Cancelling…" : "Yes, Cancel"}
+              {cancelling ? t("Cancelling…") : t("Yes, Cancel")}
             </button>
           </div>
         </div>
@@ -1027,14 +1031,15 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
     onEventUpdate(updated);
   };
 
+  const { t } = useLang();
   const pendingCount = roster.filter(r => r.interaction.status === 'pending').length;
 
   const TABS: { id: PanelTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: "info",       label: "Info",       icon: <FileEdit size={15} /> },
-    { id: "roster",     label: "Roster",     icon: <Users size={15} />, badge: pendingCount },
-    { id: "manage",     label: "Manage",     icon: <Settings size={15} /> },
-    { id: "attendance", label: "Attendance", icon: <ClipboardCheck size={15} /> },
-    { id: "danger",     label: "Danger",     icon: <AlertTriangle size={15} /> },
+    { id: "info",       label: t("Info"),       icon: <FileEdit size={15} /> },
+    { id: "roster",     label: t("Roster"),     icon: <Users size={15} />, badge: pendingCount },
+    { id: "manage",     label: t("Manage"),     icon: <Settings size={15} /> },
+    { id: "attendance", label: t("Attendance"), icon: <ClipboardCheck size={15} /> },
+    { id: "danger",     label: t("Danger"),     icon: <AlertTriangle size={15} /> },
   ];
 
   return (
@@ -1072,7 +1077,7 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
                 className="text-[10px] font-bold text-red-500 uppercase tracking-[0.15em] whitespace-nowrap"
                 style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
               >
-                Host Control
+                {t('Host Control')}
               </span>
             </div>
           )}
@@ -1084,7 +1089,7 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
               <div className="px-6 pt-5 pb-4 border-b border-white/10 shrink-0">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="text-[10px] font-bold text-red-500 uppercase tracking-[0.15em] mb-1">Host Control</div>
+                    <div className="text-[10px] font-bold text-red-500 uppercase tracking-[0.15em] mb-1">{t('Host Control')}</div>
                     <h2 className="text-white font-bold text-xl leading-tight">{localEvent.title}</h2>
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -1114,12 +1119,12 @@ export function HostControlPanel({ event, onClose, onEventUpdate, onEventCancel 
                       }`}
                     >
                       {saveState.saved
-                        ? <><CheckCircle size={13} /> Saved!</>
+                        ? <><CheckCircle size={13} /> {t('Saved!')}</>
                         : saveState.saving
-                        ? <><Save size={13} /> Saving…</>
+                        ? <><Save size={13} /> {t('Saving…')}</>
                         : saveEnabled
-                        ? <><Save size={13} /> Save</>
-                        : <><Save size={13} /> Auto-saved</>}
+                        ? <><Save size={13} /> {t('Save')}</>
+                        : <><Save size={13} /> {t('Auto-saved')}</>}
                     </button>
                     <button onClick={onClose} className="p-2 text-neutral-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                       <X size={20} />

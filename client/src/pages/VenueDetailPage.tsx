@@ -399,7 +399,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
           <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-neutral-900 border border-amber-500/20 w-full max-w-xl rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh]">
+            <div className="bg-neutral-900 border border-amber-500/20 w-full max-w-4xl rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh]">
 
               {/* Header */}
               <div className="flex justify-between items-center p-5 border-b border-white/5">
@@ -698,7 +698,7 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     <p className="text-neutral-400 text-sm mt-1">The venue will reach out to confirm your booking via the contact you provided.</p>
                   </div>
                   <button onClick={handleClose} className="mt-2 px-8 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl transition-colors">
-                    Done
+                    {t('Done')}
                   </button>
                 </div>
               ) : (
@@ -708,11 +708,11 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     {/* Date + Time */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={labelCls}>Date</label>
+                        <label className={labelCls}>{t('Date')}</label>
                         <input type="date" required value={form.date} onChange={set("date")} className={inputCls} />
                       </div>
                       <div>
-                        <label className={labelCls}>Start Time</label>
+                        <label className={labelCls}>{t('Start Time')}</label>
                         <input type="time" required value={form.time} onChange={set("time")} className={inputCls} />
                       </div>
                     </div>
@@ -720,15 +720,15 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     {/* Duration + Pax */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={labelCls}>Duration</label>
+                        <label className={labelCls}>{t('Duration')}</label>
                         <select value={form.duration} onChange={set("duration")} className={inputCls}>
                           {["1", "1.5", "2", "2.5", "3", "4"].map(h => (
-                            <option key={h} value={h} className="bg-neutral-900">{h} hr{parseFloat(h) > 1 ? "s" : ""}</option>
+                            <option key={h} value={h} className="bg-neutral-900">{h} {parseFloat(h) > 1 ? t('hrs') : t('hr')}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className={labelCls}>No. of Pax</label>
+                        <label className={labelCls}>{t('No. of Pax')}</label>
                         <input type="number" min={2} max={50} required value={form.pax}
                           onChange={e => setForm(f => ({ ...f, pax: parseInt(e.target.value) || 2 }))}
                           className={inputCls} />
@@ -738,10 +738,10 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     {/* Cost estimate */}
                     {estCost && (
                       <div className="bg-white/5 rounded-xl px-4 py-2.5 flex justify-between items-center border border-white/5">
-                        <span className="text-neutral-400 text-xs">Estimated cost</span>
+                        <span className="text-neutral-400 text-xs">{t('Estimated cost')}</span>
                         <span className="text-white font-bold">
                           {isFree
-                            ? <span className="text-green-400">Free</span>
+                            ? <span className="text-green-400">{t('Free')}</span>
                             : <>{estCost} <span className="text-neutral-500 font-normal text-xs">({costBreakdown})</span></>}
                         </span>
                       </div>
@@ -750,19 +750,19 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     {/* Name + Contact */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={labelCls}>Your Name</label>
-                        <input type="text" required placeholder="e.g. Alex Tan" value={form.name} onChange={set("name")} className={inputCls} />
+                        <label className={labelCls}>{t('Your Name')}</label>
+                        <input type="text" required placeholder={t('e.g. Alex Tan')} value={form.name} onChange={set("name")} className={inputCls} />
                       </div>
                       <div>
-                        <label className={labelCls}>Contact</label>
-                        <input type="text" required placeholder="Phone or email" value={form.contact} onChange={set("contact")} className={inputCls} />
+                        <label className={labelCls}>{t('Contact')}</label>
+                        <input type="text" required placeholder={t('Phone or email')} value={form.contact} onChange={set("contact")} className={inputCls} />
                       </div>
                     </div>
 
                     {/* Notes */}
                     <div>
-                      <label className={labelCls}>Notes <span className="text-neutral-600 normal-case font-normal">(optional)</span></label>
-                      <textarea placeholder="Special requests, setup needs..." value={form.notes} onChange={set("notes")}
+                      <label className={labelCls}>{t('Notes')} <span className="text-neutral-600 normal-case font-normal">{t('(optional)')}</span></label>
+                      <textarea placeholder={t('Special requests, setup needs...')} value={form.notes} onChange={set("notes")}
                         className={`${inputCls} min-h-[80px] resize-none`} />
                     </div>
                   </div>
@@ -771,11 +771,11 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                   <div className="px-5 pb-5 flex gap-3">
                     <button type="button" onClick={handleClose}
                       className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10">
-                      Cancel
+                      {t('Cancel')}
                     </button>
                     <button type="submit"
                       className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-all text-sm">
-                      Send Enquiry
+                      {t('Send Enquiry')}
                     </button>
                   </div>
                 </form>
@@ -802,6 +802,7 @@ export default function VenueDetailPage() {
   const [isEditOpen, setIsEditOpen]       = useState(false);
   const [showToast, setShowToast]         = useState(false);
   const [drawer, setDrawer]               = useState<"upcoming" | "past" | null>(null);
+  const [hoverRating, setHoverRating]     = useState(0);
 
   const currentUser = AuthService.getCurrentUser();
   const permissions = venue ? getVenuePermissions(venue, currentUser) : { canEdit: false, canVerify: false, canDelete: false };
@@ -920,6 +921,37 @@ export default function VenueDetailPage() {
     }
   };
 
+  const handleRate = async (rating: number) => {
+    if (!venue || !id) return;
+    const prevRating = venue.myInteraction?.myRating;
+    const prevAvg = venue.averageRating;
+    setVenue(v => v ? {
+      ...v,
+      myInteraction: {
+        userId: v.myInteraction?.userId ?? "",
+        venueId: id,
+        isLiked: v.myInteraction?.isLiked ?? false,
+        isSubscribed: v.myInteraction?.isSubscribed ?? false,
+        myRating: rating,
+      },
+    } : v);
+    try {
+      await GameService.rateVenue(id, rating);
+    } catch {
+      setVenue(v => v ? {
+        ...v,
+        averageRating: prevAvg,
+        myInteraction: {
+          userId: v.myInteraction?.userId ?? "",
+          venueId: id,
+          isLiked: v.myInteraction?.isLiked ?? false,
+          isSubscribed: v.myInteraction?.isSubscribed ?? false,
+          myRating: prevRating,
+        },
+      } : v);
+    }
+  };
+
   if (!venue) {
     return (
       <AppLayout>
@@ -932,6 +964,7 @@ export default function VenueDetailPage() {
 
   const isLiked = venue.myInteraction?.isLiked ?? false;
   const isSubscribed = venue.myInteraction?.isSubscribed ?? false;
+  const myRating = venue.myInteraction?.myRating ?? 0;
 
   return (
     <AppLayout>
@@ -1265,7 +1298,7 @@ export default function VenueDetailPage() {
           {/* ── Right column: Action card ── */}
           <div className="lg:col-span-1">
             <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md sticky top-6 shadow-xl">
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
                   <IconStar size={28} className="text-yellow-400 fill-yellow-400" />
                   <span className="text-3xl font-bold text-white leading-none">{venue.averageRating}</span>
@@ -1284,16 +1317,45 @@ export default function VenueDetailPage() {
                 </div>
               </div>
 
+              {/* Star rating input */}
+              <div className="mb-6 pb-5 border-b border-white/5">
+                <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-2">
+                  {myRating ? t("Your Rating") : t("Rate this Space")}
+                </div>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map(star => {
+                    const active = (hoverRating || myRating) >= star;
+                    return (
+                      <button
+                        key={star}
+                        onClick={() => handleRate(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        className="p-0.5 transition-transform hover:scale-110 active:scale-95"
+                      >
+                        <IconStar
+                          size={24}
+                          className={`transition-colors ${active ? "text-yellow-400 fill-yellow-400" : "text-neutral-600"}`}
+                        />
+                      </button>
+                    );
+                  })}
+                  {myRating > 0 && (
+                    <span className="text-xs text-neutral-500 ml-1.5">{myRating}/5</span>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <button
                   onClick={() => setIsBookingOpen(true)}
                   className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                  <IconPlus size={20} /> Book Now
+                  <IconPlus size={20} /> {t('Book Now')}
                 </button>
                 <button
                   onClick={openDirections}
                   className="w-full py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl border border-white/10 flex items-center justify-center gap-2 transition-all">
-                  <IconNavigation size={20} /> {t('Directions')}
+                  <IconNavigation size={20} /> {t('Google Maps')}
                 </button>
                 <button
                   onClick={handleSubscribe}

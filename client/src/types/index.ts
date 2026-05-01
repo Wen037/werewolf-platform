@@ -173,6 +173,8 @@ export interface GameSessionDTO extends GameSession {
   venueName?: string;
   venueAddress?: string;
   pricePerHour?: number;
+  joinedPlayerAvatars?: string[];
+  venueImageUrl?: string;
 }
 
 export interface UserProfileDTO extends User {

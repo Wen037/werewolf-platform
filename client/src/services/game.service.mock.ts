@@ -89,21 +89,37 @@ export const MockGameService = {
       .filter(g => (g.status === "open" || g.status === "playing") &&
         // hide invite_only events from non-hosts in public listing/map
         (g.approvalMode !== 'invite_only' || g.hostId === currentUserId))
-      .map(game => ({
-        ...game,
-        hostName: MOCK_USERS.find(u => u.id === game.hostId)?.username,
-        venueName: MOCK_VENUES.find(v => v.id === game.venueId)?.name,
-        myInteraction: MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === game.id && i.userId === currentUserId),
-      }));
+      .map(game => {
+        const venue = MOCK_VENUES.find(v => v.id === game.venueId);
+        const avatarCount = Math.min(game.currentPlayers, 5);
+        return {
+          ...game,
+          hostName: MOCK_USERS.find(u => u.id === game.hostId)?.username,
+          venueName: venue?.name,
+          venueImageUrl: venue?.imageUrl,
+          myInteraction: MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === game.id && i.userId === currentUserId),
+          joinedPlayerAvatars: Array.from({ length: avatarCount }, (_, i) =>
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${game.id}${i}`
+          ),
+        };
+      });
   },
 
   getGameById: async (sessionId: string): Promise<GameSessionDTO> => {
     await delay(200);
     const game = MOCK_GAMES.find(g => g.id === sessionId)!;
+    const venue = MOCK_VENUES.find(v => v.id === game.venueId);
+    const avatarCount = Math.min(game.currentPlayers, 8);
     return {
       ...game,
       hostName: MOCK_USERS.find(u => u.id === game.hostId)?.username,
-      venueName: MOCK_VENUES.find(v => v.id === game.venueId)?.name,
+      venueName: venue?.name,
+      venueAddress: venue?.address,
+      pricePerHour: venue?.pricePerHour,
+      venueImageUrl: venue?.imageUrl,
+      joinedPlayerAvatars: Array.from({ length: avatarCount }, (_, i) =>
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${sessionId}${i}`
+      ),
       myInteraction: MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === sessionId && i.userId === getCurrentUserId()),
     };
   },

@@ -563,7 +563,7 @@ export default function MyProfilePage() {
                 className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] w-full max-w-sm bg-neutral-900 border border-white/10 rounded-2xl p-6 shadow-2xl"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-white">Contact Settings</h3>
+                  <h3 className="text-lg font-bold text-white">{t('Contact Settings')}</h3>
                   <button onClick={() => setIsContactModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
                     <X size={20} />
                   </button>
@@ -571,30 +571,30 @@ export default function MyProfilePage() {
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Email Address</label>
-                    <input 
-                      type="email" 
+                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">{t('Email Address')}</label>
+                    <input
+                      type="email"
                       value={editForm.email}
                       onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" 
-                      placeholder="Enter your email" 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder={t('Enter your email')}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Phone Number</label>
-                    <input 
-                      type="text" 
+                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">{t('Phone Number')}</label>
+                    <input
+                      type="text"
                       value={editForm.phone}
                       onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" 
-                      placeholder="Enter your phone number" 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder={t('Enter your phone number')}
                     />
                   </div>
                   <button 
                     onClick={handleSaveContact}
                     className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all"
                   >
-                    Save Changes
+                    {t('Save Changes')}
                   </button>
                 </div>
               </motion.div>

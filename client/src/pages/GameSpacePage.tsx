@@ -318,7 +318,7 @@ export default function GameSpacePage() {
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search name, area, amenities…"
+                placeholder={t('Search name, area, amenities…')}
                 className="w-full bg-neutral-900/50 border border-neutral-700 text-white rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-neutral-500 focus:bg-neutral-800 transition-all"
               />
               {searchQuery && (
