@@ -94,7 +94,7 @@ export type UpdateSessionDTO = z.infer<typeof UpdateSessionSchema>;
 export interface SessionInteractionDTO {
   userId: string;
   sessionId: string;
-  status: 'registered' | 'attended' | 'no-show' | 'cancelled' | 'pending';
+  status: 'registered' | 'attended' | 'no-show' | 'cancelled' | 'pending' | 'waitlisted';
   isLiked: boolean;
   myRating: number | undefined;
   punctuality: 'punctual' | 'late' | undefined;
@@ -132,6 +132,8 @@ export interface GameSessionResponseDTO {
   groupLink: string | undefined;
   groupType: 'telegram' | 'whatsapp' | 'wechat' | 'facebook' | undefined;
   guests: MatchGuestDTO[];
+  joinedPlayerAvatars: string[];
+  venueImageUrl: string | undefined;
   myInteraction: SessionInteractionDTO | undefined;
 }
 

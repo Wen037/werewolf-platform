@@ -50,13 +50,19 @@ async function enrichWithNamesAndInteraction(
   const hostIds = [...new Set(docs.map(d => d.host_id.toString()))];
   const venueIds = [...new Set(docs.map(d => d.venue_id.toString()))];
 
-  const [hosts, venues] = await Promise.all([
+  // Collect up to 5 player IDs per doc for avatar previews
+  const previewPlayerIds = [...new Set(docs.flatMap(d => d.players.slice(0, 5).map(p => p.toString())))];
+
+  const [hosts, venues, playerUsers] = await Promise.all([
     UserModel.find({ _id: { $in: hostIds } }, 'username'),
-    PlayerSpaceModel.find({ _id: { $in: venueIds } }, 'name'),
+    PlayerSpaceModel.find({ _id: { $in: venueIds } }, 'name imageUrl'),
+    UserModel.find({ _id: { $in: previewPlayerIds } }, 'avatarUrl'),
   ]);
 
   const hostMap = new Map(hosts.map(h => [h._id.toString(), h.username]));
   const venueMap = new Map(venues.map(v => [v._id.toString(), v.name]));
+  const venueImageMap = new Map(venues.map(v => [v._id.toString(), (v as unknown as { imageUrl?: string }).imageUrl]));
+  const playerAvatarMap = new Map(playerUsers.map(u => [u._id.toString(), u.avatarUrl]));
 
   let interactionMap = new Map<string, SessionInteractionDTO>();
   if (requestingUserId) {
@@ -110,6 +116,10 @@ async function enrichWithNamesAndInteraction(
       addedBy: g.addedBy.toString(),
       addedAt: g.addedAt.toISOString(),
     })),
+    joinedPlayerAvatars: d.players.slice(0, 5)
+      .map(p => playerAvatarMap.get(p.toString()))
+      .filter((a): a is string => !!a),
+    venueImageUrl: venueImageMap.get(d.venue_id.toString()),
     myInteraction: interactionMap.get(d._id.toString()),
   }));
 }
@@ -231,7 +241,7 @@ export class MatchService {
       await MatchModel.findByIdAndUpdate(sessionId, { $push: { waitlist: userId } });
       await SessionInteractionModel.findOneAndUpdate(
         { userId, sessionId },
-        { $set: { status: 'registered', waitlistPosition } },
+        { $set: { status: 'waitlisted', waitlistPosition } },
         { upsert: true }
       );
     } else {
@@ -281,7 +291,7 @@ export class MatchService {
       });
       await SessionInteractionModel.findOneAndUpdate(
         { userId: promotedUserId, sessionId },
-        { $unset: { waitlistPosition: '' } }
+        { $set: { status: 'registered' }, $unset: { waitlistPosition: '' } }
       );
       eventBus.publish({
         eventName: 'WaitlistPromoted',
@@ -667,7 +677,7 @@ export class MatchService {
       await MatchModel.findByIdAndUpdate(sessionId, { $push: { waitlist: userId } });
       await SessionInteractionModel.findOneAndUpdate(
         { userId, sessionId },
-        { $set: { status: 'registered', waitlistPosition: doc.waitlist.length + 1 } }
+        { $set: { status: 'waitlisted', waitlistPosition: doc.waitlist.length + 1 } }
       );
     } else {
       await MatchModel.findByIdAndUpdate(sessionId, { $push: { players: userId } });

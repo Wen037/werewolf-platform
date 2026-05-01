@@ -17,6 +17,7 @@ export const CreatePlayerSpaceSchema = z.object({
   amenities: z.array(z.string()).optional(),
   rules: z.string().max(500).optional(),
   imageUrl: z.string().url().optional(),
+  images: z.array(z.string().url()).max(10).optional(),
 });
 
 // Owners can update all mutable properties; verified status and owner can only be changed by admin
@@ -35,6 +36,7 @@ export const UpdatePlayerSpaceSchema = z.object({
   amenities: z.array(z.string()).optional(),
   rules: z.string().max(500).optional(),
   imageUrl: z.string().url().optional(),
+  images: z.array(z.string().url()).max(10).optional(),
 });
 
 export const RateVenueSchema = z.object({
@@ -61,6 +63,7 @@ export interface GameVenueResponseDTO {
   priceType: 'per_person' | 'per_session';
   openingHours?: string;
   maxPax?: number;
+  images: string[];
   amenities: string[];
   rules: string | undefined;
   averageRating: number;
