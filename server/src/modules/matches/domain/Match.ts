@@ -108,7 +108,9 @@ export class Match extends Entity<MatchProps> {
       }
     }
 
-    if (this.props.status === 'Full') {
+    // Only transition back to Open if nobody was promoted — if a promotion filled the
+    // vacated slot the match is still at capacity and must stay Full.
+    if (this.props.status === 'Full' && promotedUserId === undefined) {
       (this.props as unknown as Record<string, unknown>)['status'] = 'Open';
     }
 
