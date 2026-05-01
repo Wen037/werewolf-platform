@@ -40,6 +40,33 @@ export const LogAttendanceSchema = z.object({
   })).min(1),
 });
 
+export const AddGuestSchema = z.object({
+  name: z.string().min(1).max(60),
+});
+
+export const MessagePlayerSchema = z.object({
+  userId: z.string().length(24),
+  message: z.string().min(1).max(500),
+});
+
+export const NotifyAllSchema = z.object({
+  message: z.string().min(1).max(500),
+});
+
+export const UpdateSessionSchema = z.object({
+  title: z.string().min(3).max(80).optional(),
+  description: z.string().max(500).optional(),
+  scheduledAt: z.string().datetime().optional(),
+  max_pax: z.number().int().min(2).max(50).optional(),
+  min_pax: z.number().int().min(2).max(50).optional(),
+  proficiency_required: z.number().int().min(0).max(4).optional(),
+  game_type: z.string().max(50).optional(),
+  judge_method: z.string().max(50).optional(),
+  approvalMode: z.enum(['open', 'approval', 'invite_only']).optional(),
+  groupLink: z.string().url().optional().or(z.literal('')),
+  groupType: z.enum(['telegram', 'whatsapp', 'wechat', 'facebook']).optional(),
+});
+
 // ─── Proficiency label map (0-4 → human-readable string) ─────────────────────
 export const PROFICIENCY_TO_LABEL: Record<number, string> = {
   0: 'All Welcome',
@@ -57,17 +84,27 @@ export type UpdateStatusDTO = z.infer<typeof UpdateStatusSchema>;
 export type ExternalPaxDTO = z.infer<typeof ExternalPaxSchema>;
 export type InviteUsersDTO = z.infer<typeof InviteUsersSchema>;
 export type LogAttendanceDTO = z.infer<typeof LogAttendanceSchema>;
+export type AddGuestDTO = z.infer<typeof AddGuestSchema>;
+export type MessagePlayerDTO = z.infer<typeof MessagePlayerSchema>;
+export type NotifyAllDTO = z.infer<typeof NotifyAllSchema>;
+export type UpdateSessionDTO = z.infer<typeof UpdateSessionSchema>;
 
 // ─── Response DTOs (use explicit | undefined for exactOptionalPropertyTypes) ──
 
 export interface SessionInteractionDTO {
   userId: string;
   sessionId: string;
-  status: 'registered' | 'attended' | 'no-show' | 'cancelled';
+  status: 'registered' | 'attended' | 'no-show' | 'cancelled' | 'pending';
   isLiked: boolean;
   myRating: number | undefined;
   punctuality: 'punctual' | 'late' | undefined;
   waitlistPosition: number | undefined;
+}
+
+export interface MatchGuestDTO {
+  name: string;
+  addedBy: string;
+  addedAt: string;
 }
 
 export interface GameSessionResponseDTO {
@@ -75,6 +112,7 @@ export interface GameSessionResponseDTO {
   hostId: string;
   venueId: string;
   title: string;
+  description: string | undefined;
   date: string;
   maxPlayers: number;
   currentPlayers: number;
@@ -89,6 +127,11 @@ export interface GameSessionResponseDTO {
   judgeMethod: string;
   proficiencyRequired: number;
   proficiency: string;
+  approvalMode: 'open' | 'approval' | 'invite_only';
+  venueApprovalStatus: 'pending' | 'confirmed' | 'rejected';
+  groupLink: string | undefined;
+  groupType: 'telegram' | 'whatsapp' | 'wechat' | 'facebook' | undefined;
+  guests: MatchGuestDTO[];
   myInteraction: SessionInteractionDTO | undefined;
 }
 

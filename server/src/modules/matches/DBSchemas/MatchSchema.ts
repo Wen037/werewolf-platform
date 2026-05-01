@@ -11,6 +11,7 @@ export interface IMatchDocument extends Document {
   host_id: mongoose.Types.ObjectId;
   venue_id: mongoose.Types.ObjectId;
   title: string;
+  description?: string;
   scheduledAt: Date;
   config: {
     min_pax: number;
@@ -22,9 +23,12 @@ export interface IMatchDocument extends Document {
   };
   location: { lat: number; long: number };
   status: 'Created' | 'Open' | 'Full' | 'Started' | 'Completed' | 'Cancelled';
+  approvalMode: 'open' | 'approval' | 'invite_only';
+  venueApprovalStatus: 'pending' | 'confirmed' | 'rejected';
+  groupLink?: string;
+  groupType?: 'telegram' | 'whatsapp' | 'wechat' | 'facebook';
   players: mongoose.Types.ObjectId[];
   waitlist: mongoose.Types.ObjectId[];
-  // Non-registered attendees (friends of host who don't have accounts)
   guests: IMatchGuest[];
   totalLikes: number;
   cancelledAt?: Date;
@@ -37,6 +41,7 @@ const MatchSchema = new Schema<IMatchDocument>(
     host_id: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     venue_id: { type: Schema.Types.ObjectId, ref: 'PlayerSpace', required: true },
     title: { type: String, required: true, trim: true },
+    description: { type: String },
     scheduledAt: { type: Date, required: true },
     config: {
       min_pax: { type: Number, required: true },
@@ -54,6 +59,21 @@ const MatchSchema = new Schema<IMatchDocument>(
       type: String,
       enum: ['Created', 'Open', 'Full', 'Started', 'Completed', 'Cancelled'],
       default: 'Open',
+    },
+    approvalMode: {
+      type: String,
+      enum: ['open', 'approval', 'invite_only'],
+      default: 'approval',
+    },
+    venueApprovalStatus: {
+      type: String,
+      enum: ['pending', 'confirmed', 'rejected'],
+      default: 'pending',
+    },
+    groupLink: { type: String },
+    groupType: {
+      type: String,
+      enum: ['telegram', 'whatsapp', 'wechat', 'facebook'],
     },
     players: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     waitlist: [{ type: Schema.Types.ObjectId, ref: 'User' }],

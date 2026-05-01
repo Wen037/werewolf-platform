@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
@@ -281,14 +281,22 @@ const PRIVACY_OPTIONS: { value: VenuePrivacy; label: string; hint: string }[] = 
   { value: 'private',     label: 'Private',      hint: 'Area only; shared after player joins' },
 ];
 
+const MAX_IMAGES = 5;
+const ACCEPTED_TYPES = "image/jpeg,image/png,image/webp";
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+type ImageEntry = { url: string; isDisplay: boolean };
+
 function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps) {
+  const { t } = useLang();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     name:         venue.name,
     address:      venue.address,
     area:         venue.area ?? "",
     privacy:      (venue.privacy ?? "public") as VenuePrivacy,
     description:  venue.description,
-    imageUrl:     venue.imageUrl,
     pricePerHour: venue.pricePerHour,
     priceType:    (venue.priceType ?? "per_session") as "per_person" | "per_session",
     type:         (venue.type ?? "boardgame_store") as VenueSpaceType,
@@ -297,7 +305,11 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
     rules:        venue.rules ?? "",
     amenities:    venue.amenities.join(", "),
   });
+  const [images, setImages] = useState<ImageEntry[]>(
+    venue.imageUrl ? [{ url: venue.imageUrl, isDisplay: true }] : []
+  );
   const [saved, setSaved] = useState(false);
+  const [imgError, setImgError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -307,7 +319,6 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         area:         venue.area ?? "",
         privacy:      (venue.privacy ?? "public") as VenuePrivacy,
         description:  venue.description,
-        imageUrl:     venue.imageUrl,
         pricePerHour: venue.pricePerHour,
         priceType:    (venue.priceType ?? "per_session") as "per_person" | "per_session",
         type:         (venue.type ?? "boardgame_store") as VenueSpaceType,
@@ -316,28 +327,54 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         rules:        venue.rules ?? "",
         amenities:    venue.amenities.join(", "),
       });
+      setImages(venue.imageUrl ? [{ url: venue.imageUrl, isDisplay: true }] : []);
       setSaved(false);
+      setImgError("");
     }
   }, [isOpen, venue]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImgError("");
+    const files = Array.from(e.target.files ?? []);
+    const remaining = MAX_IMAGES - images.length;
+    const toAdd: ImageEntry[] = [];
+    for (const file of files.slice(0, remaining)) {
+      if (file.size > MAX_FILE_BYTES) { setImgError(`"${file.name}" exceeds 5 MB`); continue; }
+      toAdd.push({ url: URL.createObjectURL(file), isDisplay: images.length === 0 && toAdd.length === 0 });
+    }
+    setImages(prev => [...prev, ...toAdd]);
+    e.target.value = "";
+  };
+
+  const setDisplay = (idx: number) =>
+    setImages(prev => prev.map((img, i) => ({ ...img, isDisplay: i === idx })));
+
+  const removeImage = (idx: number) =>
+    setImages(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      if (prev[idx].isDisplay && next.length > 0) next[0].isDisplay = true;
+      return next;
+    });
 
   const set = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [k]: e.target.value }));
 
   // When space type changes, auto-suggest the most appropriate privacy level
-  const handleTypeChange = (t: VenueSpaceType) => {
-    setForm(f => ({ ...f, type: t, privacy: DEFAULT_PRIVACY[t] }));
+  const handleTypeChange = (spaceType: VenueSpaceType) => {
+    setForm(f => ({ ...f, type: spaceType, privacy: DEFAULT_PRIVACY[spaceType] }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const displayImg = images.find(i => i.isDisplay);
     onSave({
       name:         form.name,
       address:      form.address,
       area:         form.area || undefined,
       privacy:      form.privacy,
       description:  form.description,
-      imageUrl:     form.imageUrl,
+      imageUrl:     displayImg?.url ?? venue.imageUrl,
       pricePerHour: Number(form.pricePerHour),
       priceType:    form.priceType,
       type:         form.type,
@@ -362,15 +399,15 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
           <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-neutral-900 border border-amber-500/20 w-full max-w-xl rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh]">
+            <div className="bg-neutral-900 border border-amber-500/20 w-full max-w-4xl rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh]">
 
               {/* Header */}
               <div className="flex justify-between items-center p-5 border-b border-white/5">
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <IconEdit size={20} className="text-amber-400" /> Edit Space
+                    <IconEdit size={20} className="text-amber-400" /> {t('Edit Space')}
                   </h2>
-                  <p className="text-xs text-neutral-400 mt-0.5">Only you (the owner) can edit this listing</p>
+                  <p className="text-xs text-neutral-400 mt-0.5">{t('Only you (the owner) can edit this listing')}</p>
                 </div>
                 <button onClick={onClose} className="text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors">
                   <IconX size={18} />
@@ -382,31 +419,31 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
                   {/* ── Space type ── */}
                   <div>
-                    <label className={labelCls}><IconBuildingStore size={11} className="inline mr-1" />Space Type</label>
+                    <label className={labelCls}><IconBuildingStore size={11} className="inline mr-1" />{t('Space Type')}</label>
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                      {SPACE_TYPES.map(t => (
-                        <button key={t} type="button" onClick={() => handleTypeChange(t)}
+                      {SPACE_TYPES.map(spaceType => (
+                        <button key={spaceType} type="button" onClick={() => handleTypeChange(spaceType)}
                           className={`py-2 px-1 rounded-xl text-[11px] font-semibold border transition-all text-center ${
-                            form.type === t
+                            form.type === spaceType
                               ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
                               : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
                           }`}>
-                          {VENUE_TYPE_LABELS[t]}
+                          {t(VENUE_TYPE_LABELS[spaceType])}
                         </button>
                       ))}
                     </div>
                     {/* Space-type hints */}
                     {form.type === 'house' && (
-                      <p className="mt-2 text-[11px] text-amber-400/80">Home venues default to private — only the district is shown publicly.</p>
+                      <p className="mt-2 text-[11px] text-amber-400/80">{t('Home venues default to private — only the district is shown publicly.')}</p>
                     )}
                     {(form.type === 'work' || form.type === 'school') && (
-                      <p className="mt-2 text-[11px] text-sky-400/80">Office / school venues default to approximate — full address shared on request.</p>
+                      <p className="mt-2 text-[11px] text-sky-400/80">{t('Office / school venues default to approximate — full address shared on request.')}</p>
                     )}
                   </div>
 
                   {/* ── Privacy ── */}
                   <div>
-                    <label className={labelCls}>Address Privacy</label>
+                    <label className={labelCls}>{t('Address Privacy')}</label>
                     <div className="flex gap-2">
                       {PRIVACY_OPTIONS.map(opt => (
                         <button key={opt.value} type="button"
@@ -416,60 +453,60 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                               ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
                               : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
                           }`}>
-                          {opt.label}
+                          {t(opt.label)}
                         </button>
                       ))}
                     </div>
                     <p className="mt-1.5 text-[11px] text-neutral-500">
-                      {PRIVACY_OPTIONS.find(o => o.value === form.privacy)?.hint}
+                      {t(PRIVACY_OPTIONS.find(o => o.value === form.privacy)?.hint ?? '')}
                     </p>
                   </div>
 
                   {/* ── Name ── */}
                   <div>
-                    <label className={labelCls}>Space Name</label>
+                    <label className={labelCls}>{t('Space Name')}</label>
                     <input value={form.name} onChange={set("name")} required className={inputCls} placeholder="e.g. Wolf's Den" />
                   </div>
 
                   {/* ── Address ── */}
                   <div>
                     <label className={labelCls}><IconMapPin size={11} className="inline mr-1" />
-                      {form.privacy === 'public' ? 'Full Address (shown publicly)' : 'Full Address (kept private)'}
+                      {t(form.privacy === 'public' ? 'Full Address (shown publicly)' : 'Full Address (kept private)')}
                     </label>
                     <input value={form.address} onChange={set("address")} required className={inputCls}
                       placeholder="e.g. 60A Prinsep Street, Singapore" />
                     {form.privacy !== 'public' && (
-                      <p className="mt-1 text-[11px] text-amber-400/80">This exact address is hidden from the public listing.</p>
+                      <p className="mt-1 text-[11px] text-amber-400/80">{t('This exact address is hidden from the public listing.')}</p>
                     )}
                   </div>
 
-                  {/* ── Area label (shown when address is not public) ── */}
+                  {/* ── Area label ── */}
                   {form.privacy !== 'public' && (
                     <div>
-                      <label className={labelCls}>Public Area Label</label>
+                      <label className={labelCls}>{t('Public Area Label')}</label>
                       <input value={form.area} onChange={set("area")} className={inputCls}
                         placeholder="e.g. Yishun, Jurong East" />
-                      <p className="mt-1 text-[11px] text-neutral-500">Shown on the listing as "Yishun area" so players know the general location.</p>
+                      <p className="mt-1 text-[11px] text-neutral-500">{t('Shown on the listing as "Yishun area" so players know the general location.')}</p>
                     </div>
                   )}
 
                   {/* ── Price + max pax ── */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={labelCls}><IconCash size={11} className="inline mr-1" />Price / hr (0 = Free)</label>
+                      <label className={labelCls}><IconCash size={11} className="inline mr-1" />{t('Price / hr (0 = Free)')}</label>
                       <input type="number" min={0} step={0.5} value={form.pricePerHour} onChange={set("pricePerHour")} required className={inputCls} />
                     </div>
                     <div>
-                      <label className={labelCls}><IconUsers size={11} className="inline mr-1" />Max Capacity</label>
+                      <label className={labelCls}><IconUsers size={11} className="inline mr-1" />{t('Max Capacity')}</label>
                       <input type="number" min={1} max={500} value={form.maxPax} onChange={set("maxPax")}
                         className={inputCls} placeholder="e.g. 20" />
                     </div>
                   </div>
 
-                  {/* Pricing Model — only when chargeable */}
+                  {/* Pricing Model */}
                   {Number(form.pricePerHour) > 0 && (
                     <div>
-                      <label className={labelCls}>Pricing Model</label>
+                      <label className={labelCls}>{t('Pricing Model')}</label>
                       <div className="flex gap-3">
                         {(["per_session", "per_person"] as const).map(opt => (
                           <button key={opt} type="button"
@@ -479,7 +516,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                                 ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
                                 : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
                             }`}>
-                            {opt === "per_session" ? "$/hr (whole space)" : "$/person/hr"}
+                            {t(opt === "per_session" ? "$/hr (whole space)" : "$/person/hr")}
                           </button>
                         ))}
                       </div>
@@ -488,37 +525,76 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
                   {/* ── Opening hours ── */}
                   <div>
-                    <label className={labelCls}><IconClock size={11} className="inline mr-1" />Opening / Available Hours</label>
+                    <label className={labelCls}><IconClock size={11} className="inline mr-1" />{t('Opening / Available Hours')}</label>
                     <input value={form.openingHours} onChange={set("openingHours")} className={inputCls}
                       placeholder="e.g. Mon–Fri 2pm–11pm, Sat–Sun 12pm–2am" />
                   </div>
 
-                  {/* ── Image URL ── */}
+                  {/* ── Photos (multi-upload, max 5) ── */}
                   <div>
-                    <label className={labelCls}><IconPhoto size={11} className="inline mr-1" />Image URL</label>
-                    <input value={form.imageUrl} onChange={set("imageUrl")} className={inputCls} placeholder="https://..." />
-                    {form.imageUrl && (
-                      <img src={form.imageUrl} alt="preview" className="mt-2 w-full h-28 object-cover rounded-xl border border-white/10 opacity-80" />
-                    )}
+                    <div className="flex items-center justify-between mb-2">
+                      <label className={labelCls + " mb-0"}>
+                        <IconPhoto size={11} className="inline mr-1" />{t('Photos')}
+                        <span className="normal-case font-normal text-neutral-500 ml-1">{t('JPG / PNG / WebP · max 5 MB each')}</span>
+                      </label>
+                      <span className="text-[11px] text-neutral-500">{images.length} / {MAX_IMAGES}</span>
+                    </div>
+                    {imgError && <p className="text-[11px] text-red-400 mb-2">{imgError}</p>}
+                    <div className="grid grid-cols-3 gap-2">
+                      {images.map((img, idx) => (
+                        <div key={idx} className="relative group rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/40">
+                          <img src={img.url} alt="" className="w-full h-full object-cover" />
+                          {/* Cover badge */}
+                          {img.isDisplay && (
+                            <div className="absolute bottom-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500 text-black">
+                              {t('Cover')}
+                            </div>
+                          )}
+                          {/* Hover controls */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5">
+                            {!img.isDisplay && (
+                              <button type="button" onClick={() => setDisplay(idx)}
+                                className="text-[9px] font-bold px-2 py-1 rounded-lg bg-amber-500/90 text-black hover:bg-amber-400">
+                                {t('Set as Cover')}
+                              </button>
+                            )}
+                            <button type="button" onClick={() => removeImage(idx)}
+                              className="text-[9px] font-bold px-2 py-1 rounded-lg bg-red-500/80 text-white hover:bg-red-500">
+                              ✕ Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Add button */}
+                      {images.length < MAX_IMAGES && (
+                        <button type="button" onClick={() => fileInputRef.current?.click()}
+                          className="aspect-video rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-amber-400 transition-colors bg-white/3">
+                          <IconPhoto size={18} />
+                          <span className="text-[10px] font-semibold">{t('Add Photo')}</span>
+                        </button>
+                      )}
+                    </div>
+                    <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} multiple
+                      onChange={handleFileSelect} className="hidden" />
                   </div>
 
                   {/* ── Description ── */}
                   <div>
-                    <label className={labelCls}>Description</label>
+                    <label className={labelCls}>{t('Description')}</label>
                     <textarea value={form.description} onChange={set("description")} rows={3}
-                      className={`${inputCls} resize-none`} placeholder="Describe the space..." />
+                      className={`${inputCls} resize-none`} placeholder={t('Describe the space...')} />
                   </div>
 
                   {/* ── Amenities ── */}
                   <div>
-                    <label className={labelCls}>Amenities <span className="normal-case font-normal text-neutral-500">(comma-separated)</span></label>
+                    <label className={labelCls}>{t('Amenities')} <span className="normal-case font-normal text-neutral-500">(comma-separated)</span></label>
                     <input value={form.amenities} onChange={set("amenities")} className={inputCls}
                       placeholder="WiFi, Snacks, Private Room" />
                   </div>
 
                   {/* ── Rules ── */}
                   <div>
-                    <label className={labelCls}>House Rules <span className="normal-case font-normal text-neutral-500">(optional)</span></label>
+                    <label className={labelCls}>{t('House Rules')} <span className="normal-case font-normal text-neutral-500">(optional)</span></label>
                     <textarea value={form.rules} onChange={set("rules")} rows={2}
                       className={`${inputCls} resize-none`} placeholder="e.g. No smoking, remove shoes at entrance..." />
                   </div>
@@ -528,13 +604,13 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                 <div className="px-5 pb-5 flex gap-3">
                   <button type="button" onClick={onClose}
                     className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10">
-                    Cancel
+                    {t('Cancel')}
                   </button>
                   <button type="submit"
                     className={`flex-1 py-3 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2 ${
                       saved ? "bg-green-600 text-white" : "bg-amber-500 hover:bg-amber-400 text-black"
                     }`}>
-                    {saved ? <><IconCheck size={16} /> Saved!</> : "Save Changes"}
+                    {saved ? <><IconCheck size={16} /> {t('Saved!')}</> : t('Save Changes')}
                   </button>
                 </div>
               </form>
@@ -622,7 +698,7 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     <p className="text-neutral-400 text-sm mt-1">The venue will reach out to confirm your booking via the contact you provided.</p>
                   </div>
                   <button onClick={handleClose} className="mt-2 px-8 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl transition-colors">
-                    Done
+                    {t('Done')}
                   </button>
                 </div>
               ) : (
@@ -632,11 +708,11 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     {/* Date + Time */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={labelCls}>Date</label>
+                        <label className={labelCls}>{t('Date')}</label>
                         <input type="date" required value={form.date} onChange={set("date")} className={inputCls} />
                       </div>
                       <div>
-                        <label className={labelCls}>Start Time</label>
+                        <label className={labelCls}>{t('Start Time')}</label>
                         <input type="time" required value={form.time} onChange={set("time")} className={inputCls} />
                       </div>
                     </div>
@@ -644,15 +720,15 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     {/* Duration + Pax */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={labelCls}>Duration</label>
+                        <label className={labelCls}>{t('Duration')}</label>
                         <select value={form.duration} onChange={set("duration")} className={inputCls}>
                           {["1", "1.5", "2", "2.5", "3", "4"].map(h => (
-                            <option key={h} value={h} className="bg-neutral-900">{h} hr{parseFloat(h) > 1 ? "s" : ""}</option>
+                            <option key={h} value={h} className="bg-neutral-900">{h} {parseFloat(h) > 1 ? t('hrs') : t('hr')}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className={labelCls}>No. of Pax</label>
+                        <label className={labelCls}>{t('No. of Pax')}</label>
                         <input type="number" min={2} max={50} required value={form.pax}
                           onChange={e => setForm(f => ({ ...f, pax: parseInt(e.target.value) || 2 }))}
                           className={inputCls} />
@@ -662,10 +738,10 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     {/* Cost estimate */}
                     {estCost && (
                       <div className="bg-white/5 rounded-xl px-4 py-2.5 flex justify-between items-center border border-white/5">
-                        <span className="text-neutral-400 text-xs">Estimated cost</span>
+                        <span className="text-neutral-400 text-xs">{t('Estimated cost')}</span>
                         <span className="text-white font-bold">
                           {isFree
-                            ? <span className="text-green-400">Free</span>
+                            ? <span className="text-green-400">{t('Free')}</span>
                             : <>{estCost} <span className="text-neutral-500 font-normal text-xs">({costBreakdown})</span></>}
                         </span>
                       </div>
@@ -674,19 +750,19 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     {/* Name + Contact */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={labelCls}>Your Name</label>
-                        <input type="text" required placeholder="e.g. Alex Tan" value={form.name} onChange={set("name")} className={inputCls} />
+                        <label className={labelCls}>{t('Your Name')}</label>
+                        <input type="text" required placeholder={t('e.g. Alex Tan')} value={form.name} onChange={set("name")} className={inputCls} />
                       </div>
                       <div>
-                        <label className={labelCls}>Contact</label>
-                        <input type="text" required placeholder="Phone or email" value={form.contact} onChange={set("contact")} className={inputCls} />
+                        <label className={labelCls}>{t('Contact')}</label>
+                        <input type="text" required placeholder={t('Phone or email')} value={form.contact} onChange={set("contact")} className={inputCls} />
                       </div>
                     </div>
 
                     {/* Notes */}
                     <div>
-                      <label className={labelCls}>Notes <span className="text-neutral-600 normal-case font-normal">(optional)</span></label>
-                      <textarea placeholder="Special requests, setup needs..." value={form.notes} onChange={set("notes")}
+                      <label className={labelCls}>{t('Notes')} <span className="text-neutral-600 normal-case font-normal">{t('(optional)')}</span></label>
+                      <textarea placeholder={t('Special requests, setup needs...')} value={form.notes} onChange={set("notes")}
                         className={`${inputCls} min-h-[80px] resize-none`} />
                     </div>
                   </div>
@@ -695,11 +771,11 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                   <div className="px-5 pb-5 flex gap-3">
                     <button type="button" onClick={handleClose}
                       className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10">
-                      Cancel
+                      {t('Cancel')}
                     </button>
                     <button type="submit"
                       className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-all text-sm">
-                      Send Enquiry
+                      {t('Send Enquiry')}
                     </button>
                   </div>
                 </form>
@@ -726,6 +802,7 @@ export default function VenueDetailPage() {
   const [isEditOpen, setIsEditOpen]       = useState(false);
   const [showToast, setShowToast]         = useState(false);
   const [drawer, setDrawer]               = useState<"upcoming" | "past" | null>(null);
+  const [hoverRating, setHoverRating]     = useState(0);
 
   const currentUser = AuthService.getCurrentUser();
   const permissions = venue ? getVenuePermissions(venue, currentUser) : { canEdit: false, canVerify: false, canDelete: false };
@@ -844,6 +921,37 @@ export default function VenueDetailPage() {
     }
   };
 
+  const handleRate = async (rating: number) => {
+    if (!venue || !id) return;
+    const prevRating = venue.myInteraction?.myRating;
+    const prevAvg = venue.averageRating;
+    setVenue(v => v ? {
+      ...v,
+      myInteraction: {
+        userId: v.myInteraction?.userId ?? "",
+        venueId: id,
+        isLiked: v.myInteraction?.isLiked ?? false,
+        isSubscribed: v.myInteraction?.isSubscribed ?? false,
+        myRating: rating,
+      },
+    } : v);
+    try {
+      await GameService.rateVenue(id, rating);
+    } catch {
+      setVenue(v => v ? {
+        ...v,
+        averageRating: prevAvg,
+        myInteraction: {
+          userId: v.myInteraction?.userId ?? "",
+          venueId: id,
+          isLiked: v.myInteraction?.isLiked ?? false,
+          isSubscribed: v.myInteraction?.isSubscribed ?? false,
+          myRating: prevRating,
+        },
+      } : v);
+    }
+  };
+
   if (!venue) {
     return (
       <AppLayout>
@@ -856,6 +964,7 @@ export default function VenueDetailPage() {
 
   const isLiked = venue.myInteraction?.isLiked ?? false;
   const isSubscribed = venue.myInteraction?.isSubscribed ?? false;
+  const myRating = venue.myInteraction?.myRating ?? 0;
 
   return (
     <AppLayout>
@@ -963,54 +1072,7 @@ export default function VenueDetailPage() {
               </div>
             </div>
 
-            {/* About */}
-            <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
-              <h2 className="text-xl font-bold text-white mb-4">{t('About this Place')}</h2>
-              <p className="text-neutral-400 leading-relaxed mb-6">
-                {venue.description || "A mysterious gathering place for werewolves and villagers alike."}
-              </p>
-
-              {/* Meta info row */}
-              <div className="flex flex-wrap gap-3 mb-6">
-                {venue.openingHours && (
-                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                    <IconClock size={14} className="text-amber-400" />
-                    {venue.openingHours}
-                  </div>
-                )}
-                {venue.type && (
-                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                    <IconBuildingStore size={14} className="text-sky-400" />
-                    {VENUE_TYPE_LABELS[venue.type]}
-                  </div>
-                )}
-                {venue.maxPax && (
-                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                    <IconUsers size={14} className="text-green-400" />
-                    Up to {venue.maxPax} pax
-                  </div>
-                )}
-              </div>
-
-              {venue.rules && (
-                <div className="mb-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/15">
-                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">{t('House Rules')}</p>
-                  <p className="text-sm text-neutral-300">{venue.rules}</p>
-                </div>
-              )}
-
-              <h3 className="text-lg font-bold text-white mb-4">{t('Amenities')}</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {venue.amenities.map(am => (
-                  <div key={am} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 text-neutral-300">
-                    <IconCircleCheck size={18} className="text-green-500 flex-shrink-0" />
-                    <span className="text-sm">{am}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Pending Approvals (owner only) ── */}
+            {/* ── Pending Approvals (owner only) — shown first if present ── */}
             {pendingApprovals.length > 0 && (
               <div id="pending-approvals" className="bg-amber-950/20 border border-amber-500/25 rounded-2xl p-6 md:p-8 backdrop-blur-sm scroll-mt-8">
                 <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
@@ -1062,6 +1124,53 @@ export default function VenueDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* About */}
+            <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
+              <h2 className="text-xl font-bold text-white mb-4">{t('About this Place')}</h2>
+              <p className="text-neutral-400 leading-relaxed mb-6">
+                {venue.description || "A mysterious gathering place for werewolves and villagers alike."}
+              </p>
+
+              {/* Meta info row */}
+              <div className="flex flex-wrap gap-3 mb-6">
+                {venue.openingHours && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconClock size={14} className="text-amber-400" />
+                    {venue.openingHours}
+                  </div>
+                )}
+                {venue.type && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconBuildingStore size={14} className="text-sky-400" />
+                    {VENUE_TYPE_LABELS[venue.type]}
+                  </div>
+                )}
+                {venue.maxPax && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <IconUsers size={14} className="text-green-400" />
+                    Up to {venue.maxPax} pax
+                  </div>
+                )}
+              </div>
+
+              {venue.rules && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/15">
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">{t('House Rules')}</p>
+                  <p className="text-sm text-neutral-300">{venue.rules}</p>
+                </div>
+              )}
+
+              <h3 className="text-lg font-bold text-white mb-4">{t('Amenities')}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {venue.amenities.map(am => (
+                  <div key={am} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 text-neutral-300">
+                    <IconCircleCheck size={18} className="text-green-500 flex-shrink-0" />
+                    <span className="text-sm">{am}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* ── Coming Events ── */}
             <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
@@ -1189,7 +1298,7 @@ export default function VenueDetailPage() {
           {/* ── Right column: Action card ── */}
           <div className="lg:col-span-1">
             <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md sticky top-6 shadow-xl">
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
                   <IconStar size={28} className="text-yellow-400 fill-yellow-400" />
                   <span className="text-3xl font-bold text-white leading-none">{venue.averageRating}</span>
@@ -1208,16 +1317,45 @@ export default function VenueDetailPage() {
                 </div>
               </div>
 
+              {/* Star rating input */}
+              <div className="mb-6 pb-5 border-b border-white/5">
+                <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-2">
+                  {myRating ? t("Your Rating") : t("Rate this Space")}
+                </div>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map(star => {
+                    const active = (hoverRating || myRating) >= star;
+                    return (
+                      <button
+                        key={star}
+                        onClick={() => handleRate(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        className="p-0.5 transition-transform hover:scale-110 active:scale-95"
+                      >
+                        <IconStar
+                          size={24}
+                          className={`transition-colors ${active ? "text-yellow-400 fill-yellow-400" : "text-neutral-600"}`}
+                        />
+                      </button>
+                    );
+                  })}
+                  {myRating > 0 && (
+                    <span className="text-xs text-neutral-500 ml-1.5">{myRating}/5</span>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <button
                   onClick={() => setIsBookingOpen(true)}
                   className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                  <IconPlus size={20} /> Book Now
+                  <IconPlus size={20} /> {t('Book Now')}
                 </button>
                 <button
                   onClick={openDirections}
                   className="w-full py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl border border-white/10 flex items-center justify-center gap-2 transition-all">
-                  <IconNavigation size={20} /> {t('Directions')}
+                  <IconNavigation size={20} /> {t('Google Maps')}
                 </button>
                 <button
                   onClick={handleSubscribe}

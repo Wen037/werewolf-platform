@@ -76,4 +76,47 @@ export const RealGameService = {
   // Admin only
   adjustCredit: (userId: string, delta: number): Promise<{ userId: string; creditScore: number }> =>
     api.patch(`/admin/users/${userId}/credit`, { delta }),
+
+  // ── Host control ──────────────────────────────────────────────────────────
+
+  getSessionRoster: (sessionId: string) =>
+    api.get(`/games/${sessionId}/roster`),
+
+  kickPlayer: (sessionId: string, userId: string) =>
+    api.delete(`/games/${sessionId}/players/${userId}`),
+
+  addGuest: (sessionId: string, name: string) =>
+    api.post(`/games/${sessionId}/guests`, { name }),
+
+  removeGuest: (sessionId: string, index: number) =>
+    api.delete(`/games/${sessionId}/guests/${index}`),
+
+  updateSessionStatus: (sessionId: string, status: string) =>
+    api.patch(`/games/${sessionId}/status`, { status }),
+
+  markAttendance: (sessionId: string, records: { userId: string; status: string }[]) =>
+    api.patch(`/games/${sessionId}/attendance`, { records }),
+
+  cancelSession: (sessionId: string) =>
+    api.patch(`/games/${sessionId}/status`, { status: "cancelled" }),
+
+  updateSession: (sessionId: string, fields: object) =>
+    api.patch(`/games/${sessionId}`, fields),
+
+  notifyPlayers: (sessionId: string, message: string) =>
+    api.post(`/games/${sessionId}/notify`, { message }),
+
+  updateApprovalMode: (sessionId: string, mode: string) =>
+    api.patch(`/games/${sessionId}`, { approvalMode: mode }),
+
+  sendMessageToPlayer: (sessionId: string, userId: string, message: string) =>
+    api.post(`/games/${sessionId}/message`, { userId, message }),
+
+  // ── Applicant approval (approvalMode === 'approval') ─────────────────────
+
+  approveApplicant: (sessionId: string, userId: string) =>
+    api.patch(`/games/${sessionId}/applicants/${userId}/approve`, {}),
+
+  rejectApplicant: (sessionId: string, userId: string) =>
+    api.patch(`/games/${sessionId}/applicants/${userId}/reject`, {}),
 };

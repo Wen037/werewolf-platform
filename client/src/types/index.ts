@@ -101,6 +101,8 @@ export interface GameVenue {
   ownerId?: string;
 }
 
+export type SocialGroupType = 'telegram' | 'whatsapp' | 'wechat' | 'facebook';
+
 export interface GameSession {
   id: string;
   hostId: string;
@@ -124,6 +126,11 @@ export interface GameSession {
   venueApprovalStatus?: 'confirmed' | 'pending';
   // Non-registered attendees added by the host
   guests?: Array<{ name: string; addedBy: string; addedAt: string }>;
+  // Social group link shared with registered players
+  groupLink?: string;
+  groupType?: SocialGroupType;
+  // Who can join: open (anyone), approval (host must approve), invite_only (host invites)
+  approvalMode?: 'open' | 'approval' | 'invite_only';
 }
 
 // ── Interaction / join-table records ──────────────────────────────────────
@@ -139,7 +146,8 @@ export interface VenueInteraction {
 export interface SessionInteraction {
   userId: string;
   sessionId: string;
-  status: 'registered' | 'attended' | 'no-show' | 'cancelled';
+  // 'pending' = applied to join, awaiting host approval (approvalMode === 'approval')
+  status: 'registered' | 'attended' | 'no-show' | 'cancelled' | 'pending';
   isLiked: boolean;
   myRating?: number;
   punctuality?: 'punctual' | 'late';
@@ -165,6 +173,8 @@ export interface GameSessionDTO extends GameSession {
   venueName?: string;
   venueAddress?: string;
   pricePerHour?: number;
+  joinedPlayerAvatars?: string[];
+  venueImageUrl?: string;
 }
 
 export interface UserProfileDTO extends User {

@@ -240,7 +240,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   className="px-2.5 py-1 rounded-full border border-white/15 text-neutral-400 hover:text-white hover:border-white/30 text-xs font-semibold transition-colors tracking-wide"
                   title={lang === 'en' ? 'Switch to Chinese' : '切换英文'}
                 >
-                  {lang === 'en' ? '中文' : 'EN'}
+                  {lang === 'en' ? 'CN' : 'EN'}
                 </button>
                 <span className="text-neutral-300 text-sm hidden md:inline">
                     {isLoggedIn ? (

@@ -4,6 +4,7 @@ import { GameService } from "../services/game.service";
 import type { FullUserProfileDTO, User, GameVenue, GameSessionDTO } from "../types";
 import { getCreditInfo, getUsernameColor } from "../types";
 import { useLang } from "../context/LanguageContext";
+import { formatEventDate, formatShortDate } from "../i18n";
 import { ReportModal } from "../components/ReportModal";
 import { CreateEventModal } from "../components/CreateEventModal";
 import {
@@ -223,10 +224,10 @@ const PROFICIENCY_STYLES: Record<string, string> = {
 };
 
 function MatchDetailModal({ event, onClose }: { event: GameSessionDTO | null; onClose: () => void }) {
+  const { lang } = useLang();
   if (!event) return null;
-  const date = new Date(event.date);
-  const dateStr = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const timeStr = date.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
+  const { fullString: dateStr } = formatEventDate(event.date, lang);
+  const timeStr = '';
   const myStatus = event.myInteraction?.status ?? 'registered';
   const myRating = event.myInteraction?.myRating ?? 0;
   const punctuality = event.myInteraction?.punctuality;
@@ -316,7 +317,7 @@ function MatchDetailModal({ event, onClose }: { event: GameSessionDTO | null; on
                     </span>
                     {punctuality && (
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${punctuality === 'punctual' ? 'text-green-400 bg-green-500/10 border-green-500/25' : 'text-orange-400 bg-orange-500/10 border-orange-500/25'}`}>
-                        {punctuality === 'punctual' ? '● On Time' : '● Late'}
+                        {punctuality === 'punctual' ? t('● Completed') : t('● Left Early')}
                       </span>
                     )}
                   </div>
@@ -410,7 +411,7 @@ export default function MyProfilePage() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({ email: "", phone: "" });
 
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   // --- Bio edit state ---
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -562,7 +563,7 @@ export default function MyProfilePage() {
                 className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] w-full max-w-sm bg-neutral-900 border border-white/10 rounded-2xl p-6 shadow-2xl"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-white">Contact Settings</h3>
+                  <h3 className="text-lg font-bold text-white">{t('Contact Settings')}</h3>
                   <button onClick={() => setIsContactModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
                     <X size={20} />
                   </button>
@@ -570,30 +571,30 @@ export default function MyProfilePage() {
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Email Address</label>
-                    <input 
-                      type="email" 
+                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">{t('Email Address')}</label>
+                    <input
+                      type="email"
                       value={editForm.email}
                       onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" 
-                      placeholder="Enter your email" 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder={t('Enter your email')}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Phone Number</label>
-                    <input 
-                      type="text" 
+                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 block">{t('Phone Number')}</label>
+                    <input
+                      type="text"
                       value={editForm.phone}
                       onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" 
-                      placeholder="Enter your phone number" 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder={t('Enter your phone number')}
                     />
                   </div>
                   <button 
                     onClick={handleSaveContact}
                     className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all"
                   >
-                    Save Changes
+                    {t('Save Changes')}
                   </button>
                 </div>
               </motion.div>
@@ -794,8 +795,6 @@ export default function MyProfilePage() {
                            <div className={`text-sm font-bold truncate ${getUsernameColor(u)}`}>{u.username}</div>
                            <div className="flex items-center gap-1.5">
                              <span className={`text-[10px] font-bold ${ci.color}`}>{t(ci.label)}</span>
-                             <span className="text-[10px] text-neutral-600">·</span>
-                             <span className={`text-[10px] ${ci.color}`}>{u.creditScore ?? 100} cr</span>
                            </div>
                          </div>
                          {isFlagged && (
@@ -852,8 +851,7 @@ export default function MyProfilePage() {
               {profile.pastEvents.length > 0 ? (
                 <div className="divide-y divide-white/5">
                   {profile.pastEvents.map(event => {
-                    const dateObj = new Date(event.date);
-                    const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    const dateStr = formatShortDate(event.date, lang);
                     return (
                       <button
                         key={event.id}
@@ -872,7 +870,7 @@ export default function MyProfilePage() {
                         </div>
                         {event.myInteraction?.punctuality && (
                           <span className={`w-fit text-[10px] px-2 py-1 rounded-md font-bold border uppercase tracking-wider shrink-0 ${event.myInteraction.punctuality === 'punctual' ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-orange-400 bg-orange-400/10 border-orange-400/20'}`}>
-                            {event.myInteraction.punctuality === 'punctual' ? t('● On Time') : t('● Late')}
+                            {event.myInteraction.punctuality === 'punctual' ? t('● Completed') : t('● Left Early')}
                           </span>
                         )}
                         <ChevronRight size={14} className="text-neutral-600 group-hover:text-neutral-400 transition-colors shrink-0" />

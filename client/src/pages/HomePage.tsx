@@ -676,7 +676,7 @@ export default function HomePage() {
             className="text-neutral-400 hover:text-white font-medium text-sm transition-colors border border-white/20 hover:border-white/40 px-4 py-2 rounded-full"
             style={{ fontFamily: "'Cinzel', serif" }}
           >
-            {lang === 'en' ? '中文' : 'EN'}
+            {lang === 'en' ? 'CN' : 'EN'}
           </button>
           <button
             onClick={() => setContactOpen(true)}

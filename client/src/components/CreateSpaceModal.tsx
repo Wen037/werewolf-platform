@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, UploadCloud } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useLang } from "../context/LanguageContext";
 
 interface CreateSpaceModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface CreateSpaceModalProps {
 }
 
 export const CreateSpaceModal = ({ isOpen, onClose }: CreateSpaceModalProps) => {
+  const { t } = useLang();
   const [fileName, setFileName] = useState<string>("");
   const [isSubmitForVerification, setIsSubmitForVerification] = useState<boolean>(false);
   
@@ -55,8 +57,8 @@ export const CreateSpaceModal = ({ isOpen, onClose }: CreateSpaceModalProps) => 
               {/* Header */}
               <div className="flex justify-between items-center p-6 border-b border-white/5 bg-neutral-900/50 flex-shrink-0">
                 <div>
-                  <h2 className="text-2xl font-bold text-white">List Your Space</h2>
-                  <p className="text-sm text-neutral-400 mt-1">Add a new venue for Werewolf games</p>
+                  <h2 className="text-2xl font-bold text-white">{t('List Your Space')}</h2>
+                  <p className="text-sm text-neutral-400 mt-1">{t('Add a new venue for Werewolf games')}</p>
                 </div>
                 <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full">
                   <X size={20} />
@@ -66,24 +68,24 @@ export const CreateSpaceModal = ({ isOpen, onClose }: CreateSpaceModalProps) => 
               {/* Form Content - Removed golden-scrollbar, added scrollRef */}
               <div ref={scrollRef} className="p-6 overflow-y-auto custom-scrollbar space-y-6">
                 <div>
-                  <label className="text-sm font-semibold text-neutral-300 mb-2 block">Venue Name</label>
-                  <input className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-neutral-600" placeholder="Enter venue name..." />
+                  <label className="text-sm font-semibold text-neutral-300 mb-2 block">{t('Venue Name')}</label>
+                  <input className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-neutral-600" placeholder={t('Enter venue name...')} />
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-neutral-300 mb-2 block">Full Address</label>
+                  <label className="text-sm font-semibold text-neutral-300 mb-2 block">{t('Full Address')}</label>
                   <input className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-neutral-600" placeholder="e.g. 60A Prinsep Street" />
                 </div>
                 
                 {/* Upload Image Section */}
                 <div>
-                  <label className="text-sm font-semibold text-neutral-300 mb-2 block">Venue Image</label>
+                  <label className="text-sm font-semibold text-neutral-300 mb-2 block">{t('Venue Image')}</label>
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/20 hover:border-blue-500/50 hover:bg-white/5 transition-all rounded-xl cursor-pointer bg-black/30">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <UploadCloud className="text-neutral-400 mb-2" size={28} />
                       <p className="text-sm text-neutral-400">
-                        <span className="font-semibold text-blue-400">Click to upload</span> or drag and drop
+                        <span className="font-semibold text-blue-400">{t('Click to upload')}</span> {t('or drag and drop')}
                       </p>
-                      <p className="text-xs text-neutral-500 mt-1">{fileName || "PNG, JPG up to 5MB"}</p>
+                      <p className="text-xs text-neutral-500 mt-1">{fileName || t('PNG, JPG up to 5MB')}</p>
                     </div>
                     <input 
                       type="file" 
@@ -104,13 +106,13 @@ export const CreateSpaceModal = ({ isOpen, onClose }: CreateSpaceModalProps) => 
                       className="overflow-hidden"
                     >
                       <div className="pt-2 pb-2">
-                        <label className="text-sm font-semibold text-neutral-300 mb-2 block">Contact for Verification</label>
-                        <input 
+                        <label className="text-sm font-semibold text-neutral-300 mb-2 block">{t('Contact for Verification')}</label>
+                        <input
                           type="text"
                           value={contactInfo}
                           onChange={(e) => setContactInfo(e.target.value)}
-                          className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-neutral-600" 
-                          placeholder="Phone number or email" 
+                          className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-neutral-600"
+                          placeholder={t('Phone number or email')}
                         />
                       </div>
                     </motion.div>
@@ -134,17 +136,17 @@ export const CreateSpaceModal = ({ isOpen, onClose }: CreateSpaceModalProps) => 
                       </div>
                       <div className="ml-3 text-sm">
                         <label htmlFor="verification-checkbox" className="font-medium text-neutral-300 cursor-pointer select-none">
-                          Submit for verification
+                          {t('Submit for verification')}
                         </label>
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <button onClick={onClose} className="px-6 py-2.5 rounded-xl font-medium text-white hover:bg-white/5 transition-colors hidden sm:block">
-                      Cancel
+                      {t('Cancel')}
                     </button>
                     <button className="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-8 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] transition-all">
-                      Submit
+                      {t('Submit')}
                     </button>
                   </div>
                 </div>

@@ -9,6 +9,10 @@ import {
   ExternalPaxSchema,
   InviteUsersSchema,
   LogAttendanceSchema,
+  AddGuestSchema,
+  MessagePlayerSchema,
+  NotifyAllSchema,
+  UpdateSessionSchema,
 } from '../DTOs/MatchDTOs';
 import { MatchStatus } from '../domain/Match';
 
@@ -90,6 +94,85 @@ router.post('/games/:sessionId/invite', requireAuth, validate(InviteUsersSchema)
   const result = await matchService.inviteUsers(id(req), req.user!.userId, req.body as Parameters<MatchService['inviteUsers']>[2]);
   if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
   res.status(200).json({ message: 'Invites sent.' });
+});
+
+// ── Host Control Panel routes ─────────────────────────────────────────────────
+
+router.get('/games/:sessionId/roster', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.getRoster(id(req), req.user!.userId);
+  if (result.isFailure) { res.status(403).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
+});
+
+router.delete('/games/:sessionId/players/:userId', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.kickPlayer(id(req), req.user!.userId, String(req.params['userId']));
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Player removed.' });
+});
+
+router.post('/games/:sessionId/guests', requireAuth, validate(AddGuestSchema), async (req: Request, res: Response) => {
+  const result = await matchService.addGuest(id(req), req.user!.userId, (req.body as { name: string }).name);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Guest added.' });
+});
+
+router.delete('/games/:sessionId/guests/:index', requireAuth, async (req: Request, res: Response) => {
+  const index = parseInt(String(req.params['index']), 10);
+  if (isNaN(index)) { res.status(400).json({ message: 'Invalid guest index.' }); return; }
+  const result = await matchService.removeGuest(id(req), req.user!.userId, index);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Guest removed.' });
+});
+
+router.post('/games/:sessionId/message', requireAuth, validate(MessagePlayerSchema), async (req: Request, res: Response) => {
+  const { userId, message } = req.body as { userId: string; message: string };
+  const result = await matchService.messagePlayer(id(req), req.user!.userId, userId, message);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Message sent.' });
+});
+
+router.post('/games/:sessionId/notify', requireAuth, validate(NotifyAllSchema), async (req: Request, res: Response) => {
+  const result = await matchService.notifyAll(id(req), req.user!.userId, (req.body as { message: string }).message);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'All players notified.' });
+});
+
+router.patch('/games/:sessionId', requireAuth, validate(UpdateSessionSchema), async (req: Request, res: Response) => {
+  const result = await matchService.updateSession(id(req), req.user!.userId, req.body as Parameters<MatchService['updateSession']>[2]);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
+});
+
+router.patch('/games/:sessionId/applicants/:userId/approve', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.approveApplicant(id(req), req.user!.userId, String(req.params['userId']));
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Applicant approved.' });
+});
+
+router.patch('/games/:sessionId/applicants/:userId/reject', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.rejectApplicant(id(req), req.user!.userId, String(req.params['userId']));
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Applicant rejected.' });
+});
+
+router.patch('/games/:sessionId/cancel', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.cancelWithPenalty(id(req), req.user!.userId);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Session cancelled.' });
+});
+
+// ── Venue approval routes ─────────────────────────────────────────────────────
+
+router.patch('/games/:sessionId/venue-approve', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.approveVenueSession(id(req), req.user!.userId);
+  if (result.isFailure) { res.status(403).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Session approved by venue.' });
+});
+
+router.patch('/games/:sessionId/venue-reject', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.rejectVenueSession(id(req), req.user!.userId);
+  if (result.isFailure) { res.status(403).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Session rejected by venue.' });
 });
 
 export default router;
