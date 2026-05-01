@@ -10,6 +10,7 @@ export interface IPlayerSpaceDocument extends Document {
   area?: string;          // Human-readable district shown when privacy !== 'public' (e.g. "Yishun")
   description?: string;
   imageUrl?: string;
+  images?: string[];      // Additional photos for the venue carousel
   type: 'house' | 'work' | 'school' | 'boardgame_store' | 'other';
   location: { lat: number; long: number };
   status: 'unVerified' | 'Verified';
@@ -34,6 +35,7 @@ const PlayerSpaceSchema = new Schema<IPlayerSpaceDocument>(
     area: { type: String },
     description: { type: String },
     imageUrl: { type: String },
+    images: [{ type: String }],
     type: {
       type: String,
       enum: ['house', 'work', 'school', 'boardgame_store', 'other'],

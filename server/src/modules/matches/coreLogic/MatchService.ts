@@ -50,13 +50,19 @@ async function enrichWithNamesAndInteraction(
   const hostIds = [...new Set(docs.map(d => d.host_id.toString()))];
   const venueIds = [...new Set(docs.map(d => d.venue_id.toString()))];
 
-  const [hosts, venues] = await Promise.all([
+  // Collect up to 5 player IDs per doc for avatar previews
+  const previewPlayerIds = [...new Set(docs.flatMap(d => d.players.slice(0, 5).map(p => p.toString())))];
+
+  const [hosts, venues, playerUsers] = await Promise.all([
     UserModel.find({ _id: { $in: hostIds } }, 'username'),
-    PlayerSpaceModel.find({ _id: { $in: venueIds } }, 'name'),
+    PlayerSpaceModel.find({ _id: { $in: venueIds } }, 'name imageUrl'),
+    UserModel.find({ _id: { $in: previewPlayerIds } }, 'avatarUrl'),
   ]);
 
   const hostMap = new Map(hosts.map(h => [h._id.toString(), h.username]));
   const venueMap = new Map(venues.map(v => [v._id.toString(), v.name]));
+  const venueImageMap = new Map(venues.map(v => [v._id.toString(), (v as unknown as { imageUrl?: string }).imageUrl]));
+  const playerAvatarMap = new Map(playerUsers.map(u => [u._id.toString(), u.avatarUrl]));
 
   let interactionMap = new Map<string, SessionInteractionDTO>();
   if (requestingUserId) {
@@ -110,6 +116,10 @@ async function enrichWithNamesAndInteraction(
       addedBy: g.addedBy.toString(),
       addedAt: g.addedAt.toISOString(),
     })),
+    joinedPlayerAvatars: d.players.slice(0, 5)
+      .map(p => playerAvatarMap.get(p.toString()))
+      .filter((a): a is string => !!a),
+    venueImageUrl: venueImageMap.get(d.venue_id.toString()),
     myInteraction: interactionMap.get(d._id.toString()),
   }));
 }
@@ -221,39 +231,68 @@ export class MatchService {
       return Result.ok({ wasWaitlisted: false, waitlistPosition: undefined, status: 'pending' });
     }
 
-    const match = reconstructMatch(doc);
-    const joinResult = match.addPlayer(userId);
-    if (joinResult.isFailure) return Result.fail(joinResult.getError());
+    // Atomic slot claim (CWE-362 fix): the $expr condition and $push execute in a
+    // single round-trip. If two requests race for the last slot, MongoDB guarantees
+    // only one write succeeds; the other gets null back and falls through to waitlist.
+    const slotClaimed = await MatchModel.findOneAndUpdate(
+      {
+        _id: sessionId,
+        status: { $nin: ['Cancelled', 'Completed', 'Started'] },
+        $expr: { $lt: [{ $size: '$players' }, '$config.max_pax'] },
+        players:  { $nin: [userId] },
+        waitlist: { $nin: [userId] },
+      },
+      { $push: { players: userId } },
+      { new: true }
+    ) as MatchDoc | null;
 
-    const { wasWaitlisted, waitlistPosition } = joinResult.getValue();
-
-    if (wasWaitlisted) {
-      await MatchModel.findByIdAndUpdate(sessionId, { $push: { waitlist: userId } });
-      await SessionInteractionModel.findOneAndUpdate(
-        { userId, sessionId },
-        { $set: { status: 'registered', waitlistPosition } },
-        { upsert: true }
-      );
-    } else {
-      const newStatus = match.status;
-      await MatchModel.findByIdAndUpdate(sessionId, {
-        $push: { players: userId },
-        $set: { status: newStatus },
-      });
+    if (slotClaimed) {
+      // Slot won — update status to Full if this push reached max capacity
+      if (slotClaimed.players.length >= slotClaimed.config.max_pax && slotClaimed.status === 'Open') {
+        await MatchModel.findByIdAndUpdate(sessionId, { $set: { status: 'Full' } });
+      }
       await SessionInteractionModel.findOneAndUpdate(
         { userId, sessionId },
         { $set: { status: 'registered' } },
         { upsert: true }
       );
+      eventBus.publish({
+        eventName: 'UserJoinedMatch',
+        occurredOn: new Date(),
+        payload: { userId, matchId: sessionId },
+      });
+      return Result.ok({ wasWaitlisted: false, waitlistPosition: undefined });
     }
 
+    // Slot was not claimed — determine why
+    const freshDoc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!freshDoc) return Result.fail('Match not found.');
+
+    const alreadyIn = freshDoc.players.some(p => p.toString() === userId)
+      || freshDoc.waitlist.some(w => w.toString() === userId);
+    if (alreadyIn) return Result.fail('User already joined or on waitlist.');
+
+    // Match is genuinely full — add to waitlist
+    const updatedDoc = await MatchModel.findByIdAndUpdate(
+      sessionId,
+      { $push: { waitlist: userId } },
+      { new: true }
+    ) as MatchDoc | null;
+    const waitlistPosition = updatedDoc
+      ? updatedDoc.waitlist.findIndex(w => w.toString() === userId) + 1
+      : freshDoc.waitlist.length + 1;
+
+    await SessionInteractionModel.findOneAndUpdate(
+      { userId, sessionId },
+      { $set: { status: 'waitlisted', waitlistPosition } },
+      { upsert: true }
+    );
     eventBus.publish({
       eventName: 'UserJoinedMatch',
       occurredOn: new Date(),
       payload: { userId, matchId: sessionId },
     });
-
-    return Result.ok({ wasWaitlisted, waitlistPosition });
+    return Result.ok({ wasWaitlisted: true, waitlistPosition });
   }
 
   async leaveMatch(sessionId: string, userId: string): Promise<Result<void>> {
@@ -281,7 +320,7 @@ export class MatchService {
       });
       await SessionInteractionModel.findOneAndUpdate(
         { userId: promotedUserId, sessionId },
-        { $unset: { waitlistPosition: '' } }
+        { $set: { status: 'registered' }, $unset: { waitlistPosition: '' } }
       );
       eventBus.publish({
         eventName: 'WaitlistPromoted',
@@ -667,7 +706,7 @@ export class MatchService {
       await MatchModel.findByIdAndUpdate(sessionId, { $push: { waitlist: userId } });
       await SessionInteractionModel.findOneAndUpdate(
         { userId, sessionId },
-        { $set: { status: 'registered', waitlistPosition: doc.waitlist.length + 1 } }
+        { $set: { status: 'waitlisted', waitlistPosition: doc.waitlist.length + 1 } }
       );
     } else {
       await MatchModel.findByIdAndUpdate(sessionId, { $push: { players: userId } });
