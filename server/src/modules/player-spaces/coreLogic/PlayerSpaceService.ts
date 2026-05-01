@@ -24,6 +24,7 @@ function toVenueDTO(
     priceType: doc.financials.price_type ?? 'per_session',
     ...(doc.openingHours !== undefined ? { openingHours: doc.openingHours } : {}),
     ...(doc.maxPax !== undefined ? { maxPax: doc.maxPax } : {}),
+    images: doc.images ?? [],
     amenities: doc.amenities,
     rules: doc.rules,
     averageRating: doc.averageRating,
@@ -88,6 +89,7 @@ export class PlayerSpaceService {
       amenities: dto.amenities ?? [],
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
+      ...(dto.images !== undefined && { images: dto.images }),
       ...(dto.rules !== undefined && { rules: dto.rules }),
     };
 
@@ -107,6 +109,7 @@ export class PlayerSpaceService {
     if (dto.address     !== undefined) update['address']            = dto.address;
     if (dto.description !== undefined) update['description']        = dto.description;
     if (dto.imageUrl    !== undefined) update['imageUrl']           = dto.imageUrl;
+    if (dto.images      !== undefined) update['images']             = dto.images;
     if (dto.type        !== undefined) update['type']               = dto.type;
     if (dto.privacy     !== undefined) update['privacy']            = dto.privacy;
     if (dto.area        !== undefined) update['area']               = dto.area;
