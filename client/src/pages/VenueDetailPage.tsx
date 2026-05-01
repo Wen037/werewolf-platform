@@ -7,7 +7,7 @@ import type { GameVenueDTO, GameSessionDTO, VenueSpaceType, VenuePrivacy } from 
 import { VENUE_TYPE_LABELS, DEFAULT_PRIVACY, getVenuePermissions, getDisplayAddress } from "../types";
 import { AppLayout } from "../components/layout/AppLayout";
 import { ReportModal } from "../components/ReportModal";
-import { CheckCircle, BadgeCheck, Bell, BellOff, X as XIcon } from "lucide-react";
+import { CheckCircle, BadgeCheck, Bell, BellOff, X as XIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   IconArrowLeft,
@@ -31,6 +31,64 @@ import {
   IconBuildingStore,
   IconCheck,
 } from "@tabler/icons-react";
+
+// ── Venue Image Carousel ───────────────────────────────────────────────────
+
+function VenueCarousel({ images, alt }: { images: string[]; alt: string }) {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const timer = setInterval(() => setIdx(i => (i + 1) % images.length), 4000);
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  const prev = () => setIdx(i => (i - 1 + images.length) % images.length);
+  const next = () => setIdx(i => (i + 1) % images.length);
+
+  return (
+    <div className="relative w-full h-full">
+      <AnimatePresence mode="wait">
+        <motion.img
+          key={idx}
+          src={images[idx]}
+          alt={alt}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      </AnimatePresence>
+
+      {images.length > 1 && (
+        <>
+          <button
+            onClick={prev}
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            onClick={next}
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+          >
+            <ChevronRight size={20} />
+          </button>
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                className={`w-2 h-2 rounded-full transition-all ${i === idx ? "bg-white scale-125" : "bg-white/40 hover:bg-white/60"}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -1032,9 +1090,12 @@ export default function VenueDetailPage() {
           {/* ── Left column ── */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* Hero image */}
+            {/* Hero image / carousel */}
             <div className="w-full h-64 md:h-96 rounded-3xl overflow-hidden relative shadow-2xl border border-white/5">
-              <img src={venue.imageUrl} alt={venue.name} className="w-full h-full object-cover" />
+              <VenueCarousel
+                images={venue.images && venue.images.length > 0 ? venue.images : [venue.imageUrl]}
+                alt={venue.name}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
               <div className="absolute bottom-6 left-6 md:left-10">
                 <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 flex items-center gap-3">

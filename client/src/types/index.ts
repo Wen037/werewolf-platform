@@ -83,6 +83,7 @@ export interface GameVenue {
   area?: string;         // District label shown when privacy !== 'public' (e.g. "Yishun")
   description: string;
   imageUrl: string;
+  images?: string[];
   coordinates: {
     lat: number;
     lng: number;
@@ -147,7 +148,9 @@ export interface SessionInteraction {
   userId: string;
   sessionId: string;
   // 'pending' = applied to join, awaiting host approval (approvalMode === 'approval')
-  status: 'registered' | 'attended' | 'no-show' | 'cancelled' | 'pending';
+  // 'waitlisted' = event full, placed on waitlist
+  status: 'registered' | 'attended' | 'no-show' | 'cancelled' | 'pending' | 'waitlisted';
+  waitlistPosition?: number;
   isLiked: boolean;
   myRating?: number;
   punctuality?: 'punctual' | 'late';

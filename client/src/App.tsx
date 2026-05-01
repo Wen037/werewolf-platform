@@ -6,6 +6,7 @@ import VenueDetailPage from './pages/VenueDetailPage';
 import MyEventsPage from './pages/MyEventsPage';
 import MyProfilePage from './pages/MyProfilePage';
 import EventDetailPage from './pages/EventDetailPage';
+import PublicProfilePage from './pages/PublicProfilePage';
 import { LanguageProvider } from './context/LanguageContext';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
         <Route path="/myevents" element={<MyEventsPage />} />
         <Route path="/myprofile" element={<MyProfilePage />} />
         <Route path="/event/:id" element={<EventDetailPage />} />
+        <Route path="/user/:id" element={<PublicProfilePage />} />
       </Routes>
     </Router>
     </LanguageProvider>

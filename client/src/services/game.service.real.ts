@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue } from '../types';
+import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from '../types';
 
 export const RealGameService = {
   // ── Venues ────────────────────────────────────────────────────────────────
@@ -52,6 +52,9 @@ export const RealGameService = {
 
   getMyFullProfile: (): Promise<FullUserProfileDTO> =>
     api.get('/users/me'),
+
+  getPublicProfile: (userId: string): Promise<UserProfileDTO> =>
+    api.get(`/users/${userId}`),
 
   updateProfile: (fields: {
     skillLevel?: string;

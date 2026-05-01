@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import { GameService } from "../services/game.service";
 import type { GameVenue, GameSession } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, X, Navigation, Heart, Bell, Clock, CheckCircle } from "lucide-react";
+import { MapPin, X, Navigation, Heart, Bell, Clock, CheckCircle, SlidersHorizontal } from "lucide-react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { ReportModal } from "../components/ReportModal";
 import { useNavigate } from "react-router-dom";
@@ -86,6 +86,11 @@ export default function GameMapPage() {
   const [showToast, setShowToast] = useState(false);
   const [joinStates, setJoinStates] = useState<Record<string, JoinState>>({});
   const navigate = useNavigate();
+
+  // Event filters
+  const [eventProfFilter, setEventProfFilter] = useState<string>("all");
+  const [eventDateFilter, setEventDateFilter] = useState<string>("all");
+  const [hideFullEvents, setHideFullEvents] = useState(false);
 
   const triggerToast = () => {
     setShowToast(true);
@@ -215,8 +220,26 @@ export default function GameMapPage() {
     return "bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white";
   };
 
+  const filteredGames = games.filter(g => {
+    if (eventProfFilter !== "all" && g.proficiency !== eventProfFilter) return false;
+    if (hideFullEvents && g.currentPlayers >= g.maxPlayers) return false;
+    if (eventDateFilter !== "all") {
+      const gameDate = new Date(g.date);
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (eventDateFilter === "today") {
+        const endOfToday = new Date(startOfToday.getTime() + 86400000);
+        if (gameDate < startOfToday || gameDate >= endOfToday) return false;
+      } else if (eventDateFilter === "week") {
+        const endOfWeek = new Date(startOfToday.getTime() + 7 * 86400000);
+        if (gameDate < startOfToday || gameDate >= endOfWeek) return false;
+      }
+    }
+    return true;
+  });
+
   return (
-    <div className="w-full h-full relative p-4 bg-transparent"> 
+    <div className="w-full h-full relative p-4 bg-transparent">
       
       <AnimatePresence>
         {showToast && (
@@ -233,19 +256,79 @@ export default function GameMapPage() {
       </AnimatePresence>
 
       <div className="w-full h-full relative rounded-3xl overflow-hidden shadow-xl border border-neutral-200">
-        <div className="absolute top-4 left-4 z-[500] bg-white/50 backdrop-blur-md rounded-xl shadow-lg p-1.5 flex border border-neutral-200">
-          <button 
-            onClick={() => { setMode("places"); setSelectedItem(null); }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === "places" ? "bg-black text-white shadow-md" : "text-neutral-500 hover:bg-neutral-100"}`}
-          >
-            {t('Venues')}
-          </button>
-          <button
-            onClick={() => { setMode("events"); setSelectedItem(null); }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === "events" ? "bg-red-600 text-white shadow-md" : "text-neutral-500 hover:bg-neutral-100"}`}
-          >
-            {t('Events')}
-          </button>
+        <div className="absolute top-4 left-4 z-[500] flex flex-col gap-2 max-w-[calc(100%-5rem)]">
+          {/* Mode toggle */}
+          <div className="bg-white/50 backdrop-blur-md rounded-xl shadow-lg p-1.5 flex border border-neutral-200 w-fit">
+            <button
+              onClick={() => { setMode("places"); setSelectedItem(null); }}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === "places" ? "bg-black text-white shadow-md" : "text-neutral-500 hover:bg-neutral-100"}`}
+            >
+              {t('Venues')}
+            </button>
+            <button
+              onClick={() => { setMode("events"); setSelectedItem(null); }}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === "events" ? "bg-red-600 text-white shadow-md" : "text-neutral-500 hover:bg-neutral-100"}`}
+            >
+              {t('Events')}
+            </button>
+          </div>
+
+          {/* Event filters — only visible in events mode */}
+          {mode === "events" && (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md border border-white/15 rounded-lg px-2 py-1">
+                <SlidersHorizontal size={11} className="text-neutral-400" />
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Filters</span>
+              </div>
+
+              {/* Proficiency */}
+              {(["all", "All Welcome", "Newbie", "Intermediate", "Advanced"] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setEventProfFilter(p)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                    eventProfFilter === p
+                      ? "bg-red-600 border-red-500 text-white"
+                      : "bg-black/60 backdrop-blur-md border-white/15 text-neutral-300 hover:border-white/30"
+                  }`}
+                >
+                  {p === "all" ? "All Levels" : p}
+                </button>
+              ))}
+
+              {/* Date */}
+              {(["all", "today", "week"] as const).map(d => (
+                <button
+                  key={d}
+                  onClick={() => setEventDateFilter(d)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                    eventDateFilter === d
+                      ? "bg-amber-600 border-amber-500 text-white"
+                      : "bg-black/60 backdrop-blur-md border-white/15 text-neutral-300 hover:border-white/30"
+                  }`}
+                >
+                  {d === "all" ? "Any Date" : d === "today" ? "Today" : "This Week"}
+                </button>
+              ))}
+
+              {/* Hide full */}
+              <button
+                onClick={() => setHideFullEvents(v => !v)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                  hideFullEvents
+                    ? "bg-green-700 border-green-600 text-white"
+                    : "bg-black/60 backdrop-blur-md border-white/15 text-neutral-300 hover:border-white/30"
+                }`}
+              >
+                {hideFullEvents ? "Spots Available ✓" : "Hide Full"}
+              </button>
+
+              {/* Results count */}
+              <span className="text-[10px] text-neutral-400 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+                {filteredGames.length} event{filteredGames.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
         </div>
 
         <MapContainer 
@@ -269,11 +352,11 @@ export default function GameMapPage() {
             />
           ))}
 
-          {mode === "events" && games.map(game => {
+          {mode === "events" && filteredGames.map(game => {
             const venue = getVenueForGame(game.venueId);
             if (!venue) return null;
             return (
-              <Marker 
+              <Marker
                 key={game.id} position={[venue.coordinates.lat, venue.coordinates.lng]} icon={eventsIcon}
                 eventHandlers={{ click: () => setSelectedItem({ ...game, venueDetails: venue }) }}
               />
