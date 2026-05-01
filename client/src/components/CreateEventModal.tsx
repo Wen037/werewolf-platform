@@ -1,8 +1,26 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Calendar, Clock, MapPin, Users, Activity } from "lucide-react";
+import { X, Calendar, Clock, MapPin, Users, Activity, Shuffle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { GameService } from "../services/game.service";
 import type { GameVenueDTO } from "../types";
+import { useLang } from "../context/LanguageContext";
+
+const EVENT_NAMES_EN = [
+  "Friday Night Showdown", "Midnight Wolves", "The Hunt Begins",
+  "Village Under Siege", "Howl at the Moon", "The Final Night",
+  "Shadows in the Dark", "Deception Rising", "Blood Moon Rising",
+  "Last One Standing", "The Werewolf Trials", "Night of Betrayal",
+];
+const EVENT_NAMES_ZH = [
+  "午夜狼嚎", "谎言游戏", "村庄危机",
+  "黎明前的黑暗", "身份游戏", "血月之夜",
+  "狼人大作战", "谁是卧底", "最后的夜晚",
+  "欺骗之夜", "黑暗中的影子", "最终审判",
+];
+
+function pickRandom(arr: string[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
 interface CreateEventModalProps {
   isOpen: boolean;
@@ -11,12 +29,14 @@ interface CreateEventModalProps {
 }
 
 export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEventModalProps) => {
+  const { lang } = useLang();
   const [selectedVenue, setSelectedVenue] = useState<string>(defaultVenueId ?? "");
   const [proficiency, setProficiency] = useState<string>("All Welcome");
   const [venues, setVenues] = useState<GameVenueDTO[]>([]);
   const [venueSearch, setVenueSearch] = useState("");
   const [venueOpen, setVenueOpen] = useState(false);
   const venueRef = useRef<HTMLDivElement>(null);
+  const [eventName, setEventName] = useState("");
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -32,8 +52,9 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
     if (isOpen) {
       GameService.getAllVenues().then(setVenues).catch(() => {});
       setSelectedVenue(defaultVenueId ?? "");
+      setEventName(pickRandom(lang === "zh" ? EVENT_NAMES_ZH : EVENT_NAMES_EN));
     }
-  }, [isOpen, defaultVenueId]);
+  }, [isOpen, defaultVenueId, lang]);
 
   const proficiencyLevels = ["All Welcome", "Newbie", "Intermediate", "Advanced"];
 
@@ -76,10 +97,23 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
                   {/* Event Name */}
                   <div>
                     <label className="text-sm font-semibold text-neutral-300 mb-2 block">Event Title</label>
-                    <input
-                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 transition-all placeholder:text-neutral-600"
-                      placeholder="e.g. Friday Night Werewolf Pro"
-                    />
+                    <div className="relative">
+                      <input
+                        value={eventName}
+                        onChange={e => setEventName(e.target.value)}
+                        className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 pr-12 text-white focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 transition-all placeholder:text-neutral-600"
+                        placeholder="e.g. Friday Night Werewolf Pro"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEventName(pickRandom(lang === "zh" ? EVENT_NAMES_ZH : EVENT_NAMES_EN))}
+                        className="absolute inset-y-0 right-0 flex items-center px-3.5 text-neutral-500 hover:text-red-400 transition-colors"
+                        title="Suggest a random name"
+                      >
+                        <Shuffle size={16} />
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-neutral-600 mt-1.5">Click <Shuffle size={10} className="inline" /> to get a random name suggestion</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

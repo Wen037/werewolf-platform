@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "../components/layout/AppLayout";
 import { GameService } from "../services/game.service";
 import type { FullUserProfileDTO, User, GameVenue, GameSessionDTO } from "../types";
@@ -30,6 +31,7 @@ function Backdrop({ onClick }: { onClick: () => void }) {
 function UserDetailModal({ user, onClose }: { user: User | null; onClose: () => void }) {
   const ci = getCreditInfo(user?.creditScore ?? 100);
   const { t } = useLang();
+  const navigate = useNavigate();
   return (
     <AnimatePresence>
       {user && (
@@ -74,7 +76,7 @@ function UserDetailModal({ user, onClose }: { user: User | null; onClose: () => 
                 )}
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
                   <div className="bg-neutral-800/40 rounded-xl py-2.5">
                     <div className="text-white font-bold text-sm">{user.followersCount ?? 0}</div>
                     <div className="text-[10px] text-neutral-500 uppercase tracking-wider mt-0.5">{t('Followers')}</div>
@@ -88,6 +90,13 @@ function UserDetailModal({ user, onClose }: { user: User | null; onClose: () => 
                     <div className="text-[10px] text-neutral-500 uppercase tracking-wider mt-0.5">{t('Level')}</div>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => { onClose(); navigate(`/user/${user.id}`); }}
+                  className="w-full py-2 rounded-xl text-sm font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 transition-colors"
+                >
+                  View Full Profile →
+                </button>
               </div>
             </div>
           </motion.div>
@@ -224,7 +233,7 @@ const PROFICIENCY_STYLES: Record<string, string> = {
 };
 
 function MatchDetailModal({ event, onClose }: { event: GameSessionDTO | null; onClose: () => void }) {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   if (!event) return null;
   const { fullString: dateStr } = formatEventDate(event.date, lang);
   const timeStr = '';

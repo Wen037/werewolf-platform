@@ -82,6 +82,11 @@ export const MOCK_VENUES: GameVenue[] = [
     area: "Orchard", privacy: "public", type: "boardgame_store",
     description: "The classic central hub. High traffic, competitive games, and great coffee.",
     imageUrl: "https://images.unsplash.com/photo-1621360841013-c768371e93cf?q=80&w=1000&auto=format&fit=crop",
+    images: [
+      "https://images.unsplash.com/photo-1621360841013-c768371e93cf?q=80&w=1000&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?q=80&w=1000&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1000&auto=format&fit=crop",
+    ],
     coordinates: { lat: 1.3005, lng: 103.8505 },
     pricePerHour: 12, priceType: "per_person",
     openingHours: "Mon–Sun 11am–11pm", maxPax: 30,
@@ -96,6 +101,12 @@ export const MOCK_VENUES: GameVenue[] = [
     area: "Bugis", privacy: "public", type: "boardgame_store",
     description: "Esports arena vibe. Noisy but energetic. Perfect for large groups.",
     imageUrl: "https://images.unsplash.com/photo-1605901309584-818e25960b8f?q=80&w=1000&auto=format&fit=crop",
+    images: [
+      "https://images.unsplash.com/photo-1605901309584-818e25960b8f?q=80&w=1000&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1570701564993-e00652af8aa7?q=80&w=1000&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000&auto=format&fit=crop",
+    ],
     coordinates: { lat: 1.3013, lng: 103.8559 },
     pricePerHour: 10, priceType: "per_session",
     openingHours: "Mon–Sun 12pm–12am", maxPax: 40,
@@ -368,6 +379,22 @@ export const MOCK_GAMES: GameSession[] = [
     proficiency: "Intermediate",
     description: "SilentBob's signature silent hunt format. Communication via written notes only."
   },
+  // g14: Full event — AlphaWolf on waitlist (position #2)
+  {
+    id: "g14",
+    hostId: "u8", // ModeratorMike
+    venueId: "v3", // Play Nation
+    title: "West Side Showdown",
+    date: "2026-05-20T19:30:00+08:00",
+    maxPlayers: 10,
+    currentPlayers: 10,
+    status: "open",
+    totalLikes: 66,
+    proficiency: "Intermediate",
+    venueApprovalStatus: "confirmed",
+    waitlistCount: 2,
+    description: "Packed session at Play Nation. Waitlist open — standby players called if someone drops.",
+  },
   // g13: AlphaWolf's own hosted upcoming event (for host control panel testing)
   {
     id: "g13",
@@ -405,6 +432,7 @@ export const MOCK_VENUE_INTERACTIONS: VenueInteraction[] = [
 export const MOCK_SESSION_INTERACTIONS: SessionInteraction[] = [
   // ── u1 (AlphaWolf) own interactions ───────────────────────────────────────
   { userId: "u1", sessionId: "g1", status: "registered", isLiked: true },
+  { userId: "u1", sessionId: "g14", status: "waitlisted", waitlistPosition: 2, isLiked: false },
   { userId: "u1", sessionId: "g3", status: "attended", isLiked: true, myRating: 5, punctuality: "late" },
   { userId: "u1", sessionId: "g4", status: "attended", isLiked: false, myRating: 4, punctuality: "punctual" },
   { userId: "u1", sessionId: "g5", status: "attended", isLiked: true, myRating: 5, punctuality: "punctual" },

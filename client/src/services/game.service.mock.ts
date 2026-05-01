@@ -1,5 +1,5 @@
 import { MOCK_GAMES, MOCK_VENUES, MOCK_SESSION_INTERACTIONS, MOCK_USERS, MOCK_USER_SUBSCRIPTIONS, MOCK_VENUE_INTERACTIONS } from "../data/mockDB";
-import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue } from "../types";
+import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from "../types";
 
 // ── Current user resolved from localStorage (follows debug panel switches) ─
 function getCurrentUserId(): string {
@@ -212,6 +212,16 @@ export const MockGameService = {
   updateBio: async (bio: string) => {
     await delay(200);
     console.log(`[Mock] updateBio → ${bio}`);
+  },
+
+  getPublicProfile: async (userId: string): Promise<UserProfileDTO> => {
+    await delay(250);
+    const user = MOCK_USERS.find(u => u.id === userId);
+    if (!user) throw new Error("User not found");
+    const isFollowedByMe = MOCK_USER_SUBSCRIPTIONS.some(
+      s => s.followerId === getCurrentUserId() && s.followingId === userId
+    );
+    return { ...user, isFollowedByMe };
   },
 
   followUser: async (userId: string) => {

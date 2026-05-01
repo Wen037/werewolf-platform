@@ -452,8 +452,8 @@ export default function MyEventsPage() {
                         <Heart size={20} className={isLiked ? "fill-red-500" : ""} />
                       </button>
 
-                      {/* Quit Button — non-hosts only on upcoming tab */}
-                      {activeTab === "upcoming" && !isHost && (
+                      {/* Quit Button — non-hosts only on upcoming tab, not for waitlisted */}
+                      {activeTab === "upcoming" && !isHost && event.myInteraction?.status !== "waitlisted" && (
                         <button
                           onClick={() => setQuitTarget(event)}
                           className="p-2 rounded-full text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all active:scale-90"
@@ -467,8 +467,17 @@ export default function MyEventsPage() {
 
                   <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-500 transition-colors">{event.title}</h3>
 
+                  {/* Waitlist badge */}
+                  {activeTab === "upcoming" && event.myInteraction?.status === "waitlisted" && (
+                    <div className="mb-3">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border bg-sky-500/10 border-sky-500/25 text-sky-400">
+                        ⏳ Waitlist #{event.myInteraction.waitlistPosition ?? "?"}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Venue approval status — only for upcoming events */}
-                  {activeTab === "upcoming" && event.venueApprovalStatus && (
+                  {activeTab === "upcoming" && event.venueApprovalStatus && event.myInteraction?.status !== "waitlisted" && (
                     <div className="mb-3">
                       {event.venueApprovalStatus === 'confirmed' ? (
                         <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border bg-green-500/10 border-green-500/25 text-green-400">
