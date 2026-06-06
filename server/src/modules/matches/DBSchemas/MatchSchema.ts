@@ -22,6 +22,7 @@ export interface IMatchDocument extends Document {
     external_pax: number;
   };
   location: { lat: number; long: number };
+  geoLocation?: { type: 'Point'; coordinates: [number, number] };
   status: 'Created' | 'Open' | 'Full' | 'Started' | 'Completed' | 'Cancelled';
   approvalMode: 'open' | 'approval' | 'invite_only';
   venueApprovalStatus: 'pending' | 'confirmed' | 'rejected';
@@ -54,6 +55,12 @@ const MatchSchema = new Schema<IMatchDocument>(
     location: {
       lat: { type: Number, required: true },
       long: { type: Number, required: true },
+    },
+    // GeoJSON point used for geospatial $near queries (Map domain).
+    // Not set on old documents — sparse index skips those safely.
+    geoLocation: {
+      type: { type: String, enum: ['Point'] },
+      coordinates: { type: [Number] },   // [lng, lat]
     },
     status: {
       type: String,
@@ -90,5 +97,6 @@ const MatchSchema = new Schema<IMatchDocument>(
 
 MatchSchema.index({ status: 1, scheduledAt: 1 });
 MatchSchema.index({ host_id: 1, createdAt: -1 });
+MatchSchema.index({ geoLocation: '2dsphere' }, { sparse: true });
 
 export const MatchModel = mongoose.model<IMatchDocument>('Match', MatchSchema);

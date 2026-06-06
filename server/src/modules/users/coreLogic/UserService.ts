@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Result } from '../../../shared/core/Result';
 import { sendOtpEmail } from '../../../shared/infra/email';
+import { eventBus } from '../../../shared/infra/EventBus';
 import { UserModel, IUserDocument } from '../DBSchemas/UserSchema';
 import { UserFollowModel } from '../DBSchemas/UserFollowSchema';
 import { PendingRegistrationModel } from '../DBSchemas/PendingRegistrationSchema';
@@ -97,6 +98,12 @@ export class UserService {
     });
 
     await PendingRegistrationModel.deleteOne({ email: dto.email });
+
+    eventBus.publish({
+      eventName: 'UserRegistered',
+      occurredOn: new Date(),
+      payload: { userId: user._id.toString(), email: user.email, username: user.username },
+    });
 
     const token = signToken(user._id.toString(), user.email);
     return Result.ok({ token, user: toUserResponseDTO(user) });

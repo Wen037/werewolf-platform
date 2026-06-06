@@ -35,6 +35,7 @@ export async function createTestMatch(opts: CreateTestMatchOptions): Promise<IMa
       external_pax: 0,
     },
     location: { lat: 1.3521, long: 103.8198 },
+    geoLocation: { type: 'Point', coordinates: [103.8198, 1.3521] },
     status: opts.status ?? 'Open',
     approvalMode: opts.approvalMode ?? 'open',
     players: playerIds.map(id => new mongoose.Types.ObjectId(id)),

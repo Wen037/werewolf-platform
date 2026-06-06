@@ -4,7 +4,7 @@ import { Result } from '../../../shared/core/Result';
 export type MatchStatus = 'Created' | 'Open' | 'Full' | 'Started' | 'Completed' | 'Cancelled';
 
 const ALLOWED_TRANSITIONS: Record<MatchStatus, MatchStatus[]> = {
-  Created: ['Open', 'Cancelled'],
+  Created: ['Open', 'Cancelled'],  // reserved for future draft-match feature; not used by createMatch()
   Open: ['Full', 'Started', 'Cancelled'],
   Full: ['Open', 'Started', 'Cancelled'],
   Started: ['Completed'],

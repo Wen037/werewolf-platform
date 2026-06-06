@@ -93,8 +93,8 @@ function InfoTab({ event, onEventUpdate, saveKey, onSaveStateChange }: {
   const [groupType, setGroupType]     = useState<SocialGroupType | null>(event.groupType ?? null);
   const [groupLink, setGroupLink]     = useState(event.groupLink ?? "");
   const [showQR, setShowQR]           = useState(false);
-  const [saving, setSaving]           = useState(false);
-  const [saved, setSaved]             = useState(false);
+  const [, setSaving]                 = useState(false);
+  const [, setSaved]                  = useState(false);
   const [error, setError]             = useState("");
 
   const selectedPlatform = GROUP_PLATFORMS.find(p => p.type === groupType);
@@ -796,8 +796,8 @@ function AttendanceTab({ event, roster, onEventUpdate, saveKey, onSaveStateChang
 }) {
   const { t } = useLang();
   const [marks, setMarks] = useState<Record<string, 'attended' | 'no-show' | null>>({});
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [, setSaving] = useState(false);
+  const [, setSaved] = useState(false);
 
   const activeRoster = roster.filter(r =>
     r.interaction.status === "registered" || r.interaction.status === "attended" || r.interaction.status === "no-show"

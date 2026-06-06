@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import passport from '../../../shared/infra/passport';
 import { UserService } from '../coreLogic/UserService';
 import { requireAuth, optionalAuth } from '../../../shared/middleware/auth';
 import { validate } from '../../../shared/middleware/validate';
@@ -74,6 +76,40 @@ router.patch('/admin/users/:id/credit', requireAuth, async (req: Request, res: R
   if (!updated) { res.status(404).json({ message: 'User not found.' }); return; }
   res.status(200).json({ userId: req.params['id'], creditScore: updated.creditScore });
 });
+
+// ─── Google OAuth ─────────────────────────────────────────────────────────────
+
+/**
+ * Step 1 — redirect user to Google consent screen
+ * GET /auth/google
+ */
+router.get(
+  '/auth/google',
+  passport.authenticate('google', { scope: ['email', 'profile'], session: false })
+);
+
+/**
+ * Step 2 — Google redirects back here after consent
+ * GET /auth/google/callback
+ *
+ * On success: redirect to <FRONTEND_URL>/auth/callback?token=<jwt>
+ * On failure: redirect to <FRONTEND_URL>/login?error=oauth_failed
+ */
+router.get(
+  '/auth/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/login?error=oauth_failed` }),
+  (req: Request, res: Response) => {
+    // req.user is serialised by passport strategy to { userId, email }
+    const { userId, email } = req.user!;
+    const secret = process.env.JWT_SECRET;
+    if (!secret) { res.status(500).json({ message: 'JWT not configured.' }); return; }
+
+    const token = jwt.sign({ userId, email }, secret, { expiresIn: '7d' });
+
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+  }
+);
 
 // ─── Follow ───────────────────────────────────────────────────────────────────
 

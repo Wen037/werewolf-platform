@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Result } from '../../../shared/core/Result';
 import { eventBus } from '../../../shared/infra/EventBus';
 import { MatchModel, IMatchDocument } from '../DBSchemas/MatchSchema';
@@ -186,6 +187,10 @@ export class MatchService {
         external_pax: 0,
       },
       location: { lat: venue.location.lat, long: venue.location.long },
+      geoLocation: {
+        type: 'Point',
+        coordinates: [venue.location.long, venue.location.lat],  // GeoJSON: [lng, lat]
+      },
       players: [hostId],
     }) as unknown as MatchDoc;
 
@@ -310,18 +315,44 @@ export class MatchService {
     const newStatus = match.status;
 
     if (promotedUserId) {
-      // MongoDB forbids $pull and $push on the same field in one operation — split into two updates
-      await MatchModel.findByIdAndUpdate(sessionId, {
-        $pull: { players: userId, waitlist: promotedUserId },
-        $set: { status: newStatus },
-      });
-      await MatchModel.findByIdAndUpdate(sessionId, {
-        $push: { players: promotedUserId },
-      });
-      await SessionInteractionModel.findOneAndUpdate(
-        { userId: promotedUserId, sessionId },
-        { $set: { status: 'registered' }, $unset: { waitlistPosition: '' } }
-      );
+      // Use a MongoDB session/transaction so the two-step $pull + $push are atomic.
+      // In test mode (standalone mongod) transactions are not supported — we skip the session
+      // but the operations still execute sequentially and are correct for single-threaded tests.
+      const useTransaction = process.env.NODE_ENV !== 'test';
+      let session: mongoose.ClientSession | undefined;
+
+      try {
+        if (useTransaction) {
+          session = await mongoose.startSession();
+          session.startTransaction();
+        }
+        const opts = session ? { session } : {};
+
+        // Step 1: remove leaving player from players[], remove promoted user from waitlist[]
+        await MatchModel.findByIdAndUpdate(sessionId, {
+          $pull: { players: userId, waitlist: promotedUserId },
+          $set: { status: newStatus },
+        }, opts);
+        // Step 2: add promoted user to players[] (cannot combine $pull + $push on same field)
+        await MatchModel.findByIdAndUpdate(sessionId, {
+          $push: { players: promotedUserId },
+        }, opts);
+        // Step 3: update promoted user's interaction record
+        await SessionInteractionModel.findOneAndUpdate(
+          { userId: promotedUserId, sessionId },
+          { $set: { status: 'registered' }, $unset: { waitlistPosition: '' } },
+          { ...opts, upsert: false }
+        );
+
+        if (session) await session.commitTransaction();
+      } catch (err) {
+        if (session) await session.abortTransaction();
+        console.error('[MatchService.leaveMatch] transaction failed:', err);
+        return Result.fail('Failed to process leave. Please try again.');
+      } finally {
+        if (session) await session.endSession();
+      }
+
       eventBus.publish({
         eventName: 'WaitlistPromoted',
         occurredOn: new Date(),

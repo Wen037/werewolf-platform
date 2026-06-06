@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface INotificationDocument extends Document {
   recipientId: mongoose.Types.ObjectId;
-  type: 'WaitlistPromoted' | 'MatchJoined' | 'MatchStatusChanged' | 'MatchInvited' | 'General';
+  type: 'WaitlistPromoted' | 'MatchJoined' | 'MatchStatusChanged' | 'MatchInvited' | 'VenueApproved' | 'VenueRejected' | 'UserRegistered' | 'General';
   message: string;
   isRead: boolean;
   channel: 'in-app' | 'email' | 'telegram';
@@ -15,7 +15,7 @@ const NotificationSchema = new Schema<INotificationDocument>(
     recipientId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     type: {
       type: String,
-      enum: ['WaitlistPromoted', 'MatchJoined', 'MatchStatusChanged', 'MatchInvited', 'General'],
+      enum: ['WaitlistPromoted', 'MatchJoined', 'MatchStatusChanged', 'MatchInvited', 'VenueApproved', 'VenueRejected', 'UserRegistered', 'General'],
       required: true,
     },
     message: { type: String, required: true },
