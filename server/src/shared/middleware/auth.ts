@@ -6,10 +6,14 @@ export interface AuthPayload {
   email: string;
 }
 
+// Augment Express.User so both JWT middleware and passport strategy
+// produce the same shape. Passport serialises to { userId, email }
+// before calling done(), so req.user always has these fields.
 declare global {
   namespace Express {
-    interface Request {
-      user: AuthPayload | undefined;
+    interface User {
+      userId: string;
+      email: string;
     }
   }
 }

@@ -3,6 +3,7 @@ import { PlayerSpaceModel, IPlayerSpaceDocument } from '../DBSchemas/PlayerSpace
 import { VenueInteractionModel } from '../DBSchemas/VenueInteractionSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
 import { CreatePlayerSpaceDTO, UpdatePlayerSpaceDTO, GameVenueResponseDTO } from '../DTOs/PlayerSpaceDTOs';
+import { eventBus } from '../../../shared/infra/EventBus';
 
 function toVenueDTO(
   doc: IPlayerSpaceDocument,
@@ -85,6 +86,7 @@ export class PlayerSpaceService {
       address: dto.address,
       type: dto.type,
       location: { lat: dto.lat, long: dto.lng },
+      geoLocation: { type: 'Point', coordinates: [dto.lng, dto.lat] },
       financials: { is_chargeable: dto.is_chargeable, approx_fee: dto.approx_fee ?? 0 },
       amenities: dto.amenities ?? [],
       ...(dto.description !== undefined && { description: dto.description }),
@@ -165,6 +167,53 @@ export class PlayerSpaceService {
     await PlayerSpaceModel.findByIdAndUpdate(venueId, { $inc: { totalSubscribers: delta } });
 
     return Result.ok({ isSubscribed: newSubscribed });
+  }
+
+  /**
+   * Admin-only: verify (approve) or un-verify a venue.
+   * Publishes VenueApproved / VenueRejected events so the owner is notified.
+   */
+  async verifyVenue(
+    venueId: string,
+    adminId: string,
+    approved: boolean,
+    reason?: string
+  ): Promise<Result<void>> {
+    const requestingUser = await UserModel.findById(adminId, 'role');
+    if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+      return Result.fail('Forbidden: admin access required.');
+    }
+
+    const venue = await PlayerSpaceModel.findById(venueId);
+    if (!venue) return Result.fail('Venue not found.');
+
+    const newStatus = approved ? 'Verified' : 'unVerified';
+    await PlayerSpaceModel.findByIdAndUpdate(venueId, { $set: { status: newStatus } });
+
+    if (approved) {
+      eventBus.publish({
+        eventName: 'VenueApproved',
+        occurredOn: new Date(),
+        payload: {
+          venueId,
+          ownerId: venue.owner_id.toString(),
+          venueName: venue.name,
+        },
+      });
+    } else {
+      eventBus.publish({
+        eventName: 'VenueRejected',
+        occurredOn: new Date(),
+        payload: {
+          venueId,
+          ownerId: venue.owner_id.toString(),
+          venueName: venue.name,
+          reason: reason ?? '',
+        },
+      });
+    }
+
+    return Result.ok();
   }
 
   async rateVenue(venueId: string, userId: string, rating: number): Promise<Result<void>> {

@@ -2,10 +2,20 @@ import { eventBus, DomainEvent } from '../../../shared/infra/EventBus';
 import { NotificationModel } from '../DBSchemas/NotificationSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
 import { MatchModel } from '../../matches/DBSchemas/MatchSchema';
+import { PlayerSpaceModel } from '../../player-spaces/DBSchemas/PlayerSpaceSchema';
 import { sendTelegramMessage } from './channels/TelegramChannel';
 import { sendEmailNotification } from './channels/EmailChannel';
+import { sendWhatsAppMessage } from './channels/WhatsAppChannel';
 
-type NotifType = 'WaitlistPromoted' | 'MatchJoined' | 'MatchStatusChanged' | 'MatchInvited' | 'General';
+type NotifType =
+  | 'WaitlistPromoted'
+  | 'MatchJoined'
+  | 'MatchStatusChanged'
+  | 'MatchInvited'
+  | 'VenueApproved'
+  | 'VenueRejected'
+  | 'UserRegistered'
+  | 'General';
 
 class NotificationService {
   constructor() {
@@ -38,7 +48,12 @@ class NotificationService {
 
       // Telegram if subscribed
       if (user.notifPreferences?.telegram && user.telegramChatId) {
-        await sendTelegramMessage(user.telegramChatId, `🎴 Werewolf Meetup\n${message}`);
+        await sendTelegramMessage(user.telegramChatId, `Werewolf Meetup\n${message}`);
+      }
+
+      // WhatsApp if subscribed
+      if (user.notifPreferences?.whatsapp && user.whatsappPhone) {
+        await sendWhatsAppMessage(user.whatsappPhone, message);
       }
     } catch (err) {
       console.error(`[NotificationService] Error dispatching ${type} to ${userId}:`, err);
@@ -46,6 +61,8 @@ class NotificationService {
   }
 
   private registerHandlers(): void {
+    // ── Match events ────────────────────────────────────────────────────────────
+
     eventBus.subscribe('UserJoinedMatch', async (event: DomainEvent) => {
       const { userId, matchId } = event.payload as { userId: string; matchId: string };
       const match = await MatchModel.findById(matchId);
@@ -70,7 +87,7 @@ class NotificationService {
       await this.dispatch(
         promotedUserId,
         'WaitlistPromoted',
-        `Great news! A spot opened up in "${match.title}". You're in! 🎉`,
+        `A spot opened up in "${match.title}". You have been moved off the waitlist.`,
         { matchId }
       );
     });
@@ -81,8 +98,8 @@ class NotificationService {
       if (!match) return;
 
       const statusMessages: Record<string, string> = {
-        Started: `Match "${match.title}" has started! Get ready to play. 🐺`,
-        Completed: `Match "${match.title}" has completed. Thanks for playing!`,
+        Started: `Match "${match.title}" has started. Get ready to play.`,
+        Completed: `Match "${match.title}" has completed. Thanks for playing.`,
         Cancelled: `Match "${match.title}" has been cancelled by the host.`,
       };
 
@@ -116,6 +133,57 @@ class NotificationService {
         'MatchInvited',
         `${hostName} invited you to join "${match.title}" on ${match.scheduledAt.toLocaleDateString()}.`,
         { matchId }
+      );
+    });
+
+    // ── Venue events ─────────────────────────────────────────────────────────────
+
+    eventBus.subscribe('VenueApproved', async (event: DomainEvent) => {
+      const { venueId, ownerId, venueName } = event.payload as {
+        venueId: string;
+        ownerId: string;
+        venueName: string;
+      };
+
+      await this.dispatch(
+        ownerId,
+        'VenueApproved',
+        `Your space "${venueName}" has been verified and is now listed on Werewolf SG.`,
+        { venueId }
+      );
+    });
+
+    eventBus.subscribe('VenueRejected', async (event: DomainEvent) => {
+      const { venueId, ownerId, venueName, reason } = event.payload as {
+        venueId: string;
+        ownerId: string;
+        venueName: string;
+        reason?: string;
+      };
+
+      const reasonText = reason ? ` Reason: ${reason}` : '';
+      await this.dispatch(
+        ownerId,
+        'VenueRejected',
+        `Your space "${venueName}" could not be verified.${reasonText}`,
+        { venueId }
+      );
+    });
+
+    // ── User events ──────────────────────────────────────────────────────────────
+
+    eventBus.subscribe('UserRegistered', async (event: DomainEvent) => {
+      const { userId, username } = event.payload as {
+        userId: string;
+        username: string;
+        email: string;
+      };
+
+      await this.dispatch(
+        userId,
+        'UserRegistered',
+        `Welcome to Werewolf SG, ${username}. Your account is ready.`,
+        {}
       );
     });
   }

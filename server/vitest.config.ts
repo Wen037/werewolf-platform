@@ -20,8 +20,13 @@ export default defineConfig({
         'dist/**',
       ],
     },
+    // Give MongoMemoryServer 60 s to start — prevents flaky timeout on slow machines
+    env: { MONGOMS_INSTANCE_STARTUP_TIMEOUT: '60000' },
     // Unit tests are fast; integration + concurrency tests need more time
     testTimeout: 30000,
-    hookTimeout: 30000,
+    hookTimeout: 60000,
+    // Run test files sequentially so each file gets its own MongoMemoryServer instance
+    // without resource contention. Individual tests within a file still run in parallel.
+    fileParallelism: false,
   },
 });

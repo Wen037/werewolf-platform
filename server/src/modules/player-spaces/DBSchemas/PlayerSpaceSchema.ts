@@ -13,6 +13,7 @@ export interface IPlayerSpaceDocument extends Document {
   images?: string[];      // Additional photos for the venue carousel
   type: 'house' | 'work' | 'school' | 'boardgame_store' | 'other';
   location: { lat: number; long: number };
+  geoLocation?: { type: 'Point'; coordinates: [number, number] };
   status: 'unVerified' | 'Verified';
   financials: { is_chargeable: boolean; approx_fee: number; price_type: 'per_person' | 'per_session' };
   openingHours?: string;
@@ -45,6 +46,12 @@ const PlayerSpaceSchema = new Schema<IPlayerSpaceDocument>(
       lat: { type: Number, required: true },
       long: { type: Number, required: true },
     },
+    // GeoJSON point used for geospatial $near queries (Map domain).
+    // Not set on old documents — sparse index skips those safely.
+    geoLocation: {
+      type: { type: String, enum: ['Point'] },
+      coordinates: { type: [Number] },   // [lng, lat]
+    },
     status: { type: String, enum: ['unVerified', 'Verified'], default: 'unVerified' },
     financials: {
       is_chargeable: { type: Boolean, default: false },
@@ -63,5 +70,6 @@ const PlayerSpaceSchema = new Schema<IPlayerSpaceDocument>(
 );
 
 PlayerSpaceSchema.index({ owner_id: 1 });
+PlayerSpaceSchema.index({ geoLocation: '2dsphere' }, { sparse: true });
 
 export const PlayerSpaceModel = mongoose.model<IPlayerSpaceDocument>('PlayerSpace', PlayerSpaceSchema);

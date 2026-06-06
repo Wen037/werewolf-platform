@@ -71,4 +71,26 @@ router.post('/venues/:id/rate', requireAuth, validate(RateVenueSchema), async (r
   res.status(200).json({ message: 'Rating saved.' });
 });
 
+// ─── Admin: verify / reject a venue ──────────────────────────────────────────
+// Body: { approved: boolean, reason?: string }
+router.patch('/admin/venues/:id/verify', requireAuth, async (req: Request, res: Response) => {
+  const { approved, reason } = req.body as { approved: boolean; reason?: string };
+  if (typeof approved !== 'boolean') {
+    res.status(400).json({ message: 'approved (boolean) is required.' });
+    return;
+  }
+  const result = await playerSpaceService.verifyVenue(
+    String(req.params['id']),
+    req.user!.userId,
+    approved,
+    reason
+  );
+  if (result.isFailure) {
+    const status = result.getError()?.includes('Forbidden') ? 403 : 404;
+    res.status(status).json({ message: result.getError() });
+    return;
+  }
+  res.status(200).json({ message: approved ? 'Venue verified.' : 'Venue verification removed.' });
+});
+
 export default router;

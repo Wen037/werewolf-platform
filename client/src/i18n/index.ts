@@ -4,7 +4,7 @@ export const zh: Record<string, string> = {
   // ── Navigation ────────────────────────────────────────────────────
   'Find Games':  '找游戏',
   'Game Space':  '游戏场地',
-  'My Events':   '我的游戏',
+  'My Events':   '我的活动',
   'My Profile':  '我的档案',
   'Login':       '登录',
   'Logout':      '退出',
@@ -49,7 +49,6 @@ export const zh: Record<string, string> = {
   'Edit Contact Info':      '编辑联系方式',
   'Edit Bio':               '编辑简介',
   'Choose Avatar':          '换头像',
-  'Save Changes':           '保存',
   'Cancel':                 '取消',
   'Report':                 '举报',
   'Admin':                  '管理员',
@@ -66,7 +65,6 @@ export const zh: Record<string, string> = {
                                             '还没有简介。就是个努力活过今晚的村民。',
 
   // ── My Events ─────────────────────────────────────────────────────
-  'My Events':                  '我的活动',
   'upcoming':                   '即将进行',
   'history':                    '历史记录',
   'Host Event':                 '发起游戏',
@@ -324,7 +322,6 @@ export const zh: Record<string, string> = {
   'Yes, Cancel':              '确认取消',
   'Cancelling…':              '取消中…',
   // Save button states
-  'Saved!':                   '已保存!',
   'Saving…':                  '保存中…',
   'Auto-saved':               '自动保存',
 

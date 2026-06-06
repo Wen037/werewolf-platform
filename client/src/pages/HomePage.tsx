@@ -269,8 +269,8 @@ export default function HomePage() {
 
     // ── Resize ─────────────────────────────────────────────────────
     function resize() {
-      W = canvas.width  = window.innerWidth;
-      H = canvas.height = window.innerHeight;
+      W = canvas!.width  = window.innerWidth;
+      H = canvas!.height = window.innerHeight;
       smoothX = mouseX = W / 2;
       buildStars();
     }
@@ -595,9 +595,6 @@ export default function HomePage() {
 
       endLayer();
     }
-
-    // No-op — kept for clarity; effects are now embedded in their respective layers
-    function drawTopEffects(_ox: number) { /* fireflies in L5, lightning in L1 */ }
 
     // ─────────────────────────────────────────────────────────────────
     //  L7 — NEAR TREES

@@ -1,14 +1,23 @@
+import dotenv from 'dotenv';
+dotenv.config(); // must run before any import that reads process.env (e.g. passport strategy)
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import passport from 'passport';
 
 import { apiLimiter } from './shared/middleware/rateLimiter';
+
+// Passport strategy registration (side-effect: registers Google OAuth strategy)
+import './shared/infra/passport';
 
 import userRoutes from './modules/users/routes/userRoutes';
 import playerSpaceRoutes from './modules/player-spaces/routes/playerSpaceRoutes';
 import matchRoutes from './modules/matches/routes/matchRoutes';
 import notificationRoutes from './modules/notifications/routes/notificationRoutes';
+import mapRoutes from './modules/map/routes/mapRoutes';
+import uploadRoutes from './modules/upload/uploadRoutes';
 
 // Side-effect import: registers all EventBus handlers on startup
 import './modules/notifications/coreLogic/NotificationService';
@@ -29,6 +38,9 @@ app.use(
 app.use(express.json({ limit: '10kb' }));
 app.use(morgan('dev'));
 
+// Passport (stateless — session: false used in all strategies)
+app.use(passport.initialize());
+
 // Global API rate limit — auth routes apply stricter limit via authLimiter inside their router
 app.use('/api', apiLimiter);
 
@@ -42,6 +54,8 @@ app.use('/api', userRoutes);
 app.use('/api', playerSpaceRoutes);
 app.use('/api', matchRoutes);
 app.use('/api', notificationRoutes);
+app.use('/api', mapRoutes);
+app.use('/api', uploadRoutes);
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

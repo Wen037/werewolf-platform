@@ -143,7 +143,7 @@ export default function GameSpacePage() {
           >
             {venue.name}
             {venue.isVerified && (
-              <BadgeCheck size={16} className="text-green-400 shrink-0" title="Verified Space" />
+              <BadgeCheck size={16} className="text-green-400 shrink-0" aria-label="Verified Space" />
             )}
           </h3>
 
