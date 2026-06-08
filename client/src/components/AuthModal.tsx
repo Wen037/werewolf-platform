@@ -115,14 +115,14 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[800]"
           />
 
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none"
+            className="fixed inset-0 z-[800] flex items-center justify-center p-4 pointer-events-none"
           >
             <div className="bg-neutral-900 border border-white/10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[90vh]">
 

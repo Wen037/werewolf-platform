@@ -3,7 +3,7 @@ import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
-import { IconMenu2, IconX } from "@tabler/icons-react";
+import { IconMenu2 } from "@tabler/icons-react";
 
 // --- Context to manage Open/Close state across components ---
 interface SidebarContextProps {
@@ -63,17 +63,11 @@ export const Sidebar = ({
       {/* 1. The visible header bar (no children that need viewport-fixed positioning) */}
       <div className="flex md:hidden h-14 w-full flex-shrink-0 bg-black/60 backdrop-blur-md px-4 items-center justify-between z-20">
         <div className="text-white font-bold text-lg">Menu</div>
-        {_open ? (
-          <IconX
-            className="text-white cursor-pointer"
-            onClick={() => _setOpen(false)}
-          />
-        ) : (
-          <IconMenu2
-            className="text-white cursor-pointer"
-            onClick={() => _setOpen(true)}
-          />
-        )}
+        {/* Always show ≡ — tapping it toggles the panel open/closed */}
+        <IconMenu2
+          className="text-white cursor-pointer"
+          onClick={() => _setOpen(v => !v)}
+        />
       </div>
 
       {/* 2. The drawer — sibling of the bar so fixed positioning is viewport-relative */}
@@ -96,7 +90,7 @@ export const Sidebar = ({
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: "-100%", opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="fixed inset-x-0 top-0 bg-black z-[100] flex flex-col p-4 w-full max-h-[80%] overflow-y-auto shadow-2xl rounded-b-2xl"
+                className="fixed inset-x-0 top-14 bg-black z-[100] flex flex-col p-4 w-full max-h-[75%] overflow-y-auto shadow-2xl rounded-b-2xl"
               >
                 {children}
               </motion.div>
