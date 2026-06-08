@@ -673,6 +673,25 @@ export default function HomePage() {
           {t('A Night of Deception')}
         </p>
 
+        {/* App description — visible to Google's crawler for branding verification */}
+        <p
+          style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: "clamp(0.6rem, 1.2vw, 0.85rem)",
+            letterSpacing: "0.12em",
+            color: "rgba(180,165,130,0.50)",
+            marginTop: "1.6em",
+            textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+            userSelect: "none",
+            textAlign: "center",
+            maxWidth: "28rem",
+            padding: "0 1rem",
+            lineHeight: 1.7,
+          }}
+        >
+          {t('Singapore\'s platform for finding and hosting Werewolf social deduction game events. Sign in to join games, discover venues, and connect with players.')}
+        </p>
+
         {/* Buttons — absolutely positioned in the lower third of the screen */}
         <div
           className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 absolute items-center w-full px-6"

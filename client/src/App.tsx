@@ -10,6 +10,7 @@ import PublicProfilePage from './pages/PublicProfilePage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AdminPage from './pages/AdminPage';
 import { RequireAuth } from './components/RequireAuth';
+import PrivacyPage from './pages/PrivacyPage';
 import { LanguageProvider } from './context/LanguageContext';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
       <Routes>
         {/* Route 1: Landing Page (No Sidebar) */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         {/* Route 2: The Game App (Has Sidebar) */}
