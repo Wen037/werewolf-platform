@@ -108,3 +108,39 @@ Changes:
   maxPlayers/proficiency label) to the backend CreateMatchSchema shape
   (venue_id/min_pax/max_pax/proficiency_required 0-4); posts to POST /games
 - game.service.mock.ts: matching createSession() stub for service parity
+
+---
+
+fix: production "Request failed" on login (api.ts hardcoded relative /api base)
+
+werewolf.sg showed a red "Request failed" banner on every login attempt,
+and venues/spaces created in localhost never appeared on the deployed site.
+Both symptoms had the same root cause: api.ts hardcoded BASE = '/api', a
+relative path that only resolves in local dev because Vite's proxy
+(vite.config.ts) forwards /api/* to localhost:5000. The deployed frontend
+has no such proxy, so every fetch('/api/...') hit werewolf.sg/api/...
+(404/HTML instead of JSON) — login, venue list, everything failed
+identically with the generic "Request failed" fallback message.
+
+Changes:
+- services/api.ts: BASE now resolves the API origin the same way
+  AuthModal.handleGoogleLogin already did — VITE_API_URL env override,
+  else relative (proxy) in dev, else https://api.werewolf.sg in production
+
+---
+
+feat: distinct mobile homepage scene + drawer auto-close on outside tap
+
+Changes:
+- pages/HomePage.tsx: added MobileForestScene — a lightweight static
+  "cartoon trees" scene (CSS gradient sky, radial-gradient moon, layered
+  tree PNGs, vignette) shown via md:hidden instead of the heavy canvas
+  parallax animation, so mobile gets a simpler, distinct look (per
+  request: "don't make mobile look the same as the desktop site, the
+  older simpler design looked nicer") and skips the animation loop +
+  large image loads entirely on small screens (battery/bandwidth)
+- components/ui/sidebar.tsx: mobile drawer changed from a full-screen
+  overlay (no "outside" area) to a standard ~80%-width sliding panel with
+  a separate backdrop strip; tapping the backdrop now closes the drawer,
+  matching the tap-outside-to-close behavior already present on modals
+  and HostControlPanel

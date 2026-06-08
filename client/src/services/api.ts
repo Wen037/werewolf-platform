@@ -1,4 +1,11 @@
-const BASE = '/api';
+// In local dev, keep this relative so Vite's proxy (vite.config.ts) forwards
+// /api/* to http://localhost:5000. In production, werewolf.sg has no such proxy —
+// a bare "/api" resolves to werewolf.sg/api/... (404, not JSON), which is why
+// every request — including login — was failing with "Request failed" and the
+// app appeared to have no data (every fetch silently 404'd the same way).
+// Mirrors the origin-resolution AuthModal already uses for the OAuth redirect.
+const API_ORIGIN = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : "https://api.werewolf.sg");
+const BASE = `${API_ORIGIN}/api`;
 
 async function request<T>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
   const token = localStorage.getItem('token');

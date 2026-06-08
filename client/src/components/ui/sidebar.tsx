@@ -63,26 +63,40 @@ export const Sidebar = ({
           className="text-white cursor-pointer"
           onClick={() => _setOpen(true)}
         />
-        {/* Mobile Drawer Overlay */}
+        {/* Mobile Drawer — slides in from the left covering ~80% of the width,
+            leaving a visible "outside" strip. Tapping that backdrop strip
+            (or pressing X) closes the drawer, matching standard drawer UX. */}
         <AnimatePresence>
           {_open && (
-            <motion.div
-              initial={{ x: "-100%", opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "-100%", opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className={cn(
-                "fixed inset-0 bg-black z-[100] flex flex-col p-4 w-full h-full"
-              )}
-            >
-              <div
-                className="absolute right-4 top-4 cursor-pointer"
+            <>
+              <motion.div
+                key="drawer-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99]"
                 onClick={() => _setOpen(false)}
+              />
+              <motion.div
+                key="drawer-panel"
+                initial={{ x: "-100%", opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: "-100%", opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className={cn(
+                  "fixed inset-y-0 left-0 bg-black z-[100] flex flex-col p-4 w-[80%] max-w-xs h-full shadow-2xl"
+                )}
               >
-                <IconX className="text-white" />
-              </div>
-              {children}
-            </motion.div>
+                <div
+                  className="absolute right-4 top-4 cursor-pointer"
+                  onClick={() => _setOpen(false)}
+                >
+                  <IconX className="text-white" />
+                </div>
+                {children}
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
       </div>

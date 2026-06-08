@@ -51,6 +51,26 @@ Changes ready to push (all build-verified: client `tsc -b` + server `tsc --noEmi
      layer (frontend shape -> backend CreateMatchSchema: venue_id/min_pax/max_pax/
      proficiency_required); game.service.mock.ts: matching stub for parity
 
+10. Fix production "Request failed" on login + missing localhost-created spaces
+   - Root cause: api.ts hardcoded BASE = '/api' (relative) — only resolves via
+     Vite's dev proxy; the deployed site has no such proxy so every request
+     hit werewolf.sg/api/... (404), which is why login AND every data fetch
+     (venues/spaces) failed identically with "Request failed"
+   - Now resolves API origin same as AuthModal's OAuth redirect: VITE_API_URL
+     override -> relative in dev -> https://api.werewolf.sg in production
+
+11. Mobile homepage now uses a distinct, lighter "cartoon trees" scene
+   - HomePage.tsx: new MobileForestScene (static CSS/PNG layers, no canvas
+     animation loop) shown on mobile via md:hidden — looks different from
+     desktop's heavy parallax scene per user request, and skips loading the
+     large parallax image set + rAF loop on small screens entirely
+
+12. Mobile drawer now closes on outside tap
+   - sidebar.tsx: mobile drawer changed from full-screen overlay (no
+     "outside" to tap) to a standard ~80%-width sliding panel + backdrop
+     strip; tapping the backdrop closes the drawer (matches modal/
+     HostControlPanel tap-outside-to-close behavior)
+
 Suggested commit breakdown (separate commits, in this order):
   a) fix: persist venue price edits (pricePerHour/priceType translation layer)
   b) feat: admin venue ownership transfer
@@ -61,6 +81,8 @@ Suggested commit breakdown (separate commits, in this order):
   g) fix: admin credit-adjust accepts email, not just user ID
   h) feat: harden username rules — case-insensitive uniqueness + block admin impersonation
   i) fix: wire up Create Event submit flow (was completely non-functional)
+  j) fix: production "Request failed" — api.ts hardcoded relative /api base URL
+  k) feat: distinct mobile homepage scene + drawer auto-close on outside tap
 
 Pre-push checklist:
   [ ] cd client && npx tsc -b   (passes — already verified)
