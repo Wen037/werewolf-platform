@@ -1,19 +1,19 @@
-# Fly.io configuration for Werewolf SG backend
-# Region: sin (Singapore) — matches our SG-only user base
+# fly.toml app configuration file generated for werewolf-sg-api on 2026-06-06T09:36:58+08:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'werewolf-sg-api'
 primary_region = 'sin'
 
 [build]
-  # Uses server/Dockerfile (multi-stage: build TypeScript → production image)
 
 [env]
-  # Non-secret env vars only — secrets are set via: flyctl secrets set KEY=VALUE
   NODE_ENV = 'production'
 
 [http_service]
   internal_port = 5000
   force_https = true
-  # Keep 1 machine always running (prevents cold start for game platform)
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 1
@@ -25,8 +25,7 @@ primary_region = 'sin'
     soft_limit = 400
 
 [[vm]]
-  # shared-cpu-2x with 512 MB: handles ~500 concurrent connections comfortably
-  # Cost: ~$3-4/month on free tier allowance
+  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 2
-  memory = '512mb'
+  memory_mb = 512

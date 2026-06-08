@@ -20,15 +20,15 @@ const googleUserIcon = new L.DivIcon({
 });
 
 const eventsIcon = new L.Icon({
-  iconUrl: "../../public/mapEventIcon.png",
+  iconUrl: "/mapEventIcon.png",
   iconSize: [45, 45],
   popupAnchor: [0, -20]
 });
 
 const placeIcon = new L.Icon({
-  iconUrl: "../../public/werewolf_logo.png",
-  iconSize: [30, 30],
-  popupAnchor: [0, -15]
+  iconUrl: "/mapVenuesIcon.png",
+  iconSize: [36, 36],
+  popupAnchor: [0, -18]
 });
 
 // --- HELPER: Date Formatter ---
@@ -91,6 +91,7 @@ export default function GameMapPage() {
   const [eventProfFilter, setEventProfFilter] = useState<string>("all");
   const [eventDateFilter, setEventDateFilter] = useState<string>("all");
   const [hideFullEvents, setHideFullEvents] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const triggerToast = () => {
     setShowToast(true);
@@ -256,79 +257,95 @@ export default function GameMapPage() {
       </AnimatePresence>
 
       <div className="w-full h-full relative rounded-3xl overflow-hidden shadow-xl border border-neutral-200">
-        <div className="absolute top-4 left-4 z-[500] flex flex-col gap-2 max-w-[calc(100%-5rem)]">
-          {/* Mode toggle */}
-          <div className="bg-white/50 backdrop-blur-md rounded-xl shadow-lg p-1.5 flex border border-neutral-200 w-fit">
-            <button
-              onClick={() => { setMode("places"); setSelectedItem(null); }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === "places" ? "bg-black text-white shadow-md" : "text-neutral-500 hover:bg-neutral-100"}`}
-            >
-              {t('Venues')}
-            </button>
-            <button
-              onClick={() => { setMode("events"); setSelectedItem(null); }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === "events" ? "bg-red-600 text-white shadow-md" : "text-neutral-500 hover:bg-neutral-100"}`}
-            >
-              {t('Events')}
-            </button>
-          </div>
-
-          {/* Event filters — only visible in events mode */}
-          {mode === "events" && (
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md border border-white/15 rounded-lg px-2 py-1">
-                <SlidersHorizontal size={11} className="text-neutral-400" />
-                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Filters</span>
-              </div>
-
-              {/* Proficiency */}
-              {(["all", "All Welcome", "Newbie", "Intermediate", "Advanced"] as const).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setEventProfFilter(p)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
-                    eventProfFilter === p
-                      ? "bg-red-600 border-red-500 text-white"
-                      : "bg-black/60 backdrop-blur-md border-white/15 text-neutral-300 hover:border-white/30"
-                  }`}
-                >
-                  {p === "all" ? "All Levels" : p}
-                </button>
-              ))}
-
-              {/* Date */}
-              {(["all", "today", "week"] as const).map(d => (
-                <button
-                  key={d}
-                  onClick={() => setEventDateFilter(d)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
-                    eventDateFilter === d
-                      ? "bg-amber-600 border-amber-500 text-white"
-                      : "bg-black/60 backdrop-blur-md border-white/15 text-neutral-300 hover:border-white/30"
-                  }`}
-                >
-                  {d === "all" ? "Any Date" : d === "today" ? "Today" : "This Week"}
-                </button>
-              ))}
-
-              {/* Hide full */}
+        <div className="absolute top-4 left-4 z-[500] max-w-[calc(100%-2rem)]">
+          <div className="bg-black/45 backdrop-blur-md rounded-xl shadow-lg border border-white/15 p-1.5 flex flex-wrap items-center gap-1.5">
+            {/* Mode toggle */}
+            <div className="flex bg-black/30 rounded-lg p-0.5 shrink-0">
               <button
-                onClick={() => setHideFullEvents(v => !v)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
-                  hideFullEvents
-                    ? "bg-green-700 border-green-600 text-white"
-                    : "bg-black/60 backdrop-blur-md border-white/15 text-neutral-300 hover:border-white/30"
-                }`}
+                onClick={() => { setMode("places"); setSelectedItem(null); }}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${mode === "places" ? "bg-white text-black shadow-md" : "text-neutral-300 hover:text-white"}`}
               >
-                {hideFullEvents ? "Spots Available ✓" : "Hide Full"}
+                {t('Venues')}
               </button>
-
-              {/* Results count */}
-              <span className="text-[10px] text-neutral-400 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
-                {filteredGames.length} event{filteredGames.length !== 1 ? "s" : ""}
-              </span>
+              <button
+                onClick={() => { setMode("events"); setSelectedItem(null); }}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${mode === "events" ? "bg-red-600 text-white shadow-md" : "text-neutral-300 hover:text-white"}`}
+              >
+                {t('Events')}
+              </button>
             </div>
-          )}
+
+            {/* Event filters — only visible in events mode, inline in the same bar */}
+            {mode === "events" && (
+              <>
+                <div className="w-px h-6 bg-white/15 mx-0.5 shrink-0" />
+
+                {/* Filters toggle */}
+                <button
+                  onClick={() => setFiltersOpen(v => !v)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg shrink-0 transition-all border ${
+                    filtersOpen ? "bg-red-600/20 border-red-500/40 text-red-300" : "bg-black/30 border-white/10 text-neutral-400 hover:border-white/30"
+                  }`}
+                >
+                  <SlidersHorizontal size={11} />
+                  <span className="text-[10px] font-bold uppercase tracking-wide">{t('Filters')}</span>
+                </button>
+
+                {/* Results count — always visible */}
+                <span className="text-[10px] text-neutral-400 bg-black/30 px-2 py-1 rounded-lg border border-white/10 shrink-0">
+                  {filteredGames.length} {filteredGames.length !== 1 ? t("events") : t("event")}
+                </span>
+              </>
+            )}
+
+            {/* Expanded filter options — wraps onto its own row(s) when open */}
+            {mode === "events" && filtersOpen && (
+              <div className="w-full flex flex-wrap items-center gap-1.5 pt-1.5 mt-1.5 border-t border-white/10">
+                {/* Proficiency */}
+                {(["all", "All Welcome", "Newbie", "Intermediate", "Advanced"] as const).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setEventProfFilter(p)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                      eventProfFilter === p
+                        ? "bg-red-600 border-red-500 text-white"
+                        : "bg-black/30 border-white/10 text-neutral-300 hover:border-white/30"
+                    }`}
+                  >
+                    {p === "all" ? t("All Levels") : t(p)}
+                  </button>
+                ))}
+
+                {/* Date */}
+                {(["all", "today", "week"] as const).map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setEventDateFilter(d)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                      eventDateFilter === d
+                        ? "bg-amber-600 border-amber-500 text-white"
+                        : "bg-black/30 border-white/10 text-neutral-300 hover:border-white/30"
+                    }`}
+                  >
+                    {d === "all" ? t("Any Date") : d === "today" ? t("Today") : t("This Week")}
+                  </button>
+                ))}
+
+                {/* Hide full */}
+                <button
+                  onClick={() => setHideFullEvents(v => !v)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                    hideFullEvents
+                      ? "bg-green-700 border-green-600 text-white"
+                      : "bg-black/30 border-white/10 text-neutral-300 hover:border-white/30"
+                  }`}
+                >
+                  {hideFullEvents ? t("Spots Available ✓") : t("Hide Full")}
+                </button>
+
+              </div>
+            )}
+          </div>
         </div>
 
         <MapContainer 

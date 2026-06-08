@@ -81,6 +81,12 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
     }
   };
 
+  // ── Google OAuth ───────────────────────────────────────────────────────────
+  const handleGoogleLogin = () => {
+    const apiOrigin = import.meta.env.VITE_API_URL ?? "https://api.werewolf.sg";
+    window.location.href = `${apiOrigin}/api/auth/google`;
+  };
+
   // ── Login ──────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     setError(null);
@@ -113,7 +119,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
-            <div className="bg-neutral-900/90 border border-white/10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[90vh]">
+            <div className="bg-neutral-900 border border-white/10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[90vh]">
 
               {/* Tabs */}
               <div className="flex justify-between items-center p-4 border-b border-white/5">
@@ -184,7 +190,11 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <button className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all">
+                      <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all"
+                      >
                         <span className="text-red-500 font-bold">G</span> Google
                       </button>
                       <button className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all">
