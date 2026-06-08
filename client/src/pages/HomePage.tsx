@@ -25,9 +25,6 @@ const C = {
   BGTREE_H:  0.30,
 };
 
-// ── Deep-clone defaults for reset ──────────────────────────────────
-const C_DEFAULTS = JSON.parse(JSON.stringify(C));
-
 // ── Restore persisted tuning (runs once at module load) ────────────
 const HP_STORAGE_KEY = "hp_scene_config";
 ;(() => {
@@ -61,149 +58,13 @@ const btnStyle: React.CSSProperties = {
   fontFamily: "'Cinzel', serif",
   fontSize: "clamp(0.65rem, 1.4vw, 0.9rem)",
   letterSpacing: "0.40em",
-  padding: "0.65em 2.8em",
+  padding: "0.65em clamp(1.1em, 6vw, 2.8em)",
   cursor: "pointer",
   textTransform: "uppercase" as const,
   transition: "all 0.28s ease",
   textShadow: "0 0 12px rgba(255,160,0,0.4)",
   boxShadow: "0 0 18px rgba(180,130,0,0.12), inset 0 0 12px rgba(255,180,0,0.04)",
 };
-
-// ── Dev Scene Tuner ────────────────────────────────────────────────
-function HomepageTuner() {
-  const [open, setOpen] = useState(false);
-  const [, setTick] = useState(0);
-
-  const bump = () => {
-    try { localStorage.setItem(HP_STORAGE_KEY, JSON.stringify(C)); } catch {}
-    setTick(n => n + 1);
-  };
-
-  const copyConfig = () => {
-    const out = `const C = ${JSON.stringify(C, null, 2)};`;
-    navigator.clipboard.writeText(out);
-  };
-
-  const resetDefaults = () => {
-    (["LERP","EDGE_GLOW","MOON_GLOW","FIRE_SPD","BLINK_SPD","BGTREE_H"] as const)
-      .forEach(k => { (C as any)[k] = (C_DEFAULTS as any)[k]; });
-    C.SHIFT = [...C_DEFAULTS.SHIFT];
-    C_DEFAULTS.L.forEach((l: any, i: number) => { if (l && C.L[i]) Object.assign(C.L[i], l); });
-    localStorage.removeItem(HP_STORAGE_KEY);
-    setTick(n => n + 1);
-  };
-
-  const SliderRow = ({
-    label, get, set, min, max, step,
-  }: {
-    label: string; get: () => number; set: (v: number) => void;
-    min: number; max: number; step: number;
-  }) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 0" }}>
-      <span style={{ color: "#9ca3af", fontSize: 10, width: 58, flexShrink: 0 }}>{label}</span>
-      <input
-        type="range" min={min} max={max} step={step} value={get()}
-        onChange={e => { set(parseFloat(e.target.value)); bump(); }}
-        style={{ flex: 1, height: 3, accentColor: "#f59e0b" }}
-      />
-      <input
-        type="number" min={min} max={max} step={step} value={get()}
-        onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) { set(v); bump(); } }}
-        style={{
-          width: 48, fontSize: 10, background: "#1f2937", color: "#fcd34d",
-          border: "1px solid #374151", borderRadius: 3, padding: "0 4px", textAlign: "right",
-        }}
-      />
-    </div>
-  );
-
-  if (!open) return (
-    <button
-      onClick={() => setOpen(true)}
-      style={{
-        position: "fixed", left: 12, bottom: 12, zIndex: 9999,
-        background: "rgba(15,10,5,0.85)", border: "1px solid rgba(180,120,30,0.5)",
-        color: "#fbbf24", fontSize: 11, padding: "5px 10px", borderRadius: 4,
-        cursor: "pointer", fontFamily: "monospace",
-      }}
-    >
-      ⚙ Tune Scene
-    </button>
-  );
-
-  return (
-    <div style={{
-      position: "fixed", left: 0, top: 0, height: "100%", width: 268,
-      zIndex: 9999, background: "rgba(7,5,3,0.96)", borderRight: "1px solid #1f2937",
-      overflowY: "auto", fontFamily: "monospace",
-    }}>
-      {/* Header */}
-      <div style={{
-        position: "sticky", top: 0, background: "#0c0a06", borderBottom: "1px solid #1f2937",
-        padding: "6px 8px", display: "flex", justifyContent: "space-between", alignItems: "center",
-      }}>
-        <span style={{ color: "#fbbf24", fontWeight: 700, fontSize: 13 }}>⚙ Scene Tuner</span>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button onClick={copyConfig} style={{
-            fontSize: 10, color: "#6ee7b7", background: "none",
-            border: "1px solid #374151", borderRadius: 3, padding: "2px 6px", cursor: "pointer",
-          }}>Copy C</button>
-          <button onClick={resetDefaults} style={{
-            fontSize: 10, color: "#f87171", background: "none",
-            border: "1px solid #374151", borderRadius: 3, padding: "2px 6px", cursor: "pointer",
-          }}>Reset</button>
-          <button onClick={() => setOpen(false)} style={{
-            fontSize: 12, color: "#9ca3af", background: "none", border: "none", cursor: "pointer",
-          }}>✕</button>
-        </div>
-      </div>
-
-      {/* Global */}
-      <div style={{ padding: "6px 8px", borderBottom: "1px solid #1f2937" }}>
-        <div style={{ color: "#f59e0b", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Global</div>
-        <SliderRow label="LERP"      get={() => C.LERP}      set={v => { C.LERP = v; }}      min={0.01} max={1}   step={0.01} />
-        <SliderRow label="EDGE_GLOW" get={() => C.EDGE_GLOW} set={v => { C.EDGE_GLOW = v; }} min={0}    max={1}   step={0.01} />
-        <SliderRow label="MOON_GLOW" get={() => C.MOON_GLOW} set={v => { C.MOON_GLOW = v; }} min={50}   max={500} step={1}    />
-        <SliderRow label="FIRE_SPD"  get={() => C.FIRE_SPD}  set={v => { C.FIRE_SPD = v; }}  min={0}    max={1}   step={0.01} />
-        <SliderRow label="BLINK_SPD" get={() => C.BLINK_SPD} set={v => { C.BLINK_SPD = v; }} min={0}    max={1}   step={0.01} />
-        <SliderRow label="BGTREE_H"  get={() => C.BGTREE_H}  set={v => { C.BGTREE_H = v; }}  min={0}    max={0.6} step={0.005} />
-      </div>
-
-      {/* Per-layer */}
-      {(C.L as any[]).filter(Boolean).map((layer: any, rawIdx: number) => {
-        const i = rawIdx + 1;
-        return (
-          <div key={i} style={{ padding: "6px 8px", borderBottom: "1px solid #1f2937" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-              <span style={{ color: "#f59e0b", fontSize: 11, fontWeight: 700 }}>L{i} — {layer.name}</span>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#9ca3af", fontSize: 10, cursor: "pointer" }}>
-                <input
-                  type="checkbox" checked={layer.visible}
-                  onChange={e => { layer.visible = e.target.checked; bump(); }}
-                />
-                vis
-              </label>
-            </div>
-            <SliderRow label="spd"     get={() => layer.spd}     set={v => { layer.spd = v; }}     min={0}    max={3}    step={0.01}  />
-            <SliderRow label="scale"   get={() => layer.scale}   set={v => { layer.scale = v; }}   min={0.1}  max={4}    step={0.01}  />
-            <SliderRow label="groundY" get={() => layer.groundY} set={v => { layer.groundY = v; }} min={0.3}  max={1.15} step={0.005} />
-            <SliderRow label="slope"   get={() => layer.slope}   set={v => { layer.slope = v; }}   min={-0.5} max={0.5}  step={0.005} />
-            <SliderRow label="alpha"   get={() => layer.alpha}   set={v => { layer.alpha = v; }}   min={0}    max={1}    step={0.01}  />
-            <SliderRow label="tint"    get={() => layer.tint}    set={v => { layer.tint = v; }}    min={-180} max={180}  step={1}     />
-            <SliderRow label="bright"  get={() => layer.bright}  set={v => { layer.bright = v; }}  min={0}    max={2}    step={0.01}  />
-            <SliderRow label="SHIFT"   get={() => C.SHIFT[i]}    set={v => { C.SHIFT[i] = v; }}    min={-0.5} max={0.8}  step={0.005} />
-            {layer.bowlDepth !== undefined && (
-              <SliderRow label="bowlDepth" get={() => layer.bowlDepth} set={v => { layer.bowlDepth = v; }} min={0} max={0.3} step={0.005} />
-            )}
-            {layer.bowlW !== undefined && (
-              <SliderRow label="bowlW" get={() => layer.bowlW} set={v => { layer.bowlW = v; }} min={0.1} max={2} step={0.01} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 export default function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -716,8 +577,8 @@ export default function HomePage() {
 
         {/* Buttons — absolutely positioned in the lower third of the screen */}
         <div
-          className="pointer-events-auto flex gap-8 absolute"
-          style={{ bottom: "14vh", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}
+          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 absolute items-center w-full px-6"
+          style={{ bottom: "10vh", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap", maxWidth: "32rem" }}
         >
           <button
             style={btnStyle}
@@ -767,7 +628,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {import.meta.env.DEV && <HomepageTuner />}
     </div>
   );
 }

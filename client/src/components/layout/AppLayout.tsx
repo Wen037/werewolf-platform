@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "../ui/sidebar";
-import { IconLogin, IconLogout, IconMail } from "@tabler/icons-react";
+import { IconLogin, IconLogout, IconMail, IconShieldCheck } from "@tabler/icons-react";
 import { useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { FireflyBackground } from "../ui/firefly-background";
@@ -146,6 +146,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <img src="/logo_white.png" alt="Profile" className="h-6 w-6 flex-shrink-0 rounded-full" />
       ),
       visible: isLoggedIn,
+    },
+    {
+      label: t("Admin"),
+      href: "/admin",
+      icon: <IconShieldCheck className="h-6 w-6 text-amber-400" />,
+      visible: isLoggedIn && (currentUser?.role === "admin" || currentUser?.role === "web_admin"),
     },
   ];
 

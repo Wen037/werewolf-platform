@@ -27,7 +27,7 @@ export default function GameSpacePage() {
 
   const currentUser = AuthService.getCurrentUser();
 
-  useEffect(() => {
+  const loadVenues = () => {
     GameService.getAllVenues().then(data => {
       setVenues(data.map(v => ({
         ...v,
@@ -36,7 +36,9 @@ export default function GameSpacePage() {
         pendingApplicationsCount: v.pendingApplicationsCount,
       })));
     });
-  }, []);
+  };
+
+  useEffect(() => { loadVenues(); }, []);
 
   const triggerToast = () => {
     setShowToast(true);
@@ -74,9 +76,11 @@ export default function GameSpacePage() {
     [venues, currentUser]
   );
 
+  const isAdmin     = currentUser?.role === 'admin' || currentUser?.role === 'web_admin';
   const slotsUsed   = myVenues.length;
-  const slotsLeft   = MAX_SPACES_PER_USER - slotsUsed;
-  const canAddMore  = slotsLeft > 0;
+  // Admins are not bound by the per-user space limit
+  const slotsLeft   = isAdmin ? 0 : Math.max(0, MAX_SPACES_PER_USER - slotsUsed);
+  const canAddMore  = isAdmin || slotsLeft > 0;
 
   const q = searchQuery.trim().toLowerCase();
   const filteredVenues = useMemo(() => {
@@ -342,11 +346,13 @@ export default function GameSpacePage() {
               >
                 <Plus size={16} />
                 {canAddMore ? t('Add Space') : t('Limit Reached')}
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                  canAddMore ? "bg-white/20" : "bg-white/5"
-                }`}>
-                  {slotsUsed}/{MAX_SPACES_PER_USER}
-                </span>
+                {!isAdmin && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    canAddMore ? "bg-white/20" : "bg-white/5"
+                  }`}>
+                    {slotsUsed}/{MAX_SPACES_PER_USER}
+                  </span>
+                )}
               </button>
             ) : (
               <button
@@ -367,11 +373,19 @@ export default function GameSpacePage() {
                 <Settings size={18} className="text-amber-400" />
                 {t('My Spaces')}
               </h2>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
-                {slotsUsed} / {MAX_SPACES_PER_USER} {t('used')}
-              </span>
-              {!canAddMore && (
-                <span className="text-xs text-neutral-500">Limit reached</span>
+              {isAdmin ? (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                  {slotsUsed} {t('spaces')} · {t('Unlimited (Admin)')}
+                </span>
+              ) : (
+                <>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                    {slotsUsed} / {MAX_SPACES_PER_USER} {t('used')}
+                  </span>
+                  {!canAddMore && (
+                    <span className="text-xs text-neutral-500">Limit reached</span>
+                  )}
+                </>
               )}
             </div>
 
@@ -418,6 +432,7 @@ export default function GameSpacePage() {
         <CreateSpaceModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
+          onCreated={loadVenues}
         />
       </div>
     </AppLayout>

@@ -1,0 +1,70 @@
+Today's submission plan (2026-06-09)
+====================================
+
+Changes ready to push (all build-verified: client `tsc -b` + server `tsc --noEmit` pass clean):
+
+1. Edit Space photo gallery overhaul (Session 29)
+   - Load full venue.images gallery (not just imageUrl) so any uploaded photo can be set as cover
+   - Drag-and-drop support on the photo grid
+   - Real Cloudinary upload on save (fixes blob: URLs breaking after reload)
+
+2. Remove "3 spaces" limit for admin accounts (Session 30)
+   - Admins bypass MAX_SPACES_PER_USER entirely; UI badges adapt ("Unlimited (Admin)")
+
+3. Create Event UX fixes (Session 31)
+   - Event Title: random suggestion now shown as placeholder only (was pre-filled, easy to submit by mistake)
+   - Replaced native scroll-wheel time input with friendly Hour / Minute / AM-PM dropdowns
+
+4. Fix venue price not saving — always showed "Free" (Session 32)
+   - Added field-name translation layer (pricePerHour/priceType -> is_chargeable/approx_fee/price_type)
+     between frontend update calls and the backend's UpdatePlayerSpaceSchema
+
+5. New: Admin venue-ownership transfer (backend + admin UI)
+   - PlayerSpaceService.transferOwnership() + PATCH /admin/venues/:id/transfer-owner
+   - AdminPage "Transfer Space Ownership" section — hand over admin-created listings
+     to friends by their registered email once they sign up
+
+6. Mobile layout — fixed root cause of "mobile homepage shows nothing"
+   - sidebar.tsx mobile bar was h-full w-full, pushing all page content off-screen;
+     changed to a fixed h-14 bar
+   - HomePage.tsx CTA buttons now stack on narrow screens (flex-col sm:flex-row,
+     clamp()-based padding) instead of overflowing the viewport with no scroll
+   - Verified GameMapPage/AuthModal/HostControlPanel (search, join, login, register,
+     invite) were already responsive — just unreachable due to the sidebar bug
+
+7. Admin "Adjust User Credit Score" now accepts email, not just user ID
+   - userRoutes.ts PATCH /admin/users/:id/credit resolves by email or ObjectId
+   - AdminPage.tsx label/placeholder updated to "User ID or email"
+
+8. Harden username rules (registration)
+   - UserService: case-insensitive uniqueness check (findByUsernameCI) + race-window
+     re-check before account creation + E11000 backstop translated to friendly message
+   - New reserved/impersonation-name guard: blocks "Admin", "adm!n", "4dm1n",
+     "a.d.m.i.n", "admin123", "WebAdmin", "Moderator", etc. via leetspeak-folding +
+     equality match (not substring, so "badminton" etc. remain unaffected)
+
+9. Fix: "Create Event" button did nothing on click
+   - CreateEventModal was UI scaffolding only — Date/Max Players/Description had no
+     value/onChange and the submit button had no onClick handler at all
+   - Wired up full form state + validation + GameService.createSession()
+   - game.service.real.ts: new createSession() + toCreateSessionPayload() translation
+     layer (frontend shape -> backend CreateMatchSchema: venue_id/min_pax/max_pax/
+     proficiency_required); game.service.mock.ts: matching stub for parity
+
+Suggested commit breakdown (separate commits, in this order):
+  a) fix: persist venue price edits (pricePerHour/priceType translation layer)
+  b) feat: admin venue ownership transfer
+  c) feat: edit-space photo gallery, drag-and-drop, real Cloudinary uploads
+  d) feat: remove per-user space limit for admin accounts
+  e) fix: create-event title placeholder + friendlier time picker
+  f) fix: mobile layout — sidebar bar was pushing page content off-screen
+  g) fix: admin credit-adjust accepts email, not just user ID
+  h) feat: harden username rules — case-insensitive uniqueness + block admin impersonation
+  i) fix: wire up Create Event submit flow (was completely non-functional)
+
+Pre-push checklist:
+  [ ] cd client && npx tsc -b   (passes — already verified)
+  [ ] cd server && npx tsc --noEmit   (passes — already verified)
+  [ ] clientupdates.md / serverupdates.md rotated and up to date (done)
+  [ ] No secrets/temp env vars left in server/.env
+  [ ] git identity check: git config user.name / user.email -> Wen037 / e1062715@u.nus.edu

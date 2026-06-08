@@ -93,4 +93,26 @@ router.patch('/admin/venues/:id/verify', requireAuth, async (req: Request, res: 
   res.status(200).json({ message: approved ? 'Venue verified.' : 'Venue verification removed.' });
 });
 
+// ─── Admin: transfer venue ownership to another registered user ─────────────
+// Body: { newOwnerEmail: string }
+router.patch('/admin/venues/:id/transfer-owner', requireAuth, async (req: Request, res: Response) => {
+  const { newOwnerEmail } = req.body as { newOwnerEmail?: string };
+  if (typeof newOwnerEmail !== 'string' || !newOwnerEmail.trim()) {
+    res.status(400).json({ message: 'newOwnerEmail (string) is required.' });
+    return;
+  }
+  const result = await playerSpaceService.transferOwnership(
+    String(req.params['id']),
+    req.user!.userId,
+    newOwnerEmail
+  );
+  if (result.isFailure) {
+    const err = result.getError() ?? '';
+    const status = err.includes('Forbidden') ? 403 : err.includes('not found') ? 404 : 400;
+    res.status(status).json({ message: err });
+    return;
+  }
+  res.status(200).json(result.getValue());
+});
+
 export default router;

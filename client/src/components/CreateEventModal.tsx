@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Calendar, Clock, MapPin, Users, Activity, Shuffle } from "lucide-react";
+import { X, Calendar, Clock, MapPin, Users, Activity, Shuffle, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { GameService } from "../services/game.service";
 import type { GameVenueDTO } from "../types";
@@ -37,6 +37,71 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
   const [venueOpen, setVenueOpen] = useState(false);
   const venueRef = useRef<HTMLDivElement>(null);
   const [eventName, setEventName] = useState("");
+  const [namePlaceholder, setNamePlaceholder] = useState("");
+  const [date, setDate] = useState("");
+  const [maxPlayers, setMaxPlayers] = useState(12);
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Custom time picker (12-hour, friendlier than the native scroll-wheel input)
+  const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+  const [hour, setHour] = useState("07");
+  const [minute, setMinute] = useState("00");
+  const [period, setPeriod] = useState<"AM" | "PM">("PM");
+
+  // Builds an ISO datetime from the date input + 12-hour time picker selections.
+  // Returns null if the date is missing/invalid so the caller can show a friendly error.
+  const buildScheduledAtISO = (): string | null => {
+    if (!date) return null;
+    let h = parseInt(hour, 10) % 12;
+    if (period === "PM") h += 12;
+    const localDate = new Date(date);
+    if (Number.isNaN(localDate.getTime())) return null;
+    localDate.setHours(h, parseInt(minute, 10), 0, 0);
+    return localDate.toISOString();
+  };
+
+  const handleSubmit = async () => {
+    setFormError(null);
+
+    const title = eventName.trim() || namePlaceholder.trim();
+    if (!title) {
+      setFormError(lang === "zh" ? "请输入活动名称。" : "Please enter an event title.");
+      return;
+    }
+    if (!selectedVenue) {
+      setFormError(lang === "zh" ? "请选择场地。" : "Please select a venue.");
+      return;
+    }
+    const scheduledAt = buildScheduledAtISO();
+    if (!scheduledAt) {
+      setFormError(lang === "zh" ? "请选择日期。" : "Please pick a date.");
+      return;
+    }
+    if (new Date(scheduledAt).getTime() <= Date.now()) {
+      setFormError(lang === "zh" ? "活动时间必须在将来。" : "Event time must be in the future.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await GameService.createSession({
+        venueId: selectedVenue,
+        title,
+        scheduledAt,
+        maxPlayers,
+        proficiency,
+        description,
+      });
+      onClose();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : (lang === "zh" ? "创建活动失败，请重试。" : "Failed to create event. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -52,7 +117,17 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
     if (isOpen) {
       GameService.getAllVenues().then(setVenues).catch(() => {});
       setSelectedVenue(defaultVenueId ?? "");
-      setEventName(pickRandom(lang === "zh" ? EVENT_NAMES_ZH : EVENT_NAMES_EN));
+      setEventName("");
+      setNamePlaceholder(pickRandom(lang === "zh" ? EVENT_NAMES_ZH : EVENT_NAMES_EN));
+      setDate("");
+      setMaxPlayers(12);
+      setDescription("");
+      setHour("07");
+      setMinute("00");
+      setPeriod("PM");
+      setProficiency("All Welcome");
+      setFormError(null);
+      setSubmitting(false);
     }
   }, [isOpen, defaultVenueId, lang]);
 
@@ -102,18 +177,18 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
                         value={eventName}
                         onChange={e => setEventName(e.target.value)}
                         className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 pr-12 text-white focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 transition-all placeholder:text-neutral-600"
-                        placeholder="e.g. Friday Night Werewolf Pro"
+                        placeholder={namePlaceholder || "e.g. Friday Night Werewolf Pro"}
                       />
                       <button
                         type="button"
-                        onClick={() => setEventName(pickRandom(lang === "zh" ? EVENT_NAMES_ZH : EVENT_NAMES_EN))}
+                        onClick={() => setNamePlaceholder(pickRandom(lang === "zh" ? EVENT_NAMES_ZH : EVENT_NAMES_EN))}
                         className="absolute inset-y-0 right-0 flex items-center px-3.5 text-neutral-500 hover:text-red-400 transition-colors"
                         title="Suggest a random name"
                       >
                         <Shuffle size={16} />
                       </button>
                     </div>
-                    <p className="text-[11px] text-neutral-600 mt-1.5">Click <Shuffle size={10} className="inline" /> to get a random name suggestion</p>
+                    <p className="text-[11px] text-neutral-600 mt-1.5">Click <Shuffle size={10} className="inline" /> for a new name idea — shown as a placeholder, type your own title or leave it blank to use the suggestion</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -125,6 +200,9 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
                       </label>
                       <input
                         type="date"
+                        value={date}
+                        onChange={e => setDate(e.target.value)}
+                        min={new Date().toISOString().slice(0, 10)}
                         className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-red-500/50 transition-all [color-scheme:dark]"
                       />
                     </div>
@@ -135,10 +213,35 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
                         <Clock size={16} className="text-red-400" />
                         Time
                       </label>
-                      <input
-                        type="time"
-                        className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-red-500/50 transition-all [color-scheme:dark]"
-                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <select
+                          value={hour}
+                          onChange={e => setHour(e.target.value)}
+                          className="w-full bg-black border border-white/10 rounded-xl p-3.5 text-white text-center appearance-none focus:outline-none focus:border-red-500/50 transition-all cursor-pointer"
+                        >
+                          {HOURS.map(h => (
+                            <option key={h} value={h} className="bg-neutral-900 text-white">{h}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={minute}
+                          onChange={e => setMinute(e.target.value)}
+                          className="w-full bg-black border border-white/10 rounded-xl p-3.5 text-white text-center appearance-none focus:outline-none focus:border-red-500/50 transition-all cursor-pointer"
+                        >
+                          {MINUTES.map(m => (
+                            <option key={m} value={m} className="bg-neutral-900 text-white">{m}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={period}
+                          onChange={e => setPeriod(e.target.value as "AM" | "PM")}
+                          className="w-full bg-black border border-white/10 rounded-xl p-3.5 text-white text-center appearance-none focus:outline-none focus:border-red-500/50 transition-all cursor-pointer"
+                        >
+                          <option value="AM" className="bg-neutral-900 text-white">AM</option>
+                          <option value="PM" className="bg-neutral-900 text-white">PM</option>
+                        </select>
+                      </div>
+                      <p className="text-[11px] text-neutral-600 mt-1.5">{hour}:{minute} {period}</p>
                     </div>
                   </div>
 
@@ -150,7 +253,10 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
                         Max Players
                       </label>
                       <div className="relative">
-                         <select className="w-full bg-black border border-white/10 rounded-xl p-3.5 text-white appearance-none focus:outline-none focus:border-red-500/50 transition-all pr-10 cursor-pointer">
+                         <select
+                            value={maxPlayers}
+                            onChange={e => setMaxPlayers(Number(e.target.value))}
+                            className="w-full bg-black border border-white/10 rounded-xl p-3.5 text-white appearance-none focus:outline-none focus:border-red-500/50 transition-all pr-10 cursor-pointer">
                             {[8, 9, 10, 11, 12, 13, 14, 15, 16].map(num => (
                               <option key={num} value={num} className="bg-neutral-900 text-white">{num} Players</option>
                             ))}
@@ -253,6 +359,8 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
                   <div>
                     <label className="text-sm font-semibold text-neutral-300 mb-2 block">Description (Optional)</label>
                     <textarea
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
                       className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-red-500/50 transition-all min-h-[100px] resize-none placeholder:text-neutral-600 custom-scrollbar golden-scrollbar"
                       placeholder="Add any special rules or notes for players..."
                     ></textarea>
@@ -261,16 +369,25 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
               </div>
 
               {/* Footer */}
-              <div className="p-6 border-t border-white/5 bg-neutral-900/50 flex justify-end gap-3">
-                <button
-                  onClick={onClose}
-                  className="px-6 py-2.5 rounded-xl font-medium text-white hover:bg-white/5 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button className="bg-red-600 hover:bg-red-500 text-white font-medium py-2.5 px-8 rounded-xl shadow-[0_0_15px_rgba(220,38,38,0.3)] hover:shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all">
-                  Create Event
-                </button>
+              <div className="p-6 border-t border-white/5 bg-neutral-900/50 flex items-center justify-between gap-3">
+                <p className="text-sm text-red-400 flex-1 min-w-0 truncate">{formError}</p>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={onClose}
+                    disabled={submitting}
+                    className="px-6 py-2.5 rounded-xl font-medium text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="bg-red-600 hover:bg-red-500 text-white font-medium py-2.5 px-8 rounded-xl shadow-[0_0_15px_rgba(220,38,38,0.3)] hover:shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all disabled:opacity-60 flex items-center gap-2"
+                  >
+                    {submitting && <Loader2 size={16} className="animate-spin" />}
+                    {submitting ? "Creating…" : "Create Event"}
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>

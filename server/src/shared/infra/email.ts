@@ -17,9 +17,13 @@ export const sendOtpEmail = async (to: string, otp: string): Promise<void> => {
   await getResend().emails.send({
     from: process.env.FROM_EMAIL ?? 'noreply@example.com',
     to,
-    subject: 'Your Werewolf Meetup verification code',
+    subject: 'Your Werewolf SG verification code',
     html: `
       <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+          <img src="https://werewolf.sg/werewolf_favicon.png" alt="Werewolf SG" width="28" height="28" style="border-radius: 50%; vertical-align: middle;" />
+          <strong style="font-size: 16px;">Werewolf SG</strong>
+        </div>
         <h2>Verify your email</h2>
         <p>Your verification code is:</p>
         <h1 style="letter-spacing: 8px; color: #7c3aed;">${otp}</h1>

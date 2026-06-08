@@ -1,0 +1,110 @@
+Fix venue price edits not persisting + add admin space-ownership transfer
+
+The Edit Space form let owners change pricePerHour/priceType, but the values
+were silently dropped by the backend's Zod validation: the frontend GameVenue
+shape uses pricePerHour/priceType (matching the read DTO), while
+UpdatePlayerSpaceSchema only accepts the underlying financials fields
+(is_chargeable/approx_fee/price_type). Saving a new price therefore never
+persisted and the venue card kept showing "Free".
+
+Changes:
+- game.service.real.ts: added toUpdateVenuePayload() translation layer in
+  updateVenue() that maps pricePerHour -> is_chargeable (derived: > 0) +
+  approx_fee, and priceType -> price_type, before calling PATCH /venues/:id
+  (mock service was unaffected — it assigns the frontend shape directly)
+- PlayerSpaceService.ts: added transferOwnership(venueId, adminId,
+  newOwnerEmail) — admin/web_admin guarded, resolves the new owner by their
+  registered email, re-points owner_id, returns the updated venue
+- playerSpaceRoutes.ts: added PATCH /admin/venues/:id/transfer-owner
+- AdminPage.tsx: new "Transfer Space Ownership" section listing spaces owned
+  by the logged-in admin, with an email input + Transfer button per row —
+  supports the case where an admin creates a listing on a friend's behalf
+  before they have an account, then hands it over once they register
+
+---
+
+fix: mobile layout was unusable — sidebar bar pushed all page content off-screen
+
+The mobile hamburger bar in components/ui/sidebar.tsx was styled h-full
+w-full, which filled the entire AppLayout content slot and pushed every
+page's content (including the homepage) below the visible viewport. This
+was the actual root cause of "mobile homepage shows nothing" — search,
+join, login/register and invite flows were all present and functional,
+just unreachable.
+
+Changes:
+- sidebar.tsx: mobile bar changed from h-full w-full to a fixed h-14 bar so
+  the page content area gets its remaining height; drawer overlay unchanged
+- HomePage.tsx: landing CTA buttons ("Login / Register" / "Find a Game")
+  used fixed em-padding + nowrap + side-by-side layout, overflowing narrow
+  phone widths with no scroll (making "Find a Game" unreachable). Switched
+  to flex-col on small screens with responsive gap and clamp()-based
+  padding so both buttons always fit and stay tappable
+- Verified GameMapPage (search/join), AuthModal (login/register) and
+  HostControlPanel (invite via group link / invite-only mode) already use
+  responsive w-full md:w-... patterns and needed no further change
+
+---
+
+fix: admin "Adjust User Credit Score" rejected email input ("Invalid ID format")
+
+PATCH /admin/users/:id/credit only accepted a Mongo ObjectId in the URL —
+typing a user's email triggered a Mongoose CastError. Admins most often
+have a user's email (shown on their profile), not their internal DB id.
+
+Changes:
+- userRoutes.ts: route now resolves the target by email (when :id contains
+  "@") or by a validated ObjectId (isValidObjectId before findById), with a
+  clear 400 if neither shape matches; switched findByIdAndUpdate to
+  findOne + mutate + save so both lookup paths share one update path
+- AdminPage.tsx: updated placeholder/label to "User ID or email"
+
+---
+
+feat: harden username rules — case-insensitive uniqueness + block admin impersonation
+
+Two related gaps in registration validation:
+1. The existing "Username already taken" check was case-sensitive, so
+   "admin", "Admin" and "ADMIN" were treated as different names.
+2. Nothing stopped someone from registering a name designed to look like
+   a staff account — "Admin", "adm!n", "4dm1n", "a.d.m.i.n", "admin123",
+   "WebAdmin", "Moderator", "Support", "Official", etc.
+
+Changes (UserService.ts):
+- findByUsernameCI(): case-insensitive exact-match lookup via escaped
+  $regex with the `i` flag; used in initiateRegister() and re-checked in
+  verifyOtp() right before account creation to close the race window where
+  two people could both pass the initial check for the same name within
+  the same OTP window; UserModel.create() wrapped in try/catch to translate
+  a raw Mongo E11000 duplicate-key error into the same friendly message
+- normalizeForReservedCheck() + isReservedOrImpersonatingUsername(): folds
+  common leetspeak substitutions back to letters (0->o, 1/!/|/l->i, 3->e,
+  4/@->a, 5/$->s, 7/+->t), strips digits and decorative separators, then
+  compares by EQUALITY (not substring) against a reserved-word list
+  (admin, administrator, webadmin, moderator, support, official, staff,
+  system, root, owner, werewolfsg, ...). Equality avoids false positives
+  on real words that merely contain a reserved word, e.g. "badminton"
+- Wired into both initiateRegister() and verifyOtp() (defense-in-depth)
+
+---
+
+fix: Create Event button did nothing — modal was never wired to the backend
+
+CreateEventModal was UI scaffolding only: the Date input, Max Players
+select and Description textarea had no value/onChange, and the "Create
+Event" button had no click handler at all — clicking it silently did
+nothing (no request, no error, nothing in the network tab).
+
+Changes:
+- CreateEventModal.tsx: added date/maxPlayers/description/submitting/
+  formError state and wired all three previously-static fields; added
+  buildScheduledAtISO() to combine the date input with the 12-hour time
+  picker into an ISO datetime; added handleSubmit() — validates title
+  (typed value or placeholder fallback)/venue/date/future-time, calls
+  GameService.createSession(), shows inline errors, spinner + "Creating…"
+  while in flight, closes the modal on success
+- game.service.real.ts: new createSession() + toCreateSessionPayload()
+  translation layer mapping frontend fields (venueId/scheduledAt/
+  maxPlayers/proficiency label) to the backend CreateMatchSchema shape
+  (venue_id/min_pax/max_pax/proficiency_required 0-4); posts to POST /games
+- game.service.mock.ts: matching createSession() stub for service parity

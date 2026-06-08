@@ -1,0 +1,20 @@
+Fix Edit Space photo gallery: drag-and-drop upload + cover selection from existing images
+
+The Edit Space modal previously only loaded the venue's single cover image
+(venue.imageUrl), so owners could not choose an already-uploaded photo as the
+new cover and were forced to re-upload a fresh image just to change it. It also
+had no drag-and-drop support on the photo grid — dropped files were silently
+ignored, only the file picker worked.
+
+Changes:
+- Load the full venue image gallery (venue.images, falling back to imageUrl) on
+  open, so all previously uploaded photos appear and can be set as cover or
+  removed via the existing "Set as Cover" / "Remove" controls
+- Add drag-and-drop support to the photo grid (dragover/dragleave/drop handlers
+  with a highlight state), sharing the same file-validation path as the picker
+- Fix a latent bug where newly added photos were saved as local blob: object
+  URLs that would break after a page reload — pending files are now uploaded to
+  Cloudinary on save and replaced with permanent secure URLs, and the full
+  images array is persisted (not just the single cover URL)
+- Show an "Uploading photos…" state on the Save button and surface upload
+  errors inline

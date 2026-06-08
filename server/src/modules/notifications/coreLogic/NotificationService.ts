@@ -48,7 +48,7 @@ class NotificationService {
 
       // Telegram if subscribed
       if (user.notifPreferences?.telegram && user.telegramChatId) {
-        await sendTelegramMessage(user.telegramChatId, `Werewolf Meetup\n${message}`);
+        await sendTelegramMessage(user.telegramChatId, `Werewolf SG\n${message}`);
       }
 
       // WhatsApp if subscribed

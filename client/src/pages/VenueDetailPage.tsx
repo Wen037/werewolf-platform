@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
 import { AuthService } from "../services/auth.service";
+import { uploadImages } from "../services/upload.service";
 import type { GameVenueDTO, GameSessionDTO, VenueSpaceType, VenuePrivacy } from "../types";
 import { VENUE_TYPE_LABELS, DEFAULT_PRIVACY, getVenuePermissions, getDisplayAddress } from "../types";
 import { AppLayout } from "../components/layout/AppLayout";
@@ -30,6 +31,7 @@ import {
   IconCash,
   IconBuildingStore,
   IconCheck,
+  IconLoader2,
 } from "@tabler/icons-react";
 
 // ── Venue Image Carousel ───────────────────────────────────────────────────
@@ -343,7 +345,17 @@ const MAX_IMAGES = 5;
 const ACCEPTED_TYPES = "image/jpeg,image/png,image/webp";
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-type ImageEntry = { url: string; isDisplay: boolean };
+type ImageEntry = { url: string; isDisplay: boolean; file?: File };
+
+/** Builds the editable image list from the venue's existing gallery (`images`)
+ * falling back to the single `imageUrl`, so the owner can pick any
+ * already-uploaded photo as the cover instead of having to re-upload one. */
+const buildInitialImages = (v: GameVenueDTO): ImageEntry[] => {
+  const urls = v.images && v.images.length > 0 ? v.images : (v.imageUrl ? [v.imageUrl] : []);
+  if (urls.length === 0) return [];
+  const coverIdx = Math.max(0, urls.indexOf(v.imageUrl));
+  return urls.map((url, i) => ({ url, isDisplay: i === coverIdx }));
+};
 
 function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps) {
   const { t } = useLang();
@@ -363,10 +375,10 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
     rules:        venue.rules ?? "",
     amenities:    venue.amenities.join(", "),
   });
-  const [images, setImages] = useState<ImageEntry[]>(
-    venue.imageUrl ? [{ url: venue.imageUrl, isDisplay: true }] : []
-  );
+  const [images, setImages] = useState<ImageEntry[]>(() => buildInitialImages(venue));
+  const [isDragOver, setIsDragOver] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [imgError, setImgError] = useState("");
 
   useEffect(() => {
@@ -385,22 +397,34 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         rules:        venue.rules ?? "",
         amenities:    venue.amenities.join(", "),
       });
-      setImages(venue.imageUrl ? [{ url: venue.imageUrl, isDisplay: true }] : []);
+      setImages(buildInitialImages(venue));
+      setIsDragOver(false);
       setSaved(false);
+      setSaving(false);
       setImgError("");
     }
   }, [isOpen, venue]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Revoke any pending blob URLs on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => { images.forEach(img => { if (img.file) URL.revokeObjectURL(img.url); }); };
+  }, [images]);
+
+  const addFiles = (fileList: FileList | File[]) => {
     setImgError("");
-    const files = Array.from(e.target.files ?? []);
+    const files = Array.from(fileList).filter(f => f.type.startsWith("image/"));
     const remaining = MAX_IMAGES - images.length;
+    if (remaining <= 0) { setImgError(`You can upload up to ${MAX_IMAGES} photos.`); return; }
     const toAdd: ImageEntry[] = [];
     for (const file of files.slice(0, remaining)) {
       if (file.size > MAX_FILE_BYTES) { setImgError(`"${file.name}" exceeds 5 MB`); continue; }
-      toAdd.push({ url: URL.createObjectURL(file), isDisplay: images.length === 0 && toAdd.length === 0 });
+      toAdd.push({ url: URL.createObjectURL(file), isDisplay: images.length === 0 && toAdd.length === 0, file });
     }
     setImages(prev => [...prev, ...toAdd]);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) addFiles(e.target.files);
     e.target.value = "";
   };
 
@@ -409,8 +433,10 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
   const removeImage = (idx: number) =>
     setImages(prev => {
+      const target = prev[idx];
+      if (target.file) URL.revokeObjectURL(target.url);
       const next = prev.filter((_, i) => i !== idx);
-      if (prev[idx].isDisplay && next.length > 0) next[0].isDisplay = true;
+      if (target.isDisplay && next.length > 0) next[0].isDisplay = true;
       return next;
     });
 
@@ -423,26 +449,50 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
     setForm(f => ({ ...f, type: spaceType, privacy: DEFAULT_PRIVACY[spaceType] }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const displayImg = images.find(i => i.isDisplay);
-    onSave({
-      name:         form.name,
-      address:      form.address,
-      area:         form.area || undefined,
-      privacy:      form.privacy,
-      description:  form.description,
-      imageUrl:     displayImg?.url ?? venue.imageUrl,
-      pricePerHour: Number(form.pricePerHour),
-      priceType:    form.priceType,
-      type:         form.type,
-      openingHours: form.openingHours || undefined,
-      maxPax:       form.maxPax !== "" ? Number(form.maxPax) : undefined,
-      amenities:    form.amenities.split(",").map(a => a.trim()).filter(Boolean),
-      rules:        form.rules || undefined,
-    });
-    setSaved(true);
-    setTimeout(onClose, 1200);
+    setImgError("");
+    setSaving(true);
+    try {
+      // Newly added photos are local blob URLs (pending.file set) — upload them
+      // to Cloudinary now so the saved venue stores permanent secure URLs.
+      let finalImages = images;
+      const pending = images.filter(img => img.file);
+      if (pending.length > 0) {
+        const uploadedUrls = await uploadImages(pending.map(img => img.file!), "venues");
+        let u = 0;
+        finalImages = images.map(img => {
+          if (!img.file) return img;
+          URL.revokeObjectURL(img.url);
+          return { url: uploadedUrls[u++], isDisplay: img.isDisplay };
+        });
+        setImages(finalImages);
+      }
+
+      const displayImg = finalImages.find(i => i.isDisplay) ?? finalImages[0];
+      onSave({
+        name:         form.name,
+        address:      form.address,
+        area:         form.area || undefined,
+        privacy:      form.privacy,
+        description:  form.description,
+        imageUrl:     displayImg?.url ?? venue.imageUrl,
+        images:       finalImages.map(i => i.url),
+        pricePerHour: Number(form.pricePerHour),
+        priceType:    form.priceType,
+        type:         form.type,
+        openingHours: form.openingHours || undefined,
+        maxPax:       form.maxPax !== "" ? Number(form.maxPax) : undefined,
+        amenities:    form.amenities.split(",").map(a => a.trim()).filter(Boolean),
+        rules:        form.rules || undefined,
+      });
+      setSaved(true);
+      setTimeout(onClose, 1200);
+    } catch (err) {
+      setImgError(err instanceof Error ? err.message : "Failed to upload photos. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputCls = "w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-neutral-600 [color-scheme:dark]";
@@ -598,7 +648,19 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                       <span className="text-[11px] text-neutral-500">{images.length} / {MAX_IMAGES}</span>
                     </div>
                     {imgError && <p className="text-[11px] text-red-400 mb-2">{imgError}</p>}
-                    <div className="grid grid-cols-3 gap-2">
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                      onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragOver(false);
+                        if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+                      }}
+                      className={`grid grid-cols-3 gap-2 rounded-xl transition-colors ${
+                        isDragOver ? "ring-2 ring-amber-500/60 bg-amber-500/5" : ""
+                      }`}
+                    >
                       {images.map((img, idx) => (
                         <div key={idx} className="relative group rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/40">
                           <img src={img.url} alt="" className="w-full h-full object-cover" />
@@ -626,9 +688,10 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                       {/* Add button */}
                       {images.length < MAX_IMAGES && (
                         <button type="button" onClick={() => fileInputRef.current?.click()}
-                          className="aspect-video rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-amber-400 transition-colors bg-white/3">
+                          className="aspect-video rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-amber-400 transition-colors bg-white/3 text-center px-1">
                           <IconPhoto size={18} />
                           <span className="text-[10px] font-semibold">{t('Add Photo')}</span>
+                          <span className="text-[9px] text-neutral-600">{t('or drag and drop')}</span>
                         </button>
                       )}
                     </div>
@@ -660,15 +723,19 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 
                 {/* Footer */}
                 <div className="px-5 pb-5 flex gap-3">
-                  <button type="button" onClick={onClose}
-                    className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10">
+                  <button type="button" onClick={onClose} disabled={saving}
+                    className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10 disabled:opacity-50">
                     {t('Cancel')}
                   </button>
-                  <button type="submit"
-                    className={`flex-1 py-3 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2 ${
-                      saved ? "bg-green-600 text-white" : "bg-amber-500 hover:bg-amber-400 text-black"
+                  <button type="submit" disabled={saving}
+                    className={`flex-1 py-3 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2 disabled:cursor-not-allowed ${
+                      saved ? "bg-green-600 text-white" : "bg-amber-500 hover:bg-amber-400 disabled:opacity-70 text-black"
                     }`}>
-                    {saved ? <><IconCheck size={16} /> {t('Saved!')}</> : t('Save Changes')}
+                    {saved
+                      ? <><IconCheck size={16} /> {t('Saved!')}</>
+                      : saving
+                        ? <><IconLoader2 size={16} className="animate-spin" /> {t('Uploading photos…')}</>
+                        : t('Save Changes')}
                   </button>
                 </div>
               </form>

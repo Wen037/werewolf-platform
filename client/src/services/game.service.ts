@@ -1,7 +1,7 @@
 // ─── Mock mode switch ───────────────────────────────────────────────────────
 // true  = use local mock data (frontend development)
 // false = call real backend API
-const USE_MOCK = true;
+const USE_MOCK = false;
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { MockGameService } from './game.service.mock';

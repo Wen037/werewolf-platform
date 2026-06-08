@@ -55,8 +55,9 @@ export const Sidebar = ({
         {children}
       </div>
 
-      {/* Mobile Sidebar (Hamburger Menu) */}
-        <div className="flex md:hidden h-full w-full bg-black/60 backdrop-blur-md p-4 items-center justify-between z-20">
+      {/* Mobile Sidebar (Hamburger Menu) — fixed-height bar, NOT h-full, so it
+          doesn't push the page content off-screen on small viewports */}
+        <div className="flex md:hidden h-14 w-full flex-shrink-0 bg-black/60 backdrop-blur-md px-4 items-center justify-between z-20">
         <div className="text-white font-bold text-lg">Menu</div>
         <IconMenu2
           className="text-white cursor-pointer"

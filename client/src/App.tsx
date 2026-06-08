@@ -7,6 +7,8 @@ import MyEventsPage from './pages/MyEventsPage';
 import MyProfilePage from './pages/MyProfilePage';
 import EventDetailPage from './pages/EventDetailPage';
 import PublicProfilePage from './pages/PublicProfilePage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
+import AdminPage from './pages/AdminPage';
 import { LanguageProvider } from './context/LanguageContext';
 
 function App() {
@@ -16,6 +18,7 @@ function App() {
       <Routes>
         {/* Route 1: Landing Page (No Sidebar) */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         {/* Route 2: The Game App (Has Sidebar) */}
         <Route path="/lobby" element={<LobbyPage />} />
@@ -25,6 +28,7 @@ function App() {
         <Route path="/myprofile" element={<MyProfilePage />} />
         <Route path="/event/:id" element={<EventDetailPage />} />
         <Route path="/user/:id" element={<PublicProfilePage />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </Router>
     </LanguageProvider>

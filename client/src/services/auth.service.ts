@@ -25,6 +25,12 @@ export const AuthService = {
     return data;
   },
 
+  async fetchCurrentUser(): Promise<User> {
+    const user = await api.get<User>('/users/me');
+    localStorage.setItem('user', JSON.stringify(user));
+    return user;
+  },
+
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');

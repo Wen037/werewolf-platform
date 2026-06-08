@@ -10,6 +10,8 @@ export default defineConfig({
     tailwindcss()
   ],
   server: {
+    port: 5173,
+    strictPort: true, // fail fast instead of silently switching ports — keeps FRONTEND_URL/OAuth callback in sync
     proxy: {
       '/api': {
         target: 'http://localhost:5000', // Points to your Node Server

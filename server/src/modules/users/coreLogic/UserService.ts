@@ -57,12 +57,63 @@ function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Escapes regex metacharacters so a username can be safely used in a $regex match.
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ── Reserved / impersonation-prone usernames ─────────────────────────────────
+// Blocks not just the exact word "admin" but common look-alike spellings people
+// use to impersonate staff: leetspeak swaps (4dm1n, adm!n), repeated/decorative
+// characters (a.d.m.i.n, a__d__m__i__n), etc. We normalize the candidate name by
+// folding common substitutions back to their letter, stripping anything that
+// isn't a-z/0-9, then check whether it CONTAINS a reserved word.
+const RESERVED_USERNAME_WORDS = [
+  'admin', 'administrator', 'webadmin', 'web_admin', 'moderator', 'mod',
+  'support', 'official', 'staff', 'system', 'root', 'owner', 'werewolfsg',
+];
+
+const LEET_MAP: Record<string, string> = {
+  '0': 'o', '1': 'i', '!': 'i', '|': 'i', 'l': 'i' /* visually close to i */,
+  '3': 'e', '4': 'a', '@': 'a', '5': 's', '$': 's', '7': 't', '+': 't',
+};
+
+function normalizeForReservedCheck(username: string): string {
+  const lowered = username.trim().toLowerCase();
+  let folded = '';
+  for (const ch of lowered) {
+    folded += LEET_MAP[ch] ?? ch;
+  }
+  // Strip everything except a-z (drops digits AND decorative separators like
+  // dots/underscores/dashes/spaces), so "a.d.m.i.n", "admin123", "4dm1n_99"
+  // all collapse to "admin". We compare by EQUALITY (not substring) afterwards
+  // so genuine words that merely contain "admin" — e.g. "badminton" — aren't
+  // false-flagged.
+  return folded.replace(/[^a-z]/g, '');
+}
+
+function isReservedOrImpersonatingUsername(username: string): boolean {
+  const normalized = normalizeForReservedCheck(username);
+  if (!normalized) return false;
+  return RESERVED_USERNAME_WORDS.some(word => normalized === word);
+}
+
+// Case-insensitive exact-match lookup — "admin", "Admin" and "ADMIN" are treated
+// as the same name so a second account can't register a visually-identical handle.
+function findByUsernameCI(username: string) {
+  return UserModel.findOne({ username: { $regex: `^${escapeRegex(username.trim())}$`, $options: 'i' } });
+}
+
 export class UserService {
   async initiateRegister(dto: RegisterDTO): Promise<Result<{ message: string }>> {
     const existing = await UserModel.findOne({ email: dto.email });
     if (existing) return Result.fail('Email already registered.');
 
-    const existingUsername = await UserModel.findOne({ username: dto.username });
+    if (isReservedOrImpersonatingUsername(dto.username)) {
+      return Result.fail('That username is reserved and cannot be used. Please choose a different one.');
+    }
+
+    const existingUsername = await findByUsernameCI(dto.username);
     if (existingUsername) return Result.fail('Username already taken.');
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -91,11 +142,31 @@ export class UserService {
     if (pending.otp !== dto.otp) return Result.fail('Invalid verification code.');
     if (new Date() > pending.expiresAt) return Result.fail('Verification code has expired.');
 
-    const user = await UserModel.create({
-      username: pending.username,
-      email: pending.email,
-      passwordHash: pending.passwordHash,
-    });
+    // Re-check right before creation — closes the race window where two people
+    // start registering the same name within the same OTP window (initiateRegister
+    // only checked at request time, not at confirmation time). Also re-runs the
+    // reserved-name guard as defense-in-depth in case the reserved list changes
+    // between request and confirmation.
+    if (isReservedOrImpersonatingUsername(pending.username)) {
+      return Result.fail('That username is reserved and cannot be used. Please register again with a different username.');
+    }
+    const usernameTaken = await findByUsernameCI(pending.username);
+    if (usernameTaken) return Result.fail('Username already taken. Please register again with a different username.');
+
+    let user: IUserDocument;
+    try {
+      user = await UserModel.create({
+        username: pending.username,
+        email: pending.email,
+        passwordHash: pending.passwordHash,
+      });
+    } catch (err) {
+      // Backstop: schema-level unique index throws E11000 if a duplicate slipped through
+      if (err instanceof Error && /E11000/.test(err.message) && /username/.test(err.message)) {
+        return Result.fail('Username already taken. Please register again with a different username.');
+      }
+      throw err;
+    }
 
     await PendingRegistrationModel.deleteOne({ email: dto.email });
 

@@ -216,6 +216,36 @@ export class PlayerSpaceService {
     return Result.ok();
   }
 
+  /**
+   * Admin-only: transfer ownership of a venue to another registered user
+   * (e.g. an admin created the listing on behalf of a friend who has since
+   * registered an account, and wants to hand the listing over to them).
+   * Identifies the new owner by email to keep the admin UI simple.
+   */
+  async transferOwnership(venueId: string, adminId: string, newOwnerEmail: string): Promise<Result<GameVenueResponseDTO>> {
+    const requestingUser = await UserModel.findById(adminId, 'role');
+    if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+      return Result.fail('Forbidden: admin access required.');
+    }
+
+    const venue = await PlayerSpaceModel.findById(venueId);
+    if (!venue) return Result.fail('Venue not found.');
+
+    const newOwner = await UserModel.findOne({ email: newOwnerEmail.trim().toLowerCase() });
+    if (!newOwner) return Result.fail('No registered user found with that email.');
+
+    if (venue.owner_id.toString() === newOwner._id.toString()) {
+      return Result.fail('That user already owns this space.');
+    }
+
+    const updated = await PlayerSpaceModel.findByIdAndUpdate(
+      venueId,
+      { $set: { owner_id: newOwner._id } },
+      { new: true }
+    );
+    return Result.ok(toVenueDTO(updated!));
+  }
+
   async rateVenue(venueId: string, userId: string, rating: number): Promise<Result<void>> {
     const venue = await PlayerSpaceModel.findById(venueId);
     if (!venue) return Result.fail('Venue not found.');

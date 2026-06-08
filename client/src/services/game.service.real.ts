@@ -1,7 +1,77 @@
 import { api } from './api';
 import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from '../types';
 
+/**
+ * The frontend's `GameVenue` shape uses `pricePerHour`/`priceType` (matching the
+ * read DTO), but the backend's `UpdatePlayerSpaceSchema` expects the underlying
+ * `financials` fields: `is_chargeable` / `approx_fee` / `price_type`. Without this
+ * translation, `pricePerHour`/`priceType` are silently stripped by Zod validation
+ * and price edits never persist (venue keeps showing "Free").
+ */
+function toUpdateVenuePayload(fields: Partial<GameVenue>): Record<string, unknown> {
+  const { pricePerHour, priceType, ...rest } = fields;
+  const payload: Record<string, unknown> = { ...rest };
+  if (pricePerHour !== undefined) {
+    payload['is_chargeable'] = pricePerHour > 0;
+    payload['approx_fee'] = pricePerHour;
+  }
+  if (priceType !== undefined) {
+    payload['price_type'] = priceType;
+  }
+  return payload;
+}
+
+// Frontend proficiency labels -> backend `proficiency_required` (0 = open to all)
+const PROFICIENCY_LABEL_TO_LEVEL: Record<string, number> = {
+  'All Welcome': 0,
+  'Newbie': 1,
+  'Intermediate': 2,
+  'Advanced': 3,
+  'Expert': 4,
+};
+
+export interface CreateSessionInput {
+  venueId: string;
+  title: string;
+  /** ISO 8601 datetime string */
+  scheduledAt: string;
+  maxPlayers: number;
+  minPlayers?: number;
+  proficiency?: string;
+  description?: string;
+}
+
+/**
+ * Translates the Create Event form's frontend-shaped fields into the backend's
+ * `CreateMatchSchema` (snake_case `venue_id`/`min_pax`/`max_pax`/`proficiency_required`).
+ * Mirrors the `toUpdateVenuePayload` pattern above — keeps the field-name mismatch
+ * contained at the API boundary instead of leaking snake_case into the UI layer.
+ */
+function toCreateSessionPayload(input: CreateSessionInput): Record<string, unknown> {
+  const maxPax = input.maxPlayers;
+  const minPax = Math.min(input.minPlayers ?? 4, maxPax);
+  const payload: Record<string, unknown> = {
+    venue_id: input.venueId,
+    title: input.title,
+    scheduledAt: input.scheduledAt,
+    min_pax: minPax,
+    max_pax: maxPax,
+  };
+  if (input.proficiency !== undefined) {
+    payload['proficiency_required'] = PROFICIENCY_LABEL_TO_LEVEL[input.proficiency] ?? 0;
+  }
+  if (input.description !== undefined && input.description.trim() !== '') {
+    payload['description'] = input.description.trim();
+  }
+  return payload;
+}
+
 export const RealGameService = {
+  // ── Create ────────────────────────────────────────────────────────────────
+
+  createSession: (input: CreateSessionInput): Promise<GameSessionDTO> =>
+    api.post('/games', toCreateSessionPayload(input)),
+
   // ── Venues ────────────────────────────────────────────────────────────────
 
   getAllVenues: (): Promise<GameVenueDTO[]> =>
@@ -20,7 +90,7 @@ export const RealGameService = {
     api.post(`/venues/${id}/rate`, { rating }),
 
   updateVenue: (id: string, fields: Partial<GameVenue>): Promise<GameVenueDTO> =>
-    api.patch(`/venues/${id}`, fields),
+    api.patch(`/venues/${id}`, toUpdateVenuePayload(fields)),
 
   getSessionsByVenue: (venueId: string): Promise<GameSessionDTO[]> =>
     api.get(`/venues/${venueId}/sessions`),

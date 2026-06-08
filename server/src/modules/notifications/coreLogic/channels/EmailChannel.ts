@@ -13,10 +13,13 @@ export const sendEmailNotification = async (
   try {
     await sendEventNotificationEmail(
       to,
-      `Werewolf Meetup: ${type}`,
+      `Werewolf SG: ${type}`,
       `
         <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-          <h2>🎴 Werewolf Meetup</h2>
+          <h2 style="display: flex; align-items: center; gap: 8px;">
+            <img src="https://werewolf.sg/werewolf_favicon.png" alt="Werewolf SG" width="28" height="28" style="border-radius: 50%; vertical-align: middle;" />
+            Werewolf SG
+          </h2>
           <p>${message}</p>
           <p style="color: #888; font-size: 12px;">
             You received this because you have email notifications enabled.

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Lock, User, ArrowRight, AlertCircle } from "lucide-react";
 import { AuthService } from "../services/auth.service";
@@ -10,6 +11,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalProps) => {
+  const navigate = useNavigate();
   const [view, setView] = useState<"login" | "register">(initialView);
 
   // Register state
@@ -73,7 +75,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
     try {
       await AuthService.verifyOtp(regEmail, regOtp);
       onClose();
-      window.location.reload();
+      navigate("/lobby");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Verification failed.");
     } finally {
@@ -83,7 +85,10 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
 
   // ── Google OAuth ───────────────────────────────────────────────────────────
   const handleGoogleLogin = () => {
-    const apiOrigin = import.meta.env.VITE_API_URL ?? "https://api.werewolf.sg";
+    // In local dev, leave this relative so Vite's proxy (see vite.config.ts) forwards
+    // /api/* to http://localhost:5000. In production builds, VITE_API_URL (or the
+    // werewolf.sg API domain) is used so the redirect goes straight to the live API.
+    const apiOrigin = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : "https://api.werewolf.sg");
     window.location.href = `${apiOrigin}/api/auth/google`;
   };
 
@@ -95,7 +100,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
     try {
       await AuthService.login(loginEmail, loginPassword);
       onClose();
-      window.location.reload();
+      navigate("/lobby");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Login failed.");
     } finally {
@@ -110,14 +115,14 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
           />
 
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none"
           >
             <div className="bg-neutral-900 border border-white/10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[90vh]">
 
@@ -189,18 +194,13 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                         <span className="bg-[#171717] px-2 text-neutral-500">Or login with</span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={handleGoogleLogin}
-                        className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all"
-                      >
-                        <span className="text-red-500 font-bold">G</span> Google
-                      </button>
-                      <button className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all">
-                        <span className="text-green-500 font-bold">💬</span> WeChat
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all"
+                    >
+                      <span className="text-red-500 font-bold">G</span> Google
+                    </button>
                   </motion.div>
                 )}
 
@@ -255,14 +255,13 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                             <span className="bg-[#171717] px-2 text-neutral-500">Or join with</span>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all">
-                            <span className="text-red-500 font-bold">G</span> Google
-                          </button>
-                          <button className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all">
-                            <span className="text-green-500 font-bold">💬</span> WeChat
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={handleGoogleLogin}
+                          className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all"
+                        >
+                          <span className="text-red-500 font-bold">G</span> Google
+                        </button>
                       </div>
                     )}
 

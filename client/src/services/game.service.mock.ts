@@ -1,5 +1,6 @@
 import { MOCK_GAMES, MOCK_VENUES, MOCK_SESSION_INTERACTIONS, MOCK_USERS, MOCK_USER_SUBSCRIPTIONS, MOCK_VENUE_INTERACTIONS } from "../data/mockDB";
 import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from "../types";
+import type { CreateSessionInput } from "./game.service.real";
 
 // ── Current user resolved from localStorage (follows debug panel switches) ─
 function getCurrentUserId(): string {
@@ -15,6 +16,36 @@ function getCurrentUserId(): string {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const MockGameService = {
+  createSession: async (input: CreateSessionInput): Promise<GameSessionDTO> => {
+    await delay(300);
+    const hostId = getCurrentUserId();
+    const venue = MOCK_VENUES.find(v => v.id === input.venueId);
+    const id = `mock-session-${Date.now()}`;
+    const newGame = {
+      id,
+      hostId,
+      venueId: input.venueId,
+      title: input.title,
+      date: input.scheduledAt,
+      maxPlayers: input.maxPlayers,
+      currentPlayers: 1,
+      status: "open" as const,
+      totalLikes: 0,
+      proficiency: (input.proficiency as GameSessionDTO['proficiency']) ?? 'All Welcome',
+      description: input.description,
+      minPax: Math.min(input.minPlayers ?? 4, input.maxPlayers),
+      approvalMode: 'open' as const,
+    };
+    MOCK_GAMES.push(newGame);
+    console.log(`[Mock] createSession ->`, newGame);
+    return {
+      ...newGame,
+      hostName: MOCK_USERS.find(u => u.id === hostId)?.username,
+      venueName: venue?.name,
+      venueImageUrl: venue?.imageUrl,
+    };
+  },
+
   getAllVenues: async (): Promise<GameVenueDTO[]> => {
     await delay(300);
     return MOCK_VENUES.map(v => {

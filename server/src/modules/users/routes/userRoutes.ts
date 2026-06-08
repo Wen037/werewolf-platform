@@ -64,17 +64,31 @@ router.get('/users/:id', optionalAuth, async (req: Request, res: Response) => {
 // Body: { delta: number }  (positive to add, negative to subtract)
 
 router.patch('/admin/users/:id/credit', requireAuth, async (req: Request, res: Response) => {
-  const requestingUser = await import('../DBSchemas/UserSchema').then(m => m.UserModel.findById(req.user!.userId));
+  const { UserModel } = await import('../DBSchemas/UserSchema');
+  const { isValidObjectId } = await import('mongoose');
+  const requestingUser = await UserModel.findById(req.user!.userId);
   if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
     res.status(403).json({ message: 'Forbidden.' }); return;
   }
   const delta = Number((req.body as { delta: unknown }).delta);
   if (!Number.isFinite(delta)) { res.status(400).json({ message: 'delta must be a number.' }); return; }
-  const updated = await import('../DBSchemas/UserSchema').then(m =>
-    m.UserModel.findByIdAndUpdate(req.params['id'], { $inc: { creditScore: delta } }, { new: true })
-  );
-  if (!updated) { res.status(404).json({ message: 'User not found.' }); return; }
-  res.status(200).json({ userId: req.params['id'], creditScore: updated.creditScore });
+
+  // Accept either a Mongo ObjectId or an email address as the target identifier —
+  // admins usually know a user's email, not their internal DB id.
+  const rawTarget = String(req.params['id'] ?? '').trim();
+  let targetUser = null;
+  if (rawTarget.includes('@')) {
+    targetUser = await UserModel.findOne({ email: rawTarget.toLowerCase() });
+  } else if (isValidObjectId(rawTarget)) {
+    targetUser = await UserModel.findById(rawTarget);
+  } else {
+    res.status(400).json({ message: 'Provide a valid user ID or email address.' }); return;
+  }
+  if (!targetUser) { res.status(404).json({ message: 'User not found.' }); return; }
+
+  targetUser.creditScore = (targetUser.creditScore ?? 0) + delta;
+  await targetUser.save();
+  res.status(200).json({ userId: targetUser._id.toString(), creditScore: targetUser.creditScore });
 });
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
