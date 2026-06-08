@@ -23,7 +23,13 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: '/api/auth/google/callback',
+      // Use an absolute URL so Railway's HTTP-internal proxy doesn't cause
+      // passport to resolve the callback as http:// instead of https://.
+      // In dev the Vite proxy isn't involved here — the server runs directly
+      // on localhost:5000, so http://localhost is correct for dev.
+      callbackURL: process.env.NODE_ENV === 'production'
+        ? 'https://api.werewolf.sg/api/auth/google/callback'
+        : 'http://localhost:5000/api/auth/google/callback',
     },
     async (_accessToken, _refreshToken, profile, done) => {
       try {

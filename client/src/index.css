@@ -62,6 +62,12 @@ input:-webkit-autofill:active{
   filter: grayscale(0%) hue-rotate(-70deg) saturate(120%) contrast(90%) brightness(0.8);
 }
 
+/* Mobile homepage: firefly blink animation */
+@keyframes mobile-firefly {
+  from { opacity: 0.15; transform: scale(0.8) translate(0, 0); }
+  to   { opacity: 1;    transform: scale(1.2) translate(2px, -3px); }
+}
+
 /* Venue/place name label shown beneath map markers (mobile + web) */
 .map-venue-label.leaflet-tooltip {
   background: rgba(0, 0, 0, 0.65);

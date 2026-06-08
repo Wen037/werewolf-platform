@@ -55,9 +55,13 @@ export const Sidebar = ({
         {children}
       </div>
 
-      {/* Mobile Sidebar (Hamburger Menu) — fixed-height bar, NOT h-full, so it
-          doesn't push the page content off-screen on small viewports */}
-        <div className="flex md:hidden h-14 w-full flex-shrink-0 bg-black/60 backdrop-blur-md px-4 items-center justify-between z-20">
+      {/* Mobile Sidebar — two separate elements so the fixed drawer is NOT a
+          descendant of the backdrop-blur bar. backdrop-filter creates a new
+          CSS containing block, which would make `position: fixed` children
+          positioned relative to the bar (56px) instead of the viewport. */}
+
+      {/* 1. The visible header bar (no children that need viewport-fixed positioning) */}
+      <div className="flex md:hidden h-14 w-full flex-shrink-0 bg-black/60 backdrop-blur-md px-4 items-center justify-between z-20">
         <div className="text-white font-bold text-lg">Menu</div>
         {_open ? (
           <IconX
@@ -70,10 +74,10 @@ export const Sidebar = ({
             onClick={() => _setOpen(true)}
           />
         )}
-        {/* Mobile Drawer — slides DOWN from the top of the screen (phone
-            screens are short, so a side drawer wastes width and feels
-            cramped). Tapping the backdrop OR re-tapping the hamburger
-            (now shown as an X while open) closes the panel. */}
+      </div>
+
+      {/* 2. The drawer — sibling of the bar so fixed positioning is viewport-relative */}
+      <div className="md:hidden">
         <AnimatePresence>
           {_open && (
             <>
@@ -92,9 +96,7 @@ export const Sidebar = ({
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: "-100%", opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className={cn(
-                  "fixed inset-x-0 top-0 bg-black z-[100] flex flex-col p-4 w-full max-h-[80%] overflow-y-auto shadow-2xl rounded-b-2xl"
-                )}
+                className="fixed inset-x-0 top-0 bg-black z-[100] flex flex-col p-4 w-full max-h-[80%] overflow-y-auto shadow-2xl rounded-b-2xl"
               >
                 {children}
               </motion.div>

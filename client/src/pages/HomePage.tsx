@@ -66,6 +66,100 @@ const btnStyle: React.CSSProperties = {
   boxShadow: "0 0 18px rgba(180,130,0,0.12), inset 0 0 12px rgba(255,180,0,0.04)",
 };
 
+// ── Mobile CSS cartoon scene (triangular trees + moon + fireflies) ─
+// Shown only on mobile (md:hidden). Canvas parallax is desktop-only.
+const MOBILE_FIREFLIES = [
+  { x: 7,  y: 42, d: 1.2 }, { x: 23, y: 31, d: 1.7 }, { x: 16, y: 57, d: 2.1 },
+  { x: 36, y: 26, d: 1.4 }, { x: 43, y: 47, d: 0.9 }, { x: 56, y: 36, d: 1.8 },
+  { x: 61, y: 29, d: 2.4 }, { x: 71, y: 52, d: 1.1 }, { x: 79, y: 39, d: 1.6 },
+  { x: 86, y: 23, d: 2.0 }, { x: 91, y: 61, d: 0.8 }, { x: 31, y: 21, d: 1.3 },
+  { x: 66, y: 68, d: 1.9 }, { x: 48, y: 19, d: 2.2 }, { x: 20, y: 72, d: 1.5 },
+  { x: 94, y: 37, d: 1.0 }, { x: 5,  y: 29, d: 2.3 }, { x: 76, y: 21, d: 1.4 },
+  { x: 52, y: 63, d: 1.7 }, { x: 13, y: 44, d: 0.9 },
+];
+
+const MOBILE_TREES = [
+  // left edge
+  { x: -2, b: 22, w: 18, h: 30 },
+  { x:  9, b: 28, w: 13, h: 21 },
+  { x: 20, b: 30, w: 11, h: 17 },
+  { x: 29, b: 31, w: 10, h: 16 },
+  // centre-left
+  { x: 38, b: 30, w: 12, h: 19 },
+  { x: 48, b: 31, w: 10, h: 16 },
+  // centre-right
+  { x: 57, b: 30, w: 11, h: 18 },
+  { x: 67, b: 31, w: 10, h: 16 },
+  // right
+  { x: 76, b: 30, w: 12, h: 19 },
+  { x: 85, b: 28, w: 13, h: 21 },
+  { x: 93, b: 22, w: 17, h: 28 },
+];
+
+function MobileScene() {
+  return (
+    <div className="absolute inset-0 overflow-hidden md:hidden" style={{ background: "#030508" }}>
+      {/* Moon */}
+      <div
+        style={{
+          position: "absolute", top: "6%", right: "6%",
+          width: "28vw", height: "28vw", maxWidth: 140, maxHeight: 140,
+          borderRadius: "50%",
+          background: "radial-gradient(circle at 38% 35%, #ffffff 0%, #f0f4ff 65%, #c8d4f0 100%)",
+          boxShadow: "0 0 50px rgba(200,220,255,0.35), 0 0 100px rgba(180,200,255,0.12)",
+        }}
+      >
+        <div style={{ position:"absolute", top:"22%", left:"28%", width:"17%", height:"17%", borderRadius:"50%", background:"rgba(0,10,40,0.09)" }} />
+        <div style={{ position:"absolute", top:"50%", left:"58%", width:"13%", height:"13%", borderRadius:"50%", background:"rgba(0,10,40,0.08)" }} />
+        <div style={{ position:"absolute", top:"36%", left:"11%", width:"10%", height:"10%", borderRadius:"50%", background:"rgba(0,10,40,0.07)" }} />
+      </div>
+
+      {/* Hill */}
+      <div
+        style={{
+          position: "absolute", bottom: 0, left: "-20%", right: "-20%",
+          height: "52%",
+          background: "linear-gradient(to bottom, #162a1a 0%, #0d1f10 100%)",
+          borderRadius: "50% 50% 0 0 / 28% 28% 0 0",
+        }}
+      />
+
+      {/* Trees */}
+      {MOBILE_TREES.map((tr, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: `${tr.x}%`,
+            bottom: `${tr.b}%`,
+            width: `${tr.w}vw`,
+            height: `${tr.h}vw`,
+            background: i % 3 === 0 ? "#1e4a25" : i % 3 === 1 ? "#1a4020" : "#163618",
+            clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
+          }}
+        />
+      ))}
+
+      {/* Fireflies */}
+      {MOBILE_FIREFLIES.map((ff, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: `${ff.x}%`,
+            top: `${ff.y}%`,
+            width: 7, height: 7,
+            borderRadius: "50%",
+            background: "rgba(255,55,0,0.9)",
+            boxShadow: "0 0 9px 2px rgba(255,55,0,0.6)",
+            animation: `mobile-firefly ${ff.d}s ease-in-out ${(i * 0.27) % ff.d}s infinite alternate`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isAuthOpen, setAuthOpen] = useState(false);
@@ -80,6 +174,8 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    // Canvas parallax is desktop-only — skip entirely on mobile to save battery
+    if (window.matchMedia("(max-width: 767px)").matches) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
@@ -522,7 +618,9 @@ export default function HomePage() {
         onClose={() => setContactOpen(false)}
       />
 
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
+      {/* Desktop: canvas parallax; Mobile: CSS cartoon scene */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full hidden md:block" />
+      <MobileScene />
 
       <div
         className="absolute inset-0 flex flex-col items-center justify-start pointer-events-none z-50"
