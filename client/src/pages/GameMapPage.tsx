@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLang } from "../context/LanguageContext";
-import { MapContainer, TileLayer, Marker, useMap, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Tooltip, useMap, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { GameService } from "../services/game.service";
@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, X, Navigation, Heart, Bell, Clock, CheckCircle, SlidersHorizontal } from "lucide-react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { ReportModal } from "../components/ReportModal";
+import { AuthModal } from "../components/AuthModal";
+import { useAuthGate } from "../hooks/useAuthGate";
 import { useNavigate } from "react-router-dom";
 
 // --- ICONS ---
@@ -30,6 +32,12 @@ const placeIcon = new L.Icon({
   iconSize: [36, 36],
   popupAnchor: [0, -18]
 });
+
+// --- HELPER: Truncate venue/place name shown under map markers (max 10 chars) ---
+const truncateMapLabel = (name: string | undefined | null, max = 10) => {
+  if (!name) return "";
+  return name.length > max ? `${name.slice(0, max)}...` : name;
+};
 
 // --- HELPER: Date Formatter ---
 const formatGameTime = (dateString: string) => {
@@ -86,6 +94,9 @@ export default function GameMapPage() {
   const [showToast, setShowToast] = useState(false);
   const [joinStates, setJoinStates] = useState<Record<string, JoinState>>({});
   const navigate = useNavigate();
+  // Guests can browse the map (view spaces & events) freely; subscribing,
+  // liking and joining require an account — gate behind a login prompt.
+  const { isAuthOpen, setAuthOpen, requireAuth } = useAuthGate();
 
   // Event filters
   const [eventProfFilter, setEventProfFilter] = useState<string>("all");
@@ -130,6 +141,7 @@ export default function GameMapPage() {
   // --- SUBSCRIBE HANDLERS ---
   const handleSubscribeVenue = (e: React.MouseEvent, venueId: string) => {
     e.stopPropagation();
+    if (!requireAuth()) return;
     setVenues(prev => prev.map(v => {
       if (v.id !== venueId) return v;
       const updated = { ...v, isSubscribed: !v.isSubscribed };
@@ -143,6 +155,7 @@ export default function GameMapPage() {
 
   const handleSubscribeEvent = (e: React.MouseEvent, gameId: string) => {
     e.stopPropagation();
+    if (!requireAuth()) return;
     setGames(prev => prev.map(g => {
       if (g.id !== gameId) return g;
       const updated = { ...g, isSubscribed: !g.isSubscribed };
@@ -154,6 +167,7 @@ export default function GameMapPage() {
   // --- LIKE HANDLERS ---
   const handleLikeVenue = (e: React.MouseEvent, venueId: string) => {
     e.stopPropagation();
+    if (!requireAuth()) return;
     setVenues(prev => prev.map(v => {
       if (v.id === venueId) {
         const updated = {
@@ -170,6 +184,7 @@ export default function GameMapPage() {
 
   const handleLikeEvent = (e: React.MouseEvent, gameId: string) => {
     e.stopPropagation();
+    if (!requireAuth()) return;
     setGames(prev => prev.map(g => {
       if (g.id === gameId) {
         const updated = {
@@ -185,6 +200,7 @@ export default function GameMapPage() {
   };
 
   const handleJoinGame = async (gameId: string) => {
+    if (!requireAuth()) return;
     const current = joinStates[gameId] ?? "idle";
     if (current !== "idle") return;
     setJoinStates(prev => ({ ...prev, [gameId]: "joining" }));
@@ -363,10 +379,14 @@ export default function GameMapPage() {
           {userLoc && <Marker position={[userLoc.lat, userLoc.lng]} icon={googleUserIcon} />}
 
           {mode === "places" && venues.map(venue => (
-            <Marker 
+            <Marker
               key={venue.id} position={[venue.coordinates.lat, venue.coordinates.lng]} icon={placeIcon}
               eventHandlers={{ click: () => setSelectedItem(venue) }}
-            />
+            >
+              <Tooltip permanent direction="bottom" offset={[0, 6]} className="map-venue-label" interactive={false}>
+                {truncateMapLabel(venue.name)}
+              </Tooltip>
+            </Marker>
           ))}
 
           {mode === "events" && filteredGames.map(game => {
@@ -376,7 +396,11 @@ export default function GameMapPage() {
               <Marker
                 key={game.id} position={[venue.coordinates.lat, venue.coordinates.lng]} icon={eventsIcon}
                 eventHandlers={{ click: () => setSelectedItem({ ...game, venueDetails: venue }) }}
-              />
+              >
+                <Tooltip permanent direction="bottom" offset={[0, 14]} className="map-venue-label" interactive={false}>
+                  {truncateMapLabel(venue.name)}
+                </Tooltip>
+              </Marker>
             );
           })}
         </MapContainer>
@@ -384,16 +408,16 @@ export default function GameMapPage() {
 
       <AnimatePresence>
         {selectedItem && (
-          <motion.div 
-            initial={{ x: "100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "100%", opacity: 0 }}
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute top-4 right-4 bottom-4 w-full md:w-80 z-[600] pointer-events-none flex flex-col justify-end md:justify-start"
+            className="absolute inset-x-4 top-1/2 -translate-y-1/2 max-h-[75vh] md:translate-y-0 md:inset-x-auto md:top-4 md:right-4 md:bottom-4 md:max-h-full w-auto md:w-80 z-[600] pointer-events-none flex flex-col items-stretch justify-center md:justify-start"
           >
             <div className={`
-                pointer-events-auto rounded-2xl shadow-2xl border overflow-hidden flex flex-col h-full md:h-auto md:max-h-full backdrop-blur-xl transition-colors duration-300
-                ${mode === 'places' ? 'bg-white/10 border-white/40' : 'bg-black/15 border-white/10'}
+                pointer-events-auto rounded-2xl shadow-2xl border overflow-hidden flex flex-col max-h-full md:h-auto md:max-h-full backdrop-blur-2xl md:backdrop-blur-xl transition-colors duration-300
+                ${mode === 'places' ? 'bg-neutral-900/90 md:bg-white/10 border-white/30 md:border-white/40' : 'bg-neutral-900/90 md:bg-black/15 border-white/30 md:border-white/10'}
             `}>
                 <div className="h-32 relative shrink-0 group">
                   <button
@@ -532,6 +556,7 @@ export default function GameMapPage() {
         targetType={reportData?.type || "Event"}
         targetName={reportData?.name || ""}
       />
+      <AuthModal isOpen={isAuthOpen} onClose={() => setAuthOpen(false)} initialView="login" />
     </div>
   );
 }

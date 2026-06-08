@@ -9,6 +9,7 @@ import EventDetailPage from './pages/EventDetailPage';
 import PublicProfilePage from './pages/PublicProfilePage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AdminPage from './pages/AdminPage';
+import { RequireAuth } from './components/RequireAuth';
 import { LanguageProvider } from './context/LanguageContext';
 
 function App() {
@@ -21,14 +22,17 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         {/* Route 2: The Game App (Has Sidebar) */}
+        {/* Guests can freely VIEW the lobby/map, spaces, and events — no guard here */}
         <Route path="/lobby" element={<LobbyPage />} />
         <Route path="/gamespace" element={<GameSpacePage />} />
         <Route path="/gamespace/:id" element={<VenueDetailPage />} />
-        <Route path="/myevents" element={<MyEventsPage />} />
-        <Route path="/myprofile" element={<MyProfilePage />} />
         <Route path="/event/:id" element={<EventDetailPage />} />
         <Route path="/user/:id" element={<PublicProfilePage />} />
-        <Route path="/admin" element={<AdminPage />} />
+
+        {/* Account-only pages — guests are redirected home (login/register entry point) */}
+        <Route path="/myevents" element={<RequireAuth><MyEventsPage /></RequireAuth>} />
+        <Route path="/myprofile" element={<RequireAuth><MyProfilePage /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
       </Routes>
     </Router>
     </LanguageProvider>

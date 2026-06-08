@@ -11,6 +11,8 @@ import { IconAlertTriangle } from "@tabler/icons-react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { CreateSpaceModal } from "../components/CreateSpaceModal";
 import { ReportModal } from "../components/ReportModal";
+import { AuthModal } from "../components/AuthModal";
+import { useAuthGate } from "../hooks/useAuthGate";
 
 type VenueUI = GameVenue & { isLiked?: boolean; isSubscribed?: boolean; pendingApplicationsCount?: number };
 
@@ -26,6 +28,11 @@ export default function GameSpacePage() {
   const { t, lang } = useLang();
 
   const currentUser = AuthService.getCurrentUser();
+  // Guests can browse spaces freely, but liking/subscribing/creating require
+  // an account — requireAuth() opens the login modal instead of letting the
+  // action through (it would otherwise 401 or, for purely-local toggles like
+  // handleLike, silently "succeed" in the UI without persisting anything).
+  const { isAuthOpen, setAuthOpen, requireAuth } = useAuthGate();
 
   const loadVenues = () => {
     GameService.getAllVenues().then(data => {
@@ -47,6 +54,7 @@ export default function GameSpacePage() {
 
   const handleLike = (e: React.MouseEvent, venueId: string) => {
     e.stopPropagation();
+    if (!requireAuth()) return;
     setVenues(prev => prev.map(v => {
       if (v.id !== venueId) return v;
       const liked = v.isLiked || false;
@@ -56,6 +64,7 @@ export default function GameSpacePage() {
 
   const handleSubscribe = async (e: React.MouseEvent, venueId: string) => {
     e.stopPropagation();
+    if (!requireAuth()) return;
     setVenues(prev => prev.map(v =>
       v.id === venueId ? { ...v, isSubscribed: !v.isSubscribed } : v
     ));
@@ -261,7 +270,7 @@ export default function GameSpacePage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: slotIndex * 0.07 }}
-      onClick={() => setIsCreateModalOpen(true)}
+      onClick={() => { if (requireAuth()) setIsCreateModalOpen(true); }}
       className="border-2 border-dashed border-amber-500/25 hover:border-amber-500/50 rounded-2xl cursor-pointer group transition-all flex flex-col items-center justify-center min-h-[260px] gap-3 bg-amber-500/5 hover:bg-amber-500/10"
     >
       <div className="w-12 h-12 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -356,7 +365,7 @@ export default function GameSpacePage() {
               </button>
             ) : (
               <button
-                onClick={() => setIsCreateModalOpen(true)}
+                onClick={() => requireAuth()}
                 className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg active:scale-95 whitespace-nowrap text-sm"
               >
                 <Plus size={16} /> {t('Add Space')}
@@ -434,6 +443,7 @@ export default function GameSpacePage() {
           onClose={() => setIsCreateModalOpen(false)}
           onCreated={loadVenues}
         />
+        <AuthModal isOpen={isAuthOpen} onClose={() => setAuthOpen(false)} initialView="login" />
       </div>
     </AppLayout>
   );

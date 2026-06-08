@@ -257,6 +257,16 @@ export class UserService {
   async updateProfile(userId: string, dto: UpdateProfileDTO): Promise<Result<UserResponseDTO>> {
     const update: Record<string, unknown> = {};
 
+    if (dto.username !== undefined) {
+      if (isReservedOrImpersonatingUsername(dto.username)) {
+        return Result.fail('That username is reserved and cannot be used. Please choose a different one.');
+      }
+      const existingUsername = await findByUsernameCI(dto.username);
+      if (existingUsername && existingUsername._id.toString() !== userId) {
+        return Result.fail('Username already taken.');
+      }
+      update['username'] = dto.username;
+    }
     if (dto.skillLevel !== undefined) {
       update['proficiency'] = SKILL_LEVEL_MAP[dto.skillLevel as SkillLevel];
     }

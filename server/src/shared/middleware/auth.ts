@@ -14,6 +14,9 @@ declare global {
     interface User {
       userId: string;
       email: string;
+      // Set by the Google OAuth strategy when it just created a brand-new
+      // account (so the frontend can prompt the user to pick a nickname).
+      isNewUser?: boolean;
     }
   }
 }

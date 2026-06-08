@@ -127,12 +127,16 @@ export const RealGameService = {
     api.get(`/users/${userId}`),
 
   updateProfile: (fields: {
+    username?: string;
     skillLevel?: string;
     bio?: string;
     contactNumber?: string;
     avatarUrl?: string;
   }): Promise<void> =>
     api.patch('/users/me', fields),
+
+  updateUsername: (username: string): Promise<void> =>
+    api.patch('/users/me', { username }),
 
   updateSkillLevel: (skillLevel: string): Promise<void> =>
     api.patch('/users/me', { skillLevel }),

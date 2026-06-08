@@ -10,7 +10,7 @@ import { UserModel } from '../../modules/users/DBSchemas/UserSchema';
  *   GOOGLE_CLIENT_SECRET — same location
  *
  * Callback URL must be registered in Google Cloud Console:
- *   Production : https://werewolf.sg/api/auth/google/callback
+ *   Production : https://api.werewolf.sg/api/auth/google/callback   (note: API runs on the "api" subdomain, NOT bare werewolf.sg)
  *   Development: http://localhost:5000/api/auth/google/callback
  *
  * Three cases handled:
@@ -30,9 +30,12 @@ passport.use(
         const email = profile.emails?.[0]?.value;
         if (!email) return done(new Error('No email returned from Google.'));
 
-        // Helper: serialise a Mongoose doc to the shape Express.User expects
-        const toPayload = (doc: { _id: { toString(): string }; email?: string }) =>
-          ({ userId: doc._id.toString(), email: doc.email ?? '' });
+        // Helper: serialise a Mongoose doc to the shape Express.User expects.
+        // `isNewUser` lets the callback route tell the frontend that this
+        // account was just created via Google, so it can prompt the user to
+        // pick their own nickname instead of keeping the auto-generated one.
+        const toPayload = (doc: { _id: { toString(): string }; email?: string }, isNewUser = false) =>
+          ({ userId: doc._id.toString(), email: doc.email ?? '', isNewUser });
 
         // Case 1: already linked
         let user = await UserModel.findOne({ googleId: profile.id });
@@ -66,7 +69,7 @@ passport.use(
           ...(avatarUrl ? { avatarUrl } : {}),
         });
 
-        return done(null, toPayload(user));
+        return done(null, toPayload(user, true));
       } catch (err) {
         return done(err as Error);
       }

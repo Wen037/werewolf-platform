@@ -4,6 +4,8 @@ import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
 import type { GameSessionDTO } from "../types";
 import { AppLayout } from "../components/layout/AppLayout";
+import { AuthModal } from "../components/AuthModal";
+import { useAuthGate } from "../hooks/useAuthGate";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle } from "lucide-react";
 import {
@@ -39,6 +41,7 @@ export default function EventDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useLang();
+  const { isAuthOpen, setAuthOpen, requireAuth } = useAuthGate();
 
   const [event, setEvent] = useState<GameSessionDTO | null>(null);
   const [joinState, setJoinState] = useState<JoinState>("idle");
@@ -64,6 +67,7 @@ export default function EventDetailPage() {
   };
 
   const handleJoin = async () => {
+    if (!requireAuth()) return;
     if (!event || !id) return;
     if (joinState === "joined" || joinState === "pending" || joinState === "joining") return;
     setJoinState("joining");
@@ -311,6 +315,7 @@ export default function EventDetailPage() {
           </div>
         </div>
       </div>
+      <AuthModal isOpen={isAuthOpen} onClose={() => setAuthOpen(false)} initialView="login" />
     </AppLayout>
   );
 }

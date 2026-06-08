@@ -235,6 +235,11 @@ export const MockGameService = {
     console.log("[Mock] updateProfile", fields);
   },
 
+  updateUsername: async (username: string) => {
+    await delay(200);
+    console.log(`[Mock] updateUsername → ${username}`);
+  },
+
   updateSkillLevel: async (skillLevel: string) => {
     await delay(200);
     console.log(`[Mock] updateSkillLevel → ${skillLevel}`);

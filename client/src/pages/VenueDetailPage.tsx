@@ -8,6 +8,8 @@ import type { GameVenueDTO, GameSessionDTO, VenueSpaceType, VenuePrivacy } from 
 import { VENUE_TYPE_LABELS, DEFAULT_PRIVACY, getVenuePermissions, getDisplayAddress } from "../types";
 import { AppLayout } from "../components/layout/AppLayout";
 import { ReportModal } from "../components/ReportModal";
+import { AuthModal } from "../components/AuthModal";
+import { useAuthGate } from "../hooks/useAuthGate";
 import { CheckCircle, BadgeCheck, Bell, BellOff, X as XIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -930,6 +932,9 @@ export default function VenueDetailPage() {
   const [hoverRating, setHoverRating]     = useState(0);
 
   const currentUser = AuthService.getCurrentUser();
+  // Guests can view a space's details freely, but liking/subscribing/rating
+  // require an account — gate each write action behind a login prompt.
+  const { isAuthOpen, setAuthOpen, requireAuth } = useAuthGate();
   const permissions = venue ? getVenuePermissions(venue, currentUser) : { canEdit: false, canVerify: false, canDelete: false };
 
   const handleSaveEdit = async (updated: Partial<GameVenueDTO>) => {
@@ -986,6 +991,7 @@ export default function VenueDetailPage() {
   };
 
   const handleSubscribe = async () => {
+    if (!requireAuth()) return;
     if (!venue || !id) return;
     const prev = venue.myInteraction?.isSubscribed ?? false;
     setVenue(v => v ? {
@@ -1015,6 +1021,7 @@ export default function VenueDetailPage() {
   };
 
   const handleLike = async () => {
+    if (!requireAuth()) return;
     if (!venue || !id) return;
     const prev = venue.myInteraction?.isLiked ?? false;
     setVenue(v => v ? {
@@ -1047,6 +1054,7 @@ export default function VenueDetailPage() {
   };
 
   const handleRate = async (rating: number) => {
+    if (!requireAuth()) return;
     if (!venue || !id) return;
     const prevRating = venue.myInteraction?.myRating;
     const prevAvg = venue.averageRating;
@@ -1112,6 +1120,8 @@ export default function VenueDetailPage() {
           isOpen={isReportOpen} onClose={() => setIsReportOpen(false)}
           onSuccess={triggerToast} targetType="Space" targetName={venue.name}
         />
+
+        <AuthModal isOpen={isAuthOpen} onClose={() => setAuthOpen(false)} initialView="login" />
 
         <BookingModal
           isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)}

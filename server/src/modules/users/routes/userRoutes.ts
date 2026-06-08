@@ -113,15 +113,19 @@ router.get(
   '/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/login?error=oauth_failed` }),
   (req: Request, res: Response) => {
-    // req.user is serialised by passport strategy to { userId, email }
-    const { userId, email } = req.user!;
+    // req.user is serialised by passport strategy to { userId, email, isNewUser }
+    const { userId, email, isNewUser } = req.user!;
     const secret = process.env.JWT_SECRET;
     if (!secret) { res.status(500).json({ message: 'JWT not configured.' }); return; }
 
     const token = jwt.sign({ userId, email }, secret, { expiresIn: '7d' });
 
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+    // `isNew=1` tells the frontend this account was just created via Google,
+    // so it can prompt the user to set their own nickname (instead of keeping
+    // the auto-generated one derived from their Google profile name).
+    const newUserFlag = isNewUser ? '&isNew=1' : '';
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}${newUserFlag}`);
   }
 );
 

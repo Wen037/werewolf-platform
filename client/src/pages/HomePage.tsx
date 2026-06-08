@@ -50,56 +50,6 @@ const IMG_FILES: Record<string, string> = {
   mistJpg: "/mist_processed.png",
 };
 
-// ── Mobile home scene ────────────────────────────────────────────────
-// The canvas parallax scene above is heavy (multiple large PNGs + a
-// requestAnimationFrame loop) and visually identical to the desktop site —
-// the user asked for mobile to use a simpler, distinct "cartoon trees" look
-// instead (closer to the older static design) so it's lighter and feels
-// purpose-built for small screens rather than a cramped copy of desktop.
-function MobileForestScene() {
-  return (
-    <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-      <div
-        className="absolute inset-0"
-        style={{ background: "linear-gradient(to bottom, #050a1a 0%, #0b1530 32%, #1a2440 62%, #2c3142 100%)" }}
-      />
-      {/* Moon */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          top: "9%",
-          right: "14%",
-          width: "16vw",
-          height: "16vw",
-          maxWidth: 84,
-          maxHeight: 84,
-          background: "radial-gradient(circle at 35% 35%, #ffffff 0%, #edf0ff 45%, #b8c4e0 100%)",
-          boxShadow: "0 0 50px rgba(200,215,255,0.45)",
-        }}
-      />
-      {/* Far tree line */}
-      <img
-        src="/layer5Trees_processed.png"
-        alt=""
-        className="absolute bottom-0 left-0 w-full opacity-70"
-        style={{ height: "52%", objectFit: "cover", objectPosition: "bottom" }}
-      />
-      {/* Near cartoon trees */}
-      <img
-        src="/treelayer7_processed.png"
-        alt=""
-        className="absolute bottom-0 left-0 w-full"
-        style={{ height: "40%", objectFit: "cover", objectPosition: "bottom" }}
-      />
-      {/* Soft vignette so the title/buttons stay legible */}
-      <div
-        className="absolute inset-0"
-        style={{ background: "radial-gradient(ellipse at 50% 38%, transparent 35%, rgba(2,4,10,0.6) 100%)" }}
-      />
-    </div>
-  );
-}
-
 const btnStyle: React.CSSProperties = {
   background: "transparent",
   border: "1px solid rgba(200,170,80,0.55)",
@@ -130,11 +80,6 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    // Mobile gets a lightweight static scene (MobileForestScene below) instead
-    // of this heavy canvas parallax — skip the whole animation loop + image
-    // loads to save battery/bandwidth on small screens.
-    if (window.matchMedia("(max-width: 767px)").matches) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
@@ -577,12 +522,7 @@ export default function HomePage() {
         onClose={() => setContactOpen(false)}
       />
 
-      {/* Mobile: simplified static "cartoon trees" scene (different from desktop) */}
-      <div className="absolute inset-0 md:hidden">
-        <MobileForestScene />
-      </div>
-
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full hidden md:block" />
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
 
       <div
         className="absolute inset-0 flex flex-col items-center justify-start pointer-events-none z-50"

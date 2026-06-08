@@ -19,6 +19,7 @@ export const LoginSchema = z.object({
 });
 
 export const UpdateProfileSchema = z.object({
+  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only').optional(),
   skillLevel: z.enum(['Beginner', 'Intermediate', 'Advanced', 'Expert']).optional(),
   bio: z.string().max(200).refine(v => !/<|>/.test(v), { message: 'No HTML allowed' }).optional(),
   contactNumber: z.string().max(20).optional(),

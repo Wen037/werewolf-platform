@@ -59,13 +59,21 @@ export const Sidebar = ({
           doesn't push the page content off-screen on small viewports */}
         <div className="flex md:hidden h-14 w-full flex-shrink-0 bg-black/60 backdrop-blur-md px-4 items-center justify-between z-20">
         <div className="text-white font-bold text-lg">Menu</div>
-        <IconMenu2
-          className="text-white cursor-pointer"
-          onClick={() => _setOpen(true)}
-        />
-        {/* Mobile Drawer — slides in from the left covering ~80% of the width,
-            leaving a visible "outside" strip. Tapping that backdrop strip
-            (or pressing X) closes the drawer, matching standard drawer UX. */}
+        {_open ? (
+          <IconX
+            className="text-white cursor-pointer"
+            onClick={() => _setOpen(false)}
+          />
+        ) : (
+          <IconMenu2
+            className="text-white cursor-pointer"
+            onClick={() => _setOpen(true)}
+          />
+        )}
+        {/* Mobile Drawer — slides DOWN from the top of the screen (phone
+            screens are short, so a side drawer wastes width and feels
+            cramped). Tapping the backdrop OR re-tapping the hamburger
+            (now shown as an X while open) closes the panel. */}
         <AnimatePresence>
           {_open && (
             <>
@@ -80,20 +88,14 @@ export const Sidebar = ({
               />
               <motion.div
                 key="drawer-panel"
-                initial={{ x: "-100%", opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: "-100%", opacity: 0 }}
+                initial={{ y: "-100%", opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: "-100%", opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
                 className={cn(
-                  "fixed inset-y-0 left-0 bg-black z-[100] flex flex-col p-4 w-[80%] max-w-xs h-full shadow-2xl"
+                  "fixed inset-x-0 top-0 bg-black z-[100] flex flex-col p-4 w-full max-h-[80%] overflow-y-auto shadow-2xl rounded-b-2xl"
                 )}
               >
-                <div
-                  className="absolute right-4 top-4 cursor-pointer"
-                  onClick={() => _setOpen(false)}
-                >
-                  <IconX className="text-white" />
-                </div>
                 {children}
               </motion.div>
             </>
