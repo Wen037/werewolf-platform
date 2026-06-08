@@ -24,6 +24,12 @@ import './modules/notifications/coreLogic/NotificationService';
 
 const app = express();
 
+// Trust Fly.io / any reverse-proxy's X-Forwarded-* headers so that
+// req.protocol resolves to 'https' (not the internal 'http').
+// This is required for passport's relative callbackURL to build the
+// correct https:// redirect URI for Google OAuth.
+app.set('trust proxy', 1);
+
 // ─── Security middleware (order matters) ─────────────────────────────────────
 app.use(helmet());
 app.use(
