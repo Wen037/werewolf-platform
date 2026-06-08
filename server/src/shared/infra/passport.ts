@@ -23,12 +23,16 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // Absolute URL so Railway's internal HTTP proxy doesn't downgrade https→http.
-      // Set GOOGLE_CALLBACK_URL in Railway env vars:
-      //   https://api.werewolf.sg/api/auth/google/callback
-      // Falls back to localhost for local dev (no env var needed locally).
-      callbackURL: process.env.GOOGLE_CALLBACK_URL ?? 'http://localhost:5000/api/auth/google/callback',
-      proxy: true,  // trust X-Forwarded-Proto from Railway's load balancer
+      // Use absolute URL — Fly.io terminates TLS and forwards plain HTTP
+      // internally, so a relative callbackURL resolves as http://.
+      // fly.toml already sets NODE_ENV=production, so this branch is taken
+      // automatically on Fly without any extra secret needed.
+      // Override via GOOGLE_CALLBACK_URL if the domain ever changes.
+      callbackURL: process.env.GOOGLE_CALLBACK_URL
+        ?? (process.env.NODE_ENV === 'production'
+          ? 'https://api.werewolf.sg/api/auth/google/callback'
+          : 'http://localhost:5000/api/auth/google/callback'),
+      proxy: true,
     },
     async (_accessToken, _refreshToken, profile, done) => {
       try {
