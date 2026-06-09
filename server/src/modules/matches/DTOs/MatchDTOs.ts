@@ -11,6 +11,7 @@ export const CreateMatchSchema = z.object({
   game_type: z.string().max(50).optional(),
   judge_method: z.string().max(50).optional(),
   proficiency_required: z.number().int().min(0).max(4).optional(),
+  approvalMode: z.enum(['open', 'approval', 'invite_only']).optional(),
 }).refine(data => data.max_pax >= data.min_pax, {
   message: 'max_pax must be >= min_pax',
   path: ['max_pax'],

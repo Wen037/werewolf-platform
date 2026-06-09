@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     globals: false, // explicit imports keep tests readable
     environment: 'node',
+    // Only scan source test files — prevents dist/*.test.js from being picked up
+    include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],

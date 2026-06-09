@@ -6,7 +6,7 @@ import { SessionInteractionModel } from '../DBSchemas/SessionInteractionSchema';
 import { MatchInviteModel } from '../DBSchemas/MatchInviteSchema';
 import { NotificationModel } from '../../notifications/DBSchemas/NotificationSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
-import { PlayerSpaceModel } from '../../player-spaces/DBSchemas/PlayerSpaceSchema';
+import { PlayerSpaceModel, IPlayerSpaceDocument } from '../../player-spaces/DBSchemas/PlayerSpaceSchema';
 import { Match, MatchStatus } from '../domain/Match';
 import { calculateRank } from '../../users/domain/User';
 import {
@@ -173,6 +173,14 @@ export class MatchService {
     const venue = await PlayerSpaceModel.findById(dto.venue_id);
     if (!venue) return Result.fail('Venue not found.');
 
+    // Auto-confirm venue approval when:
+    //  (a) the host IS the venue owner — hosting in their own space needs no approval
+    //  (b) the venue is a public/institutional type (school, boardgame_store) — open spaces
+    const PUBLIC_VENUE_TYPES: IPlayerSpaceDocument['type'][] = ['school', 'boardgame_store'];
+    const isVenueOwner  = venue.owner_id.toString() === hostId;
+    const isPublicVenue = PUBLIC_VENUE_TYPES.includes(venue.type);
+    const venueApprovalStatus = (isVenueOwner || isPublicVenue) ? 'confirmed' : 'pending';
+
     const doc = await MatchModel.create({
       host_id: hostId,
       venue_id: dto.venue_id,
@@ -191,6 +199,8 @@ export class MatchService {
         type: 'Point',
         coordinates: [venue.location.long, venue.location.lat],  // GeoJSON: [lng, lat]
       },
+      ...(dto.approvalMode !== undefined && { approvalMode: dto.approvalMode }),
+      venueApprovalStatus,
       players: [hostId],
     }) as unknown as MatchDoc;
 
@@ -833,6 +843,24 @@ export class MatchService {
       channel: 'in-app',
       payload: { matchId: sessionId },
     });
+
+    return Result.ok();
+  }
+
+  /**
+   * Permanently delete a match. Only the host may delete it.
+   * Can only be deleted when status is 'Open' or 'Cancelled'.
+   */
+  async deleteMatch(sessionId: string, requesterId: string): Promise<Result<void>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    if (!doc) return Result.fail('Match not found.');
+    if (doc.host_id.toString() !== requesterId) return Result.fail('Only the host can delete this event.');
+    if (doc.status !== 'Open' && doc.status !== 'Cancelled') {
+      return Result.fail(`Cannot delete a match with status: ${doc.status}. Only Open or Cancelled matches can be deleted.`);
+    }
+
+    await MatchModel.findByIdAndDelete(sessionId);
+    await SessionInteractionModel.deleteMany({ sessionId });
 
     return Result.ok();
   }

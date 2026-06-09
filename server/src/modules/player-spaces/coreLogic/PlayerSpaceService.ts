@@ -2,6 +2,7 @@ import { Result } from '../../../shared/core/Result';
 import { PlayerSpaceModel, IPlayerSpaceDocument } from '../DBSchemas/PlayerSpaceSchema';
 import { VenueInteractionModel } from '../DBSchemas/VenueInteractionSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
+import { MatchModel } from '../../matches/DBSchemas/MatchSchema';
 import { CreatePlayerSpaceDTO, UpdatePlayerSpaceDTO, GameVenueResponseDTO } from '../DTOs/PlayerSpaceDTOs';
 import { eventBus } from '../../../shared/infra/EventBus';
 
@@ -265,6 +266,28 @@ export class PlayerSpaceService {
       averageRating: Math.round(avg * 10) / 10,
     });
 
+    return Result.ok();
+  }
+
+  /**
+   * Delete a venue. Only the owner may delete their own venue.
+   * Deletion is blocked if the venue has any active (non-cancelled) matches.
+   */
+  async deleteVenue(venueId: string, userId: string): Promise<Result<void>> {
+    const venue = await PlayerSpaceModel.findById(venueId);
+    if (!venue) return Result.fail('Venue not found.');
+    if (venue.owner_id.toString() !== userId) return Result.fail('Forbidden: only the space owner can delete this venue.');
+
+    // Block deletion if there are any non-cancelled matches at this venue
+    const activeMatchCount = await MatchModel.countDocuments({
+      venue_id: venueId,
+      status: { $nin: ['Cancelled', 'Completed'] },
+    });
+    if (activeMatchCount > 0) {
+      return Result.fail('Cannot delete a venue that has active matches. Cancel all matches first.');
+    }
+
+    await PlayerSpaceModel.findByIdAndDelete(venueId);
     return Result.ok();
   }
 }

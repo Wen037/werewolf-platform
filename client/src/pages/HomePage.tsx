@@ -79,21 +79,21 @@ const MOBILE_FIREFLIES = [
 ];
 
 const MOBILE_TREES = [
-  // left edge
-  { x: -2, b: 22, w: 18, h: 30 },
-  { x:  9, b: 28, w: 13, h: 21 },
-  { x: 20, b: 30, w: 11, h: 17 },
-  { x: 29, b: 31, w: 10, h: 16 },
+  // left edge — taller, bases sit on hill top (~30-32% from bottom)
+  { x: -2, b: 30, w: 18, h: 46 },
+  { x:  9, b: 31, w: 13, h: 34 },
+  { x: 20, b: 31, w: 11, h: 28 },
+  { x: 29, b: 31, w: 10, h: 25 },
   // centre-left
-  { x: 38, b: 30, w: 12, h: 19 },
-  { x: 48, b: 31, w: 10, h: 16 },
+  { x: 38, b: 30, w: 12, h: 30 },
+  { x: 48, b: 31, w: 10, h: 25 },
   // centre-right
-  { x: 57, b: 30, w: 11, h: 18 },
-  { x: 67, b: 31, w: 10, h: 16 },
+  { x: 57, b: 30, w: 11, h: 28 },
+  { x: 67, b: 31, w: 10, h: 25 },
   // right
-  { x: 76, b: 30, w: 12, h: 19 },
-  { x: 85, b: 28, w: 13, h: 21 },
-  { x: 93, b: 22, w: 17, h: 28 },
+  { x: 76, b: 30, w: 12, h: 30 },
+  { x: 85, b: 31, w: 13, h: 34 },
+  { x: 93, b: 30, w: 17, h: 44 },
 ];
 
 function MobileScene() {
@@ -102,7 +102,7 @@ function MobileScene() {
       {/* Moon */}
       <div
         style={{
-          position: "absolute", top: "6%", right: "6%",
+          position: "absolute", top: "18%", right: "6%",
           width: "28vw", height: "28vw", maxWidth: 140, maxHeight: 140,
           borderRadius: "50%",
           background: "radial-gradient(circle at 38% 35%, #ffffff 0%, #f0f4ff 65%, #c8d4f0 100%)",
@@ -118,7 +118,7 @@ function MobileScene() {
       <div
         style={{
           position: "absolute", bottom: 0, left: "-20%", right: "-20%",
-          height: "52%",
+          height: "33%",
           background: "linear-gradient(to bottom, #162a1a 0%, #0d1f10 100%)",
           borderRadius: "50% 50% 0 0 / 28% 28% 0 0",
         }}
@@ -673,29 +673,10 @@ export default function HomePage() {
           {t('A Night of Deception')}
         </p>
 
-        {/* App description — visible to Google's crawler for branding verification */}
-        <p
-          style={{
-            fontFamily: "'Cinzel', serif",
-            fontSize: "clamp(0.6rem, 1.2vw, 0.85rem)",
-            letterSpacing: "0.12em",
-            color: "rgba(180,165,130,0.50)",
-            marginTop: "1.6em",
-            textShadow: "0 1px 4px rgba(0,0,0,0.8)",
-            userSelect: "none",
-            textAlign: "center",
-            maxWidth: "28rem",
-            padding: "0 1rem",
-            lineHeight: 1.7,
-          }}
-        >
-          {t('Singapore\'s platform for finding and hosting Werewolf social deduction game events. Sign in to join games, discover venues, and connect with players.')}
-        </p>
-
-        {/* Buttons — absolutely positioned in the lower third of the screen */}
+        {/* Buttons — mobile: above hill/trees; desktop: lower third */}
         <div
-          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 absolute items-center w-full px-6"
-          style={{ bottom: "10vh", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap", maxWidth: "32rem" }}
+          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 absolute items-center w-full px-6 bottom-[52%] md:bottom-[10vh]"
+          style={{ left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap", maxWidth: "32rem" }}
         >
           <button
             style={btnStyle}
@@ -743,6 +724,42 @@ export default function HomePage() {
             {t('Find a Game')}
           </button>
         </div>
+
+        {/* Mobile description — tiny text at very bottom */}
+        <p
+          className="md:hidden absolute pointer-events-none text-center px-6"
+          style={{
+            bottom: "1.4rem",
+            fontFamily: "'Cinzel', serif",
+            fontSize: "0.58rem",
+            letterSpacing: "0.08em",
+            color: "rgba(180,165,130,0.40)",
+            lineHeight: 1.65,
+            userSelect: "none",
+          }}
+        >
+          {t('Singapore\'s platform for finding and hosting Werewolf social deduction game events. Sign in to join games, discover venues, and connect with players.')}
+        </p>
+
+        {/* Desktop description — below buttons */}
+        <p
+          className="hidden md:block absolute pointer-events-none text-center px-6"
+          style={{
+            bottom: "3.5vh",
+            fontFamily: "'Cinzel', serif",
+            fontSize: "clamp(0.58rem, 1.1vw, 0.78rem)",
+            letterSpacing: "0.10em",
+            color: "rgba(180,165,130,0.45)",
+            lineHeight: 1.7,
+            userSelect: "none",
+            maxWidth: "30rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+          }}
+        >
+          {t('Singapore\'s platform for finding and hosting Werewolf social deduction game events. Sign in to join games, discover venues, and connect with players.')}
+        </p>
+
       </div>
 
     </div>
