@@ -40,16 +40,16 @@ export default function AuthCallbackPage() {
           setNickname(u.username ?? "");
           setStage("nickname");
         } else {
-          window.location.href = "/";
+          window.location.href = "/lobby";
         }
       })
       .catch(() => {
-        window.location.href = "/";
+        window.location.href = "/lobby";
       });
   }, [params, navigate]);
 
   const finish = () => {
-    window.location.href = "/";
+    window.location.href = "/lobby";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
