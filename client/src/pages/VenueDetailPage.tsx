@@ -378,6 +378,8 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
     amenities:    venue.amenities.join(", "),
   });
   const [images, setImages] = useState<ImageEntry[]>(() => buildInitialImages(venue));
+  const [wechatQrFile, setWechatQrFile] = useState<File | null>(null);
+  const [wechatQrPreview, setWechatQrPreview] = useState<string | null>(venue.wechatQrUrl ?? null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -400,6 +402,8 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         amenities:    venue.amenities.join(", "),
       });
       setImages(buildInitialImages(venue));
+      setWechatQrFile(null);
+      setWechatQrPreview(venue.wechatQrUrl ?? null);
       setIsDragOver(false);
       setSaved(false);
       setSaving(false);
@@ -471,6 +475,13 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         setImages(finalImages);
       }
 
+      // Upload new WeChat QR if a file was selected
+      let finalWechatQrUrl: string | undefined = wechatQrPreview ?? undefined;
+      if (wechatQrFile) {
+        const [url] = await uploadImages([wechatQrFile], "wechat_qr");
+        finalWechatQrUrl = url;
+      }
+
       const displayImg = finalImages.find(i => i.isDisplay) ?? finalImages[0];
       onSave({
         name:         form.name,
@@ -480,6 +491,7 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         description:  form.description,
         imageUrl:     displayImg?.url ?? venue.imageUrl,
         images:       finalImages.map(i => i.url),
+        wechatQrUrl:  finalWechatQrUrl,
         pricePerHour: Number(form.pricePerHour),
         priceType:    form.priceType,
         type:         form.type,
@@ -720,6 +732,37 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                     <label className={labelCls}>{t('House Rules')} <span className="normal-case font-normal text-neutral-500">(optional)</span></label>
                     <textarea value={form.rules} onChange={set("rules")} rows={2}
                       className={`${inputCls} resize-none`} placeholder="e.g. No smoking, remove shoes at entrance..." />
+                  </div>
+
+                  {/* ── WeChat Group QR ── */}
+                  <div>
+                    <label className={labelCls}>WeChat Group QR <span className="normal-case font-normal text-neutral-500">(optional)</span></label>
+                    <p className="text-xs text-neutral-500 mb-2">Upload a QR code so visitors can join your WeChat group directly.</p>
+                    {wechatQrPreview ? (
+                      <div className="flex items-start gap-3">
+                        <img src={wechatQrPreview} alt="WeChat QR" className="w-24 h-24 object-contain rounded-lg border border-white/10 bg-white p-1" />
+                        <div className="flex flex-col gap-2 mt-1">
+                          <label className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 cursor-pointer transition-colors">
+                            <IconPhoto size={12} /> Change
+                            <input type="file" className="hidden" accept="image/*"
+                              onChange={(e) => { const f = e.target.files?.[0]; if (f) { setWechatQrFile(f); setWechatQrPreview(URL.createObjectURL(f)); } e.target.value = ""; }}
+                            />
+                          </label>
+                          <button type="button" onClick={() => { setWechatQrFile(null); setWechatQrPreview(null); }}
+                            className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors">
+                            <IconX size={12} /> Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-3 w-full h-16 border border-dashed border-white/15 hover:border-green-500/50 rounded-xl cursor-pointer bg-black/20 hover:bg-green-500/5 transition-all px-4">
+                        <IconPhoto size={18} className="text-neutral-400" />
+                        <span className="text-sm text-neutral-400"><span className="text-green-400 font-semibold">Click to upload</span> WeChat QR image</span>
+                        <input type="file" className="hidden" accept="image/*"
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) { setWechatQrFile(f); setWechatQrPreview(URL.createObjectURL(f)); } e.target.value = ""; }}
+                        />
+                      </label>
+                    )}
                   </div>
                 </div>
 
@@ -1506,6 +1549,19 @@ export default function VenueDetailPage() {
                   {isSubscribed ? t("Subscribed") : t("Subscribe")}
                 </button>
               </div>
+
+              {/* WeChat Group QR */}
+              {venue.wechatQrUrl && (
+                <div className="mt-5 pt-5 border-t border-white/5 text-center">
+                  <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-2">WeChat Group</p>
+                  <img
+                    src={venue.wechatQrUrl}
+                    alt="WeChat Group QR"
+                    className="w-32 h-32 object-contain rounded-xl bg-white p-2 mx-auto"
+                  />
+                  <p className="text-xs text-neutral-500 mt-1.5">Scan to join the WeChat group</p>
+                </div>
+              )}
 
               {/* Quick stats — clickable to open drawer */}
               {(comingEvents.length > 0 || historyEvents.length > 0) && (

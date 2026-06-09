@@ -26,6 +26,8 @@ export const CreateSpaceModal = ({ isOpen, onClose, onCreated }: CreateSpaceModa
   const [type, setType] = useState<typeof VENUE_TYPES[number]>("boardgame_store");
   const [images, setImages] = useState<PendingImage[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [wechatQrFile, setWechatQrFile] = useState<File | null>(null);
+  const [wechatQrPreview, setWechatQrPreview] = useState<string | null>(null);
   const [isSubmitForVerification, setIsSubmitForVerification] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitStage, setSubmitStage] = useState<string | null>(null);
@@ -53,6 +55,17 @@ export const CreateSpaceModal = ({ isOpen, onClose, onCreated }: CreateSpaceModa
     });
   };
 
+  // Revoke WeChat QR blob URL on unmount
+  useEffect(() => {
+    return () => { if (wechatQrPreview) URL.revokeObjectURL(wechatQrPreview); };
+  }, [wechatQrPreview]);
+
+  const handleWechatQrSelect = (file: File) => {
+    if (wechatQrPreview) URL.revokeObjectURL(wechatQrPreview);
+    setWechatQrFile(file);
+    setWechatQrPreview(URL.createObjectURL(file));
+  };
+
   // Reset form state shortly after the modal closes
   useEffect(() => {
     if (!isOpen) {
@@ -60,6 +73,7 @@ export const CreateSpaceModal = ({ isOpen, onClose, onCreated }: CreateSpaceModa
         setName(""); setAddress(""); setType("boardgame_store");
         setImages([]); setIsSubmitForVerification(true);
         setSubmitting(false); setSubmitStage(null); setError(null);
+        setWechatQrFile(null); setWechatQrPreview(null);
       }, 400);
       return () => clearTimeout(timer);
     }
@@ -85,7 +99,15 @@ export const CreateSpaceModal = ({ isOpen, onClose, onCreated }: CreateSpaceModa
         imageUrls = await uploadImages(images.map(img => img.file), "venues");
       }
 
-      // 3. Create the venue
+      // 3. Upload WeChat QR if provided
+      let wechatQrUrl: string | undefined;
+      if (wechatQrFile) {
+        setSubmitStage(t("Uploading WeChat QR…"));
+        const [url] = await uploadImages([wechatQrFile], "wechat_qr");
+        wechatQrUrl = url;
+      }
+
+      // 4. Create the venue
       setSubmitStage(t("Creating venue…"));
       await api.post("/venues", {
         name: name.trim(),
@@ -96,6 +118,7 @@ export const CreateSpaceModal = ({ isOpen, onClose, onCreated }: CreateSpaceModa
         lng: geo.lng,
         is_chargeable: false,
         ...(imageUrls.length > 0 ? { imageUrl: imageUrls[0], images: imageUrls } : {}),
+        ...(wechatQrUrl ? { wechatQrUrl } : {}),
       });
 
       onCreated?.();
@@ -248,6 +271,32 @@ export const CreateSpaceModal = ({ isOpen, onClose, onCreated }: CreateSpaceModa
                     <p className="text-xs text-neutral-600 mt-2 flex items-center gap-1.5">
                       <ImageOff size={12} /> {t('No images selected yet')}
                     </p>
+                  )}
+                </div>
+
+                {/* WeChat Group QR */}
+                <div>
+                  <label className="text-sm font-semibold text-neutral-300 mb-1 block">{t('WeChat Group QR')} <span className="text-neutral-500 font-normal text-xs">{t('(optional)')}</span></label>
+                  <p className="text-xs text-neutral-500 mb-2">{t('Upload your WeChat group QR so players can scan and join')}</p>
+                  {wechatQrPreview ? (
+                    <div className="flex items-start gap-3">
+                      <img src={wechatQrPreview} alt="WeChat QR preview" className="w-24 h-24 object-contain rounded-lg border border-white/10 bg-white p-1" />
+                      <button
+                        type="button"
+                        onClick={() => { if (wechatQrPreview) URL.revokeObjectURL(wechatQrPreview); setWechatQrFile(null); setWechatQrPreview(null); }}
+                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors mt-1"
+                      >
+                        <X size={12} /> {t('Remove')}
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center gap-3 w-full h-16 border border-dashed border-white/20 hover:border-green-500/50 rounded-xl cursor-pointer bg-black/30 hover:bg-green-500/5 transition-all px-4">
+                      <UploadCloud size={20} className="text-neutral-400" />
+                      <span className="text-sm text-neutral-400"><span className="text-green-400 font-semibold">{t('Click to upload')}</span> {t('QR image')}</span>
+                      <input type="file" className="hidden" accept="image/*"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleWechatQrSelect(f); e.target.value = ""; }}
+                      />
+                    </label>
                   )}
                 </div>
 

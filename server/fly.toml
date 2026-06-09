@@ -10,6 +10,7 @@ primary_region = 'sin'
 
 [env]
   NODE_ENV = 'production'
+  FRONTEND_URL = 'https://werewolf.sg'
 
 [http_service]
   internal_port = 5000

@@ -12,7 +12,7 @@ interface AuthModalProps {
 
 export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalProps) => {
   const navigate = useNavigate();
-  const [view, setView] = useState<"login" | "register">(initialView);
+  const [view, setView] = useState<"login" | "register" | "forgot" | "reset">(initialView);
 
   // Register state
   const [regStep, setRegStep] = useState(1);
@@ -26,6 +26,12 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
+  // Forgot / reset password state
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetSuccess, setResetSuccess] = useState(false);
+
   // Shared UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +43,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
       const timer = setTimeout(() => {
         setRegStep(1); setRegEmail(""); setRegUsername(""); setRegPassword(""); setRegOtp("");
         setCooldown(0); setLoginEmail(""); setLoginPassword(""); setError(null); setLoading(false);
+        setForgotEmail(""); setResetToken(""); setResetPassword(""); setResetSuccess(false);
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -108,6 +115,39 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
     }
   };
 
+  // ── Forgot / Reset password ────────────────────────────────────────────────
+  const handleForgotSubmit = async () => {
+    setError(null);
+    if (!forgotEmail) { setError("Please enter your email."); return; }
+    setLoading(true);
+    try {
+      const { api } = await import("../services/api");
+      await api.post("/auth/forgot-password", { email: forgotEmail });
+      setView("reset");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to send reset code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetSubmit = async () => {
+    setError(null);
+    if (resetToken.length !== 6) { setError("Enter the 6-digit code from your email."); return; }
+    if (resetPassword.length < 8) { setError("New password must be at least 8 characters."); return; }
+    setLoading(true);
+    try {
+      const { api } = await import("../services/api");
+      await api.post("/auth/reset-password", { email: forgotEmail, token: resetToken, newPassword: resetPassword });
+      setResetSuccess(true);
+      setTimeout(() => { setView("login"); setResetSuccess(false); setForgotEmail(""); setResetToken(""); setResetPassword(""); }, 2000);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Reset failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -129,14 +169,20 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
               {/* Tabs */}
               <div className="flex justify-between items-center p-4 border-b border-white/5">
                 <div className="flex gap-4 text-sm font-bold">
-                  <button
-                    onClick={() => { setView("login"); setError(null); }}
-                    className={view === "login" ? "text-white" : "text-neutral-500 hover:text-neutral-300"}
-                  >LOGIN</button>
-                  <button
-                    onClick={() => { setView("register"); setError(null); }}
-                    className={view === "register" ? "text-white" : "text-neutral-500 hover:text-neutral-300"}
-                  >REGISTER</button>
+                  {view === "forgot" || view === "reset" ? (
+                    <span className="text-white">RESET PASSWORD</span>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setView("login"); setError(null); }}
+                        className={view === "login" ? "text-white" : "text-neutral-500 hover:text-neutral-300"}
+                      >LOGIN</button>
+                      <button
+                        onClick={() => { setView("register"); setError(null); }}
+                        className={view === "register" ? "text-white" : "text-neutral-500 hover:text-neutral-300"}
+                      >REGISTER</button>
+                    </>
+                  )}
                 </div>
                 <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors">
                   <X size={20} />
@@ -187,6 +233,15 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                     >
                       {loading ? "Logging in…" : "Enter Village"}
                     </button>
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => { setView("forgot"); setError(null); setForgotEmail(loginEmail); }}
+                        className="text-xs text-neutral-500 hover:text-blue-400 transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
 
                     <div className="relative my-4">
                       <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
@@ -290,6 +345,81 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                           }
                         </div>
                       </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* ── FORGOT PASSWORD ── */}
+                {view === "forgot" && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Reset Password</h2>
+                      <p className="text-sm text-neutral-400 mt-1">Enter your email to receive a 6-digit reset code.</p>
+                    </div>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 text-neutral-500" size={18} />
+                      <input
+                        type="email" placeholder="Email" value={forgotEmail}
+                        onChange={e => setForgotEmail(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && handleForgotSubmit()}
+                        className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
+                      />
+                    </div>
+                    <button
+                      onClick={handleForgotSubmit} disabled={loading}
+                      className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-all"
+                    >
+                      {loading ? "Sending…" : "Send Reset Code"}
+                    </button>
+                    <button type="button" onClick={() => { setView("login"); setError(null); }}
+                      className="w-full text-sm text-neutral-500 hover:text-white transition-colors py-1">
+                      ← Back to Login
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* ── RESET PASSWORD ── */}
+                {view === "reset" && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                    {resetSuccess ? (
+                      <div className="text-center py-4">
+                        <p className="text-green-400 font-bold text-lg">Password reset!</p>
+                        <p className="text-sm text-neutral-400 mt-1">Redirecting to login…</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <h2 className="text-xl font-bold text-white">Enter Reset Code</h2>
+                          <p className="text-sm text-neutral-400 mt-1">
+                            A 6-digit code was sent to <span className="text-white font-medium">{forgotEmail}</span>
+                          </p>
+                        </div>
+                        <input
+                          type="text" inputMode="numeric" placeholder="123456" maxLength={6}
+                          value={resetToken}
+                          onChange={e => setResetToken(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-center tracking-widest text-xl text-white outline-none focus:border-blue-500"
+                        />
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3 text-neutral-500" size={18} />
+                          <input
+                            type="password" placeholder="New password (min 8 chars)" value={resetPassword}
+                            onChange={e => setResetPassword(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && handleResetSubmit()}
+                            className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <button
+                          onClick={handleResetSubmit} disabled={loading}
+                          className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-all"
+                        >
+                          {loading ? "Resetting…" : "Reset Password"}
+                        </button>
+                        <button type="button" onClick={() => { setView("forgot"); setError(null); }}
+                          className="w-full text-sm text-neutral-500 hover:text-white transition-colors py-1">
+                          ← Resend code
+                        </button>
+                      </>
                     )}
                   </motion.div>
                 )}

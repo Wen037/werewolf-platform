@@ -84,6 +84,7 @@ export interface GameVenue {
   description: string;
   imageUrl: string;
   images?: string[];
+  wechatQrUrl?: string;
   coordinates: {
     lat: number;
     lng: number;

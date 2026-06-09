@@ -27,6 +27,7 @@ function toVenueDTO(
     ...(doc.openingHours !== undefined ? { openingHours: doc.openingHours } : {}),
     ...(doc.maxPax !== undefined ? { maxPax: doc.maxPax } : {}),
     images: doc.images ?? [],
+    wechatQrUrl: doc.wechatQrUrl,
     amenities: doc.amenities,
     rules: doc.rules,
     averageRating: doc.averageRating,
@@ -93,6 +94,7 @@ export class PlayerSpaceService {
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
       ...(dto.images !== undefined && { images: dto.images }),
+      ...(dto.wechatQrUrl !== undefined && { wechatQrUrl: dto.wechatQrUrl }),
       ...(dto.rules !== undefined && { rules: dto.rules }),
     };
 
@@ -124,7 +126,17 @@ export class PlayerSpaceService {
     if (dto.approx_fee  !== undefined) update['financials.approx_fee']      = dto.approx_fee;
     if (dto.price_type  !== undefined) update['financials.price_type']      = dto.price_type;
 
-    const updated = await PlayerSpaceModel.findByIdAndUpdate(venueId, { $set: update }, { new: true });
+    // wechatQrUrl: empty string means "remove the QR", a URL means "set it"
+    const unsetFields: Record<string, number> = {};
+    if (dto.wechatQrUrl !== undefined) {
+      if (dto.wechatQrUrl === '') { unsetFields['wechatQrUrl'] = 1; }
+      else { update['wechatQrUrl'] = dto.wechatQrUrl; }
+    }
+
+    const mongoOp: Record<string, unknown> = { $set: update };
+    if (Object.keys(unsetFields).length > 0) mongoOp['$unset'] = unsetFields;
+
+    const updated = await PlayerSpaceModel.findByIdAndUpdate(venueId, mongoOp, { new: true });
     return Result.ok(toVenueDTO(updated!));
   }
 

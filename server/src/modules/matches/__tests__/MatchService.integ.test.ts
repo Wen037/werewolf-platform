@@ -32,7 +32,8 @@ describe('MatchService — createMatch', () => {
     expect(dto.id).toBeTruthy();
     expect(dto.currentPlayers).toBe(1);
     expect(dto.approvalMode).toBe('approval');
-    expect(dto.venueApprovalStatus).toBe('pending');
+    // host owns the venue → auto-confirmed per Session 30 business rule
+    expect(dto.venueApprovalStatus).toBe('confirmed');
   });
 
   it('MS-CREATE-2: host is auto-enrolled with registered SessionInteraction', async () => {

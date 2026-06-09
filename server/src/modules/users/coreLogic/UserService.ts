@@ -1,17 +1,20 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Result } from '../../../shared/core/Result';
-import { sendOtpEmail } from '../../../shared/infra/email';
+import { sendOtpEmail, sendPasswordResetEmail } from '../../../shared/infra/email';
 import { eventBus } from '../../../shared/infra/EventBus';
 import { UserModel, IUserDocument } from '../DBSchemas/UserSchema';
 import { UserFollowModel } from '../DBSchemas/UserFollowSchema';
 import { PendingRegistrationModel } from '../DBSchemas/PendingRegistrationSchema';
+import { PasswordResetModel } from '../DBSchemas/PasswordResetSchema';
 import { PROFICIENCY_TO_SKILL, SKILL_LEVEL_MAP, SkillLevel } from '../domain/User';
 import {
   AuthResponseDTO,
+  ForgotPasswordDTO,
   FullUserProfileResponseDTO,
   LoginDTO,
   RegisterDTO,
+  ResetPasswordDTO,
   UpdateProfileDTO,
   UserResponseDTO,
   VerifyOtpDTO,
@@ -324,6 +327,74 @@ export class UserService {
     ]);
 
     return Result.ok();
+  }
+
+  // ── Password reset (user self-service) ───────────────────────────────────
+
+  async forgotPassword(dto: ForgotPasswordDTO): Promise<Result<{ message: string }>> {
+    // Always return the same message to prevent email enumeration
+    const MSG = 'If that email is registered, a reset code has been sent.';
+    const user = await UserModel.findOne({ email: dto.email });
+    if (!user) return Result.ok({ message: MSG });
+
+    const token = generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await PasswordResetModel.findOneAndUpdate(
+      { email: dto.email },
+      { email: dto.email, token, expiresAt },
+      { upsert: true, new: true }
+    );
+
+    try {
+      await sendPasswordResetEmail(dto.email, token);
+    } catch (err) {
+      console.error('[UserService] Failed to send password reset email:', err);
+    }
+
+    return Result.ok({ message: MSG });
+  }
+
+  async resetPassword(dto: ResetPasswordDTO): Promise<Result<{ message: string }>> {
+    const reset = await PasswordResetModel.findOne({ email: dto.email });
+    if (!reset || reset.token !== dto.token) return Result.fail('Invalid or expired reset code.');
+    if (new Date() > reset.expiresAt) return Result.fail('Reset code has expired. Please request a new one.');
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await UserModel.findOneAndUpdate({ email: dto.email }, { $set: { passwordHash } });
+    await PasswordResetModel.deleteOne({ email: dto.email });
+
+    return Result.ok({ message: 'Password reset successfully. You can now log in.' });
+  }
+
+  // ── Password reset (admin-triggered) ────────────────────────────────────
+
+  async adminResetPassword(adminId: string, targetUserId: string): Promise<Result<{ message: string }>> {
+    const admin = await UserModel.findById(adminId);
+    if (!admin || !['admin', 'web_admin'].includes(admin.role)) {
+      return Result.fail('Forbidden.');
+    }
+
+    const target = await UserModel.findById(targetUserId);
+    if (!target) return Result.fail('User not found.');
+
+    const token = generateOtp();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour for admin-sent reset
+
+    await PasswordResetModel.findOneAndUpdate(
+      { email: target.email },
+      { email: target.email, token, expiresAt },
+      { upsert: true, new: true }
+    );
+
+    try {
+      await sendPasswordResetEmail(target.email, token);
+    } catch (err) {
+      console.error('[UserService] Failed to send admin-triggered password reset email:', err);
+      return Result.fail('Failed to send reset email. Check RESEND_API_KEY and FROM_EMAIL env vars.');
+    }
+
+    return Result.ok({ message: `Password reset email sent to ${target.email}.` });
   }
 
   async getUserById(

@@ -11,6 +11,7 @@ export interface IPlayerSpaceDocument extends Document {
   description?: string;
   imageUrl?: string;
   images?: string[];      // Additional photos for the venue carousel
+  wechatQrUrl?: string;  // QR code image for joining the venue's WeChat group
   type: 'house' | 'work' | 'school' | 'boardgame_store' | 'other';
   location: { lat: number; long: number };
   geoLocation?: { type: 'Point'; coordinates: [number, number] };
@@ -37,6 +38,7 @@ const PlayerSpaceSchema = new Schema<IPlayerSpaceDocument>(
     description: { type: String },
     imageUrl: { type: String },
     images: [{ type: String }],
+    wechatQrUrl: { type: String },
     type: {
       type: String,
       enum: ['house', 'work', 'school', 'boardgame_store', 'other'],

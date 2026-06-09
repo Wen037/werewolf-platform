@@ -10,6 +10,8 @@ import {
   VerifyOtpSchema,
   LoginSchema,
   UpdateProfileSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
 } from '../DTOs/UserDTOs';
 
 const router = Router();
@@ -27,6 +29,18 @@ router.post('/auth/verify-otp', authLimiter, validate(VerifyOtpSchema), async (r
   const result = await userService.verifyOtp(req.body as Parameters<UserService['verifyOtp']>[0]);
   if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
   res.status(201).json(result.getValue());
+});
+
+router.post('/auth/forgot-password', authLimiter, validate(ForgotPasswordSchema), async (req: Request, res: Response) => {
+  const result = await userService.forgotPassword(req.body as Parameters<UserService['forgotPassword']>[0]);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
+});
+
+router.post('/auth/reset-password', authLimiter, validate(ResetPasswordSchema), async (req: Request, res: Response) => {
+  const result = await userService.resetPassword(req.body as Parameters<UserService['resetPassword']>[0]);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
 });
 
 router.post('/auth/login', authLimiter, validate(LoginSchema), async (req: Request, res: Response) => {
@@ -56,6 +70,21 @@ router.get('/users/:id', optionalAuth, async (req: Request, res: Response) => {
   const id = String(req.params['id']);
   const result = await userService.getUserById(id, req.user?.userId);
   if (result.isFailure) { res.status(404).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
+});
+
+// ─── Admin: Password Reset ────────────────────────────────────────────────────
+
+router.post('/admin/users/:id/reset-password', requireAuth, async (req: Request, res: Response) => {
+  const result = await userService.adminResetPassword(
+    req.user!.userId,
+    String(req.params['id'])
+  );
+  if (result.isFailure) {
+    const status = result.getError() === 'Forbidden.' ? 403 : 404;
+    res.status(status).json({ message: result.getError() });
+    return;
+  }
   res.status(200).json(result.getValue());
 });
 
