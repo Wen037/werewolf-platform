@@ -1309,7 +1309,7 @@ export default function VenueDetailPage() {
             {/* About */}
             <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
               <h2 className="text-xl font-bold text-white mb-4">{t('About this Place')}</h2>
-              <p className="text-neutral-400 leading-relaxed mb-6">
+              <p className="text-neutral-200 leading-relaxed mb-6">
                 {venue.description || "A mysterious gathering place for werewolves and villagers alike."}
               </p>
 
@@ -1366,7 +1366,7 @@ export default function VenueDetailPage() {
               </h2>
 
               {comingEvents.length === 0 ? (
-                <p className="text-neutral-500 text-sm">{t('No upcoming events scheduled here yet.')}</p>
+                <p className="text-neutral-400 text-sm">{t('No upcoming events scheduled here yet.')}</p>
               ) : (
                 <div className="space-y-3">
                   {comingEvents.map((event, i) => {
@@ -1384,13 +1384,13 @@ export default function VenueDetailPage() {
                               {isFull ? t("FULL") : t("OPEN")}
                             </span>
                             <ProficiencyBadge value={event.proficiency} />
-                            <span className="text-xs text-neutral-500 flex items-center gap-1">
+                            <span className="text-xs text-neutral-300 flex items-center gap-1">
                               <IconClock size={11} /> {formatEventDate(event.date)}
                             </span>
                           </div>
                           <p className="text-white font-semibold text-sm truncate">{event.title}</p>
-                          <p className="text-neutral-500 text-xs mt-0.5">
-                            Host: <span className="text-neutral-300">{event.hostName ?? "Unknown"}</span>
+                          <p className="text-neutral-400 text-xs mt-0.5">
+                            Host: <span className="text-neutral-200">{event.hostName ?? "Unknown"}</span>
                           </p>
                         </div>
 
@@ -1432,7 +1432,7 @@ export default function VenueDetailPage() {
               </h2>
 
               {historyEvents.length === 0 ? (
-                <p className="text-neutral-500 text-sm">No events have been held here yet.</p>
+                <p className="text-neutral-400 text-sm">No events have been held here yet.</p>
               ) : (
                 <div className="space-y-3">
                   {historyEvents.map((event, i) => (

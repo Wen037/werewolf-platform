@@ -675,7 +675,7 @@ export default function HomePage() {
 
         {/* Buttons — mobile: directly below subtitle text; desktop: pinned above description */}
         <div
-          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 items-center w-full px-6 mt-6 md:absolute md:bottom-[14vh] md:left-1/2 md:-translate-x-1/2"
+          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 items-center w-full px-6 absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 md:top-auto md:translate-y-0 md:bottom-[14vh]"
           style={{ whiteSpace: "nowrap", maxWidth: "32rem" }}
         >
           <button

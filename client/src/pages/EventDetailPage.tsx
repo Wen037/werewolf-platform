@@ -193,7 +193,7 @@ export default function EventDetailPage() {
                   <IconClock size={20} className="text-yellow-400" />
                 </div>
                 <div>
-                  <div className="text-xs text-neutral-500 uppercase tracking-wider mb-0.5">{t("Game Time")}</div>
+                  <div className="text-xs text-neutral-300 uppercase tracking-wider mb-0.5">{t("Game Time")}</div>
                   <div className="text-white font-bold">{formatEventDate(event.date)}</div>
                 </div>
               </div>
@@ -203,7 +203,7 @@ export default function EventDetailPage() {
                   <IconMapPin size={20} className="text-red-400" />
                 </div>
                 <div>
-                  <div className="text-xs text-neutral-500 uppercase tracking-wider mb-0.5">{t("Venue")}</div>
+                  <div className="text-xs text-neutral-300 uppercase tracking-wider mb-0.5">{t("Venue")}</div>
                   <div className="text-white font-bold">{event.venueName || t("TBA")}</div>
                   {event.venueAddress && (
                     <div className="text-neutral-400 text-xs mt-0.5">{event.venueAddress}</div>
@@ -216,14 +216,14 @@ export default function EventDetailPage() {
                   <IconUser size={20} className="text-neutral-300" />
                 </div>
                 <div>
-                  <div className="text-xs text-neutral-500 uppercase tracking-wider mb-0.5">{t("Host")}</div>
+                  <div className="text-xs text-neutral-300 uppercase tracking-wider mb-0.5">{t("Host")}</div>
                   <div className="text-white font-bold">{event.hostName || t("Unknown")}</div>
                 </div>
               </div>
 
               {event.description && (
                 <div className="bg-white/5 border border-white/8 rounded-2xl p-5">
-                  <div className="text-xs text-neutral-500 uppercase tracking-wider mb-2">{t("About this Event")}</div>
+                  <div className="text-xs text-neutral-300 uppercase tracking-wider mb-2">{t("About this Event")}</div>
                   <p className="text-neutral-200 text-sm leading-relaxed">{event.description}</p>
                 </div>
               )}
@@ -231,7 +231,7 @@ export default function EventDetailPage() {
               {/* Players */}
               <div className="bg-white/5 border border-white/8 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="text-xs text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <div className="text-xs text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
                     <IconUsers size={13} /> {t("Players")}
                   </div>
                   <span className={`text-sm font-bold ${isFull ? "text-yellow-400" : "text-white"}`}>
