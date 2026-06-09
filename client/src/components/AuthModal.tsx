@@ -35,6 +35,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
   // Shared UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGoogleAccountError, setIsGoogleAccountError] = useState(false);
 
   useEffect(() => { setView(initialView); }, [initialView]);
 
@@ -44,6 +45,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
         setRegStep(1); setRegEmail(""); setRegUsername(""); setRegPassword(""); setRegOtp("");
         setCooldown(0); setLoginEmail(""); setLoginPassword(""); setError(null); setLoading(false);
         setForgotEmail(""); setResetToken(""); setResetPassword(""); setResetSuccess(false);
+        setIsGoogleAccountError(false);
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -108,6 +110,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
   // ── Login ──────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     setError(null);
+    setIsGoogleAccountError(false);
     if (!loginEmail || !loginPassword) { setError("Email and password required."); return; }
     setLoading(true);
     try {
@@ -115,7 +118,13 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
       onClose();
       navigate("/lobby");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Login failed.");
+      const msg = e instanceof Error ? e.message : "Login failed.";
+      if (msg.startsWith('GOOGLE_ACCOUNT:')) {
+        setIsGoogleAccountError(true);
+        setError('This account uses Google Sign-In. Please log in with Google, or set a password using "Forgot Password".');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -199,8 +208,29 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
 
                 {/* Error banner */}
                 {error && (
-                  <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-4">
-                    <AlertCircle size={14} className="shrink-0" /> {error}
+                  <div className="mb-4 space-y-2">
+                    <div className="flex items-start gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                      <AlertCircle size={14} className="shrink-0 mt-0.5" /> <span>{error}</span>
+                    </div>
+                    {/* Google-account helper — shown when the account has no password */}
+                    {isGoogleAccountError && (
+                      <div className="flex flex-col gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleGoogleLogin}
+                          className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all"
+                        >
+                          <span className="text-red-500 font-bold">G</span> Sign in with Google
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setView("forgot"); setError(null); setIsGoogleAccountError(false); setForgotEmail(loginEmail); }}
+                          className="w-full text-sm text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-400/50 rounded-lg py-2 transition-all"
+                        >
+                          Set a password for this account →
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 

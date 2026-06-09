@@ -19,10 +19,16 @@ async function request<T>(path: string, opts: { method?: string; body?: unknown 
   });
 
   if (res.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
-    throw new Error('Unauthorized');
+    if (localStorage.getItem('token')) {
+      // Existing session expired — clear and force re-login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+      throw new Error('Session expired. Please log in again.');
+    }
+    // Login attempt with no existing session — surface the server error, don't redirect
+    const errData = await res.json().catch(() => ({ message: 'Invalid credentials.' }));
+    throw new Error(errData.message ?? 'Invalid credentials.');
   }
 
   if (!res.ok) {

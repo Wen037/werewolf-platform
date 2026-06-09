@@ -187,6 +187,10 @@ export class UserService {
     const user = await UserModel.findOne({ email: dto.email });
     if (!user) return Result.fail('Invalid email or password.');
 
+    if (user.passwordHash === 'google_oauth_no_password') {
+      return Result.fail('GOOGLE_ACCOUNT: This account uses Google Sign-In. Please log in with Google, or use "Forgot Password" to set a password for this email.');
+    }
+
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) return Result.fail('Invalid email or password.');
 
