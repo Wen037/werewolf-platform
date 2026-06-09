@@ -172,6 +172,29 @@ export class MapService {
    * Restricted to Singapore with `countrycodes=sg`.
    */
   async geocodeAddress(address: string): Promise<GeocodeResultDTO | null> {
+    // ── 1. Try OneMap (SLA) — accurate for all Singapore postal codes & addresses ──
+    try {
+      const onemap = await axios.get<{
+        found: number;
+        results: Array<{ LATITUDE: string; LONGITUDE: string; ADDRESS: string }>;
+      }>('https://www.onemap.gov.sg/api/common/elastic/search', {
+        params: { searchVal: address, returnGeom: 'Y', getAddrDetails: 'Y', pageNum: 1 },
+        timeout: 5000,
+      });
+
+      const hit = onemap.data?.results?.[0];
+      if (hit && hit.LATITUDE && hit.LONGITUDE) {
+        return {
+          lat: parseFloat(hit.LATITUDE),
+          lng: parseFloat(hit.LONGITUDE),
+          displayName: hit.ADDRESS,
+        };
+      }
+    } catch (err) {
+      console.warn('[MapService.geocodeAddress] OneMap error, falling back to Nominatim:', err);
+    }
+
+    // ── 2. Fallback: Nominatim (less accurate for SG postal codes) ──────────────
     try {
       const url = 'https://nominatim.openstreetmap.org/search';
       const resp = await axios.get<Array<{ lat: string; lon: string; display_name: string }>>(url, {
