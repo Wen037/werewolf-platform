@@ -14,7 +14,8 @@ export const sendOtpEmail = async (to: string, otp: string): Promise<void> => {
     console.log(`[TEST] OTP for ${to}: ${otp}`);
     return;
   }
-  await getResend().emails.send({
+  // Resend SDK v2 returns { data, error } instead of throwing — must check error explicitly.
+  const { error } = await getResend().emails.send({
     from: process.env.FROM_EMAIL ?? 'noreply@example.com',
     to,
     subject: 'Your Werewolf SG verification code',
@@ -32,6 +33,10 @@ export const sendOtpEmail = async (to: string, otp: string): Promise<void> => {
       </div>
     `,
   });
+  if (error) {
+    console.error('[email] sendOtpEmail failed:', error);
+    throw new Error(`Email delivery failed: ${error.message}`);
+  }
 };
 
 export const sendPasswordResetEmail = async (to: string, token: string): Promise<void> => {
@@ -39,7 +44,7 @@ export const sendPasswordResetEmail = async (to: string, token: string): Promise
     console.log(`[TEST] Password reset token for ${to}: ${token}`);
     return;
   }
-  await getResend().emails.send({
+  const { error } = await getResend().emails.send({
     from: process.env.FROM_EMAIL ?? 'noreply@example.com',
     to,
     subject: 'Reset your Werewolf SG password',
@@ -57,6 +62,10 @@ export const sendPasswordResetEmail = async (to: string, token: string): Promise
       </div>
     `,
   });
+  if (error) {
+    console.error('[email] sendPasswordResetEmail failed:', error);
+    throw new Error(`Email delivery failed: ${error.message}`);
+  }
 };
 
 export const sendEventNotificationEmail = async (
@@ -64,10 +73,14 @@ export const sendEventNotificationEmail = async (
   subject: string,
   html: string
 ): Promise<void> => {
-  await getResend().emails.send({
+  const { error } = await getResend().emails.send({
     from: process.env.FROM_EMAIL ?? 'noreply@example.com',
     to,
     subject,
     html,
   });
+  if (error) {
+    console.error('[email] sendEventNotificationEmail failed:', error);
+    throw new Error(`Email delivery failed: ${error.message}`);
+  }
 };
