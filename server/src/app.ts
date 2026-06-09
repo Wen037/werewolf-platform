@@ -81,6 +81,19 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     res.status(400).json({ message: err.message });
     return;
   }
+  // Body-parser: malformed JSON body (SyntaxError with .status = 400)
+  if (err.name === 'SyntaxError' && (err as NodeJS.ErrnoException).status === 400) {
+    res.status(400).json({ message: 'Invalid JSON body.' });
+    return;
+  }
+  // Body-parser: request entity too large (PayloadTooLargeError, status 413)
+  if (
+    err.name === 'PayloadTooLargeError' ||
+    (err as { type?: string }).type === 'entity.too.large'
+  ) {
+    res.status(413).json({ message: 'Request body too large. Maximum allowed: 10kb.' });
+    return;
+  }
 
   res.status(500).json({
     message:

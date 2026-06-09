@@ -21,8 +21,15 @@ export const validate = (schema: ZodSchema, source: 'body' | 'query' = 'body') =
       return;
     }
     if (source === 'query') {
-      // req.query is read-only — mutate in place so coerced values are available
-      Object.assign(req.query, result.data);
+      // Express 5: req.query is a read-only computed getter — override it on this
+      // specific request instance with a plain data property so coerced Zod values
+      // (numbers, booleans, defaults) are visible to downstream route handlers.
+      Object.defineProperty(req, 'query', {
+        value: result.data,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
     } else {
       req.body = result.data;
     }
