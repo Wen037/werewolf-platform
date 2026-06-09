@@ -52,14 +52,25 @@ export default function GameSpacePage() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleLike = (e: React.MouseEvent, venueId: string) => {
+  const handleLike = async (e: React.MouseEvent, venueId: string) => {
     e.stopPropagation();
     if (!requireAuth()) return;
+    // Optimistic update
     setVenues(prev => prev.map(v => {
       if (v.id !== venueId) return v;
       const liked = v.isLiked || false;
       return { ...v, isLiked: !liked, totalLikes: liked ? (v.totalLikes || 1) - 1 : (v.totalLikes || 0) + 1 };
     }));
+    try {
+      await GameService.likeVenue(venueId);
+    } catch {
+      // Revert on error
+      setVenues(prev => prev.map(v => {
+        if (v.id !== venueId) return v;
+        const liked = v.isLiked || false;
+        return { ...v, isLiked: !liked, totalLikes: liked ? (v.totalLikes || 1) - 1 : (v.totalLikes || 0) + 1 };
+      }));
+    }
   };
 
   const handleSubscribe = async (e: React.MouseEvent, venueId: string) => {

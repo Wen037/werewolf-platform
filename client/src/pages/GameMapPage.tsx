@@ -176,38 +176,58 @@ export default function GameMapPage() {
   };
 
   // --- LIKE HANDLERS ---
-  const handleLikeVenue = (e: React.MouseEvent, venueId: string) => {
+  const handleLikeVenue = async (e: React.MouseEvent, venueId: string) => {
     e.stopPropagation();
     if (!requireAuth()) return;
+    const optimistic = (v: VenueUI): VenueUI => ({
+      ...v,
+      isLiked: !v.isLiked,
+      totalLikes: v.isLiked ? (v.totalLikes || 1) - 1 : (v.totalLikes || 0) + 1,
+    });
     setVenues(prev => prev.map(v => {
-      if (v.id === venueId) {
-        const updated = {
-          ...v,
-          isLiked: !v.isLiked,
-          totalLikes: v.isLiked ? (v.totalLikes || 1) - 1 : (v.totalLikes || 0) + 1
-        };
-        if (selectedItem?.id === venueId) setSelectedItem(updated);
-        return updated;
-      }
-      return v;
+      if (v.id !== venueId) return v;
+      const updated = optimistic(v);
+      if (selectedItem?.id === venueId) setSelectedItem(updated);
+      return updated;
     }));
+    try {
+      await GameService.likeVenue(venueId);
+    } catch {
+      // Revert
+      setVenues(prev => prev.map(v => {
+        if (v.id !== venueId) return v;
+        const reverted = optimistic(v);
+        if (selectedItem?.id === venueId) setSelectedItem(reverted);
+        return reverted;
+      }));
+    }
   };
 
-  const handleLikeEvent = (e: React.MouseEvent, gameId: string) => {
+  const handleLikeEvent = async (e: React.MouseEvent, gameId: string) => {
     e.stopPropagation();
     if (!requireAuth()) return;
+    const optimistic = (g: GameUI): GameUI => ({
+      ...g,
+      isLiked: !g.isLiked,
+      totalLikes: g.isLiked ? (g.totalLikes || 1) - 1 : (g.totalLikes || 0) + 1,
+    });
     setGames(prev => prev.map(g => {
-      if (g.id === gameId) {
-        const updated = {
-          ...g,
-          isLiked: !g.isLiked,
-          totalLikes: g.isLiked ? (g.totalLikes || 1) - 1 : (g.totalLikes || 0) + 1
-        };
-        if (selectedItem?.id === gameId) setSelectedItem(updated);
-        return updated;
-      }
-      return g;
+      if (g.id !== gameId) return g;
+      const updated = optimistic(g);
+      if (selectedItem?.id === gameId) setSelectedItem(updated);
+      return updated;
     }));
+    try {
+      await GameService.likeGame(gameId);
+    } catch {
+      // Revert
+      setGames(prev => prev.map(g => {
+        if (g.id !== gameId) return g;
+        const reverted = optimistic(g);
+        if (selectedItem?.id === gameId) setSelectedItem(reverted);
+        return reverted;
+      }));
+    }
   };
 
   // --- ADMIN PIN HANDLERS ---
