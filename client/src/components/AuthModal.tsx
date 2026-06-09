@@ -62,6 +62,12 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
     if (!regEmail || !regUsername || !regPassword) {
       setError("All fields are required."); return;
     }
+    if (regPassword.length < 8) {
+      setError("Password must be at least 8 characters."); return;
+    }
+    if (regUsername.length < 3) {
+      setError("Username must be at least 3 characters."); return;
+    }
     setLoading(true);
     try {
       await AuthService.register(regEmail, regUsername, regPassword);

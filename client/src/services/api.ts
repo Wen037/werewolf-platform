@@ -27,6 +27,13 @@ async function request<T>(path: string, opts: { method?: string; body?: unknown 
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({ message: 'Request failed' }));
+    // If the server returned Zod validation errors, surface the first field error
+    // instead of the generic "Validation error" message so the user knows what to fix.
+    const fieldErrors = data.errors?.fieldErrors as Record<string, string[]> | undefined;
+    if (fieldErrors) {
+      const first = Object.values(fieldErrors).flat()[0];
+      if (first) throw new Error(first);
+    }
     throw new Error(data.message ?? 'Request failed');
   }
 
