@@ -1014,8 +1014,8 @@ export default function VenueDetailPage() {
   }, [hash, id]);
 
   const now = Date.now();
-  const comingEvents  = useMemo(() => sessions.filter(s => s.status !== "finished" || new Date(s.date).getTime() > now), [sessions, now]);
-  const historyEvents = useMemo(() => sessions.filter(s => s.status === "finished"), [sessions]);
+  const comingEvents  = useMemo(() => sessions.filter(s => s.status !== "finished" && new Date(s.date).getTime() > now), [sessions, now]);
+  const historyEvents = useMemo(() => sessions.filter(s => s.status === "finished" || new Date(s.date).getTime() <= now), [sessions, now]);
   const pendingApprovals = useMemo(
     () => permissions.canEdit ? sessions.filter(s => s.status !== "finished" && s.venueApprovalStatus === "pending") : [],
     [sessions, permissions.canEdit]
