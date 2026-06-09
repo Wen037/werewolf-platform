@@ -13,7 +13,7 @@ interface SignResponse {
  * signature (the API secret never leaves the server). Returns the
  * Cloudinary `secure_url` to store on the venue/event/profile record.
  */
-export async function uploadImage(file: File, folder: 'avatars' | 'venues' | 'events'): Promise<string> {
+export async function uploadImage(file: File, folder: 'avatars' | 'venues' | 'events' | 'wechat_qr'): Promise<string> {
   const sign = await api.post<SignResponse>('/upload/sign', { folder });
 
   const form = new FormData();
@@ -36,7 +36,7 @@ export async function uploadImage(file: File, folder: 'avatars' | 'venues' | 'ev
 }
 
 /** Uploads multiple images in sequence, returning their secure URLs in order. */
-export async function uploadImages(files: File[], folder: 'avatars' | 'venues' | 'events'): Promise<string[]> {
+export async function uploadImages(files: File[], folder: 'avatars' | 'venues' | 'events' | 'wechat_qr'): Promise<string[]> {
   const urls: string[] = [];
   for (const file of files) {
     urls.push(await uploadImage(file, folder));
