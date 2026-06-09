@@ -467,11 +467,21 @@ export default function MyProfilePage() {
   };
 
   // --- Handle Updates ---
-  const handleSelectAvatar = (url: string) => {
+  const handleSelectAvatar = async (url: string) => {
     if (profile) {
       setProfile({ ...profile, avatarUrl: url });
-      // GameService.updateAvatar(url);
       setIsAvatarModalOpen(false);
+      try {
+        await GameService.updateProfile({ avatarUrl: url });
+        // Sync the user object in localStorage so the sidebar reflects the new avatar immediately
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          const user = JSON.parse(stored);
+          localStorage.setItem('user', JSON.stringify({ ...user, avatarUrl: url }));
+        }
+      } catch (err) {
+        console.error('[Profile] Failed to save avatar:', err);
+      }
       triggerToast();
     }
   };

@@ -29,9 +29,10 @@ const eventsIcon = new L.Icon({
 });
 
 const placeIcon = new L.Icon({
-  iconUrl: "/mapVenuesIcon.png",
+  iconUrl: "/icon_werewolf.png",
   iconSize: [36, 36],
-  popupAnchor: [0, -18]
+  iconAnchor: [18, 36],
+  popupAnchor: [0, -36]
 });
 
 // --- HELPER: Truncate venue/place name shown under map markers (max 10 chars) ---
