@@ -113,13 +113,20 @@ export default function GameMapPage() {
   };
 
   useEffect(() => {
+    // Events that started more than 1 hour ago are considered stale and hidden from the map.
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const isFresh = (g: { date: string }) =>
+      new Date(g.date).getTime() > Date.now() - ONE_HOUR_MS;
+
     Promise.all([GameService.getAllVenues(), GameService.getActiveGames()])
       .then(([vData, gData]) => {
         setVenues(vData.map(v => ({ ...v, isLiked: false })));
-        setGames(gData.map(g => ({ ...g, isLiked: false })));
+        // Filter out events that started more than 1 hour ago
+        const freshGames = gData.filter(isFresh);
+        setGames(freshGames.map(g => ({ ...g, isLiked: false })));
         // Initialize join states from existing interactions
         const initial: Record<string, JoinState> = {};
-        for (const g of gData) {
+        for (const g of freshGames) {
           const s = (g as any).myInteraction?.status;
           if (s === "registered" || s === "attended") initial[g.id] = "joined";
           else if (s === "pending") initial[g.id] = "pending";

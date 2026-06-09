@@ -673,9 +673,9 @@ export default function HomePage() {
           {t('A Night of Deception')}
         </p>
 
-        {/* Buttons — mobile: directly below subtitle text; desktop: pinned to lower third */}
+        {/* Buttons — mobile: directly below subtitle text; desktop: pinned above description */}
         <div
-          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 items-center w-full px-6 mt-6 md:absolute md:bottom-[10vh] md:left-1/2 md:-translate-x-1/2"
+          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 items-center w-full px-6 mt-6 md:absolute md:bottom-[14vh] md:left-1/2 md:-translate-x-1/2"
           style={{ whiteSpace: "nowrap", maxWidth: "32rem" }}
         >
           <button
@@ -725,34 +725,34 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Mobile description — tiny text at very bottom */}
+        {/* Mobile description — tiny footer text, well below in-flow buttons */}
         <p
-          className="md:hidden absolute pointer-events-none text-center px-6"
+          className="md:hidden absolute pointer-events-none text-center px-8"
           style={{
-            bottom: "1.4rem",
+            bottom: "0.8rem",
             fontFamily: "'Cinzel', serif",
-            fontSize: "0.58rem",
-            letterSpacing: "0.08em",
-            color: "rgba(180,165,130,0.40)",
-            lineHeight: 1.65,
+            fontSize: "0.5rem",
+            letterSpacing: "0.06em",
+            color: "rgba(180,165,130,0.28)",
+            lineHeight: 1.6,
             userSelect: "none",
           }}
         >
           {t('Singapore\'s platform for finding and hosting Werewolf social deduction game events. Sign in to join games, discover venues, and connect with players.')}
         </p>
 
-        {/* Desktop description — below buttons */}
+        {/* Desktop description — sits just below buttons, clear of overlap */}
         <p
           className="hidden md:block absolute pointer-events-none text-center px-6"
           style={{
-            bottom: "3.5vh",
+            bottom: "3vh",
             fontFamily: "'Cinzel', serif",
-            fontSize: "clamp(0.58rem, 1.1vw, 0.78rem)",
-            letterSpacing: "0.10em",
-            color: "rgba(180,165,130,0.45)",
+            fontSize: "clamp(0.52rem, 0.9vw, 0.7rem)",
+            letterSpacing: "0.08em",
+            color: "rgba(180,165,130,0.38)",
             lineHeight: 1.7,
             userSelect: "none",
-            maxWidth: "30rem",
+            maxWidth: "28rem",
             left: "50%",
             transform: "translateX(-50%)",
           }}

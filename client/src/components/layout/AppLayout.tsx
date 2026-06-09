@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "../ui/sidebar";
 import { IconLogin, IconLogout, IconMail, IconShieldCheck } from "@tabler/icons-react";
 import { useLocation } from "react-router-dom";
@@ -92,9 +92,22 @@ function DebugPanel() {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [, forceUpdate] = useState(0);
   const isLoggedIn = AuthService.isLoggedIn();
   const currentUser = AuthService.getCurrentUser();
   const userName = currentUser?.username ?? "Guest";
+
+  // If a token exists in localStorage but no user object (e.g. after Google OAuth
+  // where fetchCurrentUser() in AuthCallbackPage failed), silently re-fetch and
+  // re-render so the sidebar/header reflects the logged-in state.
+  useEffect(() => {
+    const token = AuthService.getToken();
+    if (token && !AuthService.getCurrentUser()) {
+      AuthService.fetchCurrentUser()
+        .then(() => forceUpdate(n => n + 1))
+        .catch(() => {/* token invalid — stay as guest */});
+    }
+  }, []);
 
   const [isContactOpen, setContactOpen] = useState(false);
   const [isAuthOpen, setAuthOpen] = useState(false);
