@@ -358,14 +358,18 @@ function MatchDetailModal({ event, onClose }: { event: GameSessionDTO | null; on
 
 // --- PREDEFINED AVATARS ---
 const PREDEFINED_AVATARS = [
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Alpha",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Beta",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Gamma",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Delta",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Echo",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Leo",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mia"
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Luna",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Marcus",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Kai",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Nova",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Ember",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=River",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Sage",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Orion",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Zara",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Felix",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Storm",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Atlas",
 ];
 
 const SkillBadge = ({ level, onChange }: { level: string, onChange: (l: any) => void }) => {
