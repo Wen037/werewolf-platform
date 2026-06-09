@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+const SocialLinksSchema = z.object({
+  wechatId:       z.string().max(100).optional(),
+  telegramHandle: z.string().max(100).optional(),
+  facebookUrl:    z.string().url().optional().or(z.literal('')),
+}).optional();
+
 export const CreatePlayerSpaceSchema = z.object({
   name: z.string().min(3).max(100),
   address: z.string().min(5).max(200),
@@ -19,6 +25,7 @@ export const CreatePlayerSpaceSchema = z.object({
   imageUrl: z.string().url().optional(),
   images: z.array(z.string().url()).max(10).optional(),
   wechatQrUrl: z.string().url().optional(),
+  socialLinks: SocialLinksSchema,
 });
 
 // Owners can update all mutable properties; verified status and owner can only be changed by admin
@@ -39,6 +46,7 @@ export const UpdatePlayerSpaceSchema = z.object({
   imageUrl: z.string().url().optional(),
   images: z.array(z.string().url()).max(10).optional(),
   wechatQrUrl: z.string().url().optional().or(z.literal('')),
+  socialLinks: SocialLinksSchema,
 });
 
 export const RateVenueSchema = z.object({
@@ -73,6 +81,12 @@ export interface GameVenueResponseDTO {
   averageRating: number;
   totalLikes: number;
   totalSubscribers: number;
+  /** Social/contact links set by the owner — PDPA-safe text links, no phone numbers */
+  socialLinks?: {
+    wechatId?: string;
+    telegramHandle?: string;
+    facebookUrl?: string;
+  };
   myInteraction: {
     isLiked: boolean;
     isSubscribed: boolean;

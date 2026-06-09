@@ -89,6 +89,12 @@ export const RealGameService = {
   rateVenue: (id: string, rating: number): Promise<void> =>
     api.post(`/venues/${id}/rate`, { rating }),
 
+  bookingInquiry: (
+    id: string,
+    payload: { date: string; time: string; duration: string; pax: number; name: string; contact: string; notes?: string }
+  ): Promise<{ autoConfirmed: boolean }> =>
+    api.post(`/venues/${id}/booking-inquiry`, payload),
+
   updateVenue: (id: string, fields: Partial<GameVenue>): Promise<GameVenueDTO> =>
     api.patch(`/venues/${id}`, toUpdateVenuePayload(fields)),
 

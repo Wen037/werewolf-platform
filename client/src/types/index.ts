@@ -102,6 +102,12 @@ export interface GameVenue {
   totalLikes: number;
   totalSubscribers: number;
   ownerId?: string;
+  /** PDPA-safe social/contact links set explicitly by the owner per venue */
+  socialLinks?: {
+    wechatId?: string;
+    telegramHandle?: string;
+    facebookUrl?: string;
+  };
 }
 
 export type SocialGroupType = 'telegram' | 'whatsapp' | 'wechat' | 'facebook';

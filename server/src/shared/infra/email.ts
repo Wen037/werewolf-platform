@@ -68,6 +68,69 @@ export const sendPasswordResetEmail = async (to: string, token: string): Promise
   }
 };
 
+export interface BookingInquiryPayload {
+  venueName: string;
+  date: string;       // e.g. "2025-07-15"
+  time: string;       // e.g. "19:00"
+  duration: string;   // e.g. "2"
+  pax: number;
+  name: string;
+  contact: string;
+  notes?: string;
+  isAutoConfirmed: boolean;
+}
+
+export const sendBookingInquiryEmail = async (
+  ownerEmail: string,
+  payload: BookingInquiryPayload
+): Promise<void> => {
+  if (process.env.NODE_ENV === 'test') {
+    console.log(`[TEST] Booking inquiry to ${ownerEmail}:`, payload);
+    return;
+  }
+
+  const dur = parseFloat(payload.duration);
+  const durLabel = `${payload.duration} ${dur > 1 ? 'hrs' : 'hr'}`;
+  const confirmLabel = payload.isAutoConfirmed
+    ? '<span style="color:#16a34a;font-weight:bold;">Auto-confirmed (public space)</span>'
+    : '<span style="color:#f59e0b;font-weight:bold;">Pending your confirmation</span>';
+
+  const { error } = await getResend().emails.send({
+    from: process.env.FROM_EMAIL ?? 'noreply@example.com',
+    to: ownerEmail,
+    subject: `New Booking Enquiry — ${payload.venueName}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <img src="https://werewolf.sg/werewolf_favicon.png" alt="Werewolf SG" width="28" height="28" style="border-radius:50%;vertical-align:middle;" />
+          <strong style="font-size:16px;">Werewolf SG</strong>
+        </div>
+        <h2 style="margin-bottom:4px;">Booking Enquiry for ${payload.venueName}</h2>
+        <p style="color:#666;margin-top:0;">Status: ${confirmLabel}</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#555;width:40%;">Date</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${payload.date}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#555;">Start time</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${payload.time}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#555;">Duration</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${durLabel}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#555;">No. of pax</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${payload.pax}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#555;">Requester</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${payload.name}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#555;">Contact</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${payload.contact}</td></tr>
+          ${payload.notes ? `<tr><td style="padding:8px 0;color:#555;">Notes</td><td style="padding:8px 0;font-weight:600;">${payload.notes}</td></tr>` : ''}
+        </table>
+        ${payload.isAutoConfirmed
+          ? '<p style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:8px;color:#166534;">This is a <strong>public / school space</strong> — the booking has been auto-confirmed. Please make sure the space is available at the requested time.</p>'
+          : '<p style="background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px;color:#92400e;">Please contact the requester to confirm or decline this booking.</p>'
+        }
+        <p style="color:#888;font-size:12px;margin-top:24px;">Sent via <a href="https://werewolf.sg" style="color:#7c3aed;">Werewolf SG</a></p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error('[email] sendBookingInquiryEmail failed:', error);
+    // Non-fatal — log but do not throw so the API call still succeeds
+  }
+};
+
 export const sendEventNotificationEmail = async (
   to: string,
   subject: string,

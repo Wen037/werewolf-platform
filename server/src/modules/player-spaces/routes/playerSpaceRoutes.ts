@@ -4,6 +4,9 @@ import { MatchService } from '../../matches/coreLogic/MatchService';
 import { requireAuth, optionalAuth } from '../../../shared/middleware/auth';
 import { validate } from '../../../shared/middleware/validate';
 import { CreatePlayerSpaceSchema, UpdatePlayerSpaceSchema, RateVenueSchema } from '../DTOs/PlayerSpaceDTOs';
+import { PlayerSpaceModel } from '../DBSchemas/PlayerSpaceSchema';
+import { UserModel } from '../../users/DBSchemas/UserSchema';
+import { sendBookingInquiryEmail } from '../../../shared/infra/email';
 
 const router = Router();
 const playerSpaceService = new PlayerSpaceService();
@@ -69,6 +72,47 @@ router.post('/venues/:id/rate', requireAuth, validate(RateVenueSchema), async (r
   );
   if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
   res.status(200).json({ message: 'Rating saved.' });
+});
+
+// ─── Booking inquiry — guest sends a booking request to the space owner ──────
+// Body: { date, time, duration, pax, name, contact, notes? }
+// Returns: { autoConfirmed: boolean }
+router.post('/venues/:id/booking-inquiry', async (req: Request, res: Response) => {
+  const venueId = String(req.params['id']);
+
+  const venue = await PlayerSpaceModel.findById(venueId).lean();
+  if (!venue) {
+    res.status(404).json({ message: 'Venue not found.' });
+    return;
+  }
+
+  const { date, time, duration, pax, name, contact, notes } = req.body as {
+    date: string; time: string; duration: string; pax: number;
+    name: string; contact: string; notes?: string;
+  };
+
+  if (!date || !time || !duration || !pax || !name || !contact) {
+    res.status(400).json({ message: 'Missing required booking fields.' });
+    return;
+  }
+
+  // School / public spaces → auto-confirm; private venues → inquiry
+  const isAutoConfirmed = venue.type === 'school';
+
+  // Fetch owner email so we can notify them
+  const owner = await UserModel.findById(venue.owner_id).select('email').lean();
+  if (owner?.email) {
+    const emailPayload = {
+      venueName: venue.name,
+      date, time, duration, pax: Number(pax),
+      name, contact,
+      isAutoConfirmed,
+      ...(notes ? { notes } : {}),
+    };
+    await sendBookingInquiryEmail(owner.email, emailPayload);
+  }
+
+  res.status(200).json({ autoConfirmed: isAutoConfirmed });
 });
 
 // ─── Admin: verify / reject a venue ──────────────────────────────────────────

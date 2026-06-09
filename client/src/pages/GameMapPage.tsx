@@ -494,7 +494,7 @@ export default function GameMapPage() {
                   <div className={`absolute inset-0 bg-gradient-to-t ${mode === 'places' ? 'from-white/75' : 'from-black/75'} to-transparent pointer-events-none`}></div>
                 </div>
 
-                <div className={`p-4 flex-1 overflow-y-auto ${mode === 'places' ? 'text-neutral-900' : 'text-neutral-100'}`}>
+                <div className={`p-4 flex-1 overflow-y-auto ${mode === 'places' ? 'text-neutral-100 md:text-neutral-900' : 'text-neutral-100'}`}>
                   
                   {mode === "places" ? (
                     <>
@@ -505,7 +505,7 @@ export default function GameMapPage() {
                               <Pin size={9} />{t('Pinned')}
                             </span>
                           )}
-                          <h3 className="text-lg font-bold leading-tight text-neutral-900">{selectedItem.name}</h3>
+                          <h3 className="text-lg font-bold leading-tight text-white md:text-neutral-900">{selectedItem.name}</h3>
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0 translate-x-2">
                           <button
@@ -513,7 +513,7 @@ export default function GameMapPage() {
                             className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-neutral-900/5 transition-all group"
                           >
                             <Heart size={18} className={`transition-all duration-300 ${selectedItem.isLiked ? 'text-red-500 fill-red-500 scale-110' : 'text-red-400 group-hover:text-red-400'}`} />
-                            <span className="text-xs font-bold text-neutral-500">{selectedItem.totalLikes || 0}</span>
+                            <span className="text-xs font-bold text-neutral-300 md:text-neutral-500">{selectedItem.totalLikes || 0}</span>
                           </button>
                           {isAdmin && (
                             <button
@@ -532,12 +532,12 @@ export default function GameMapPage() {
                           </button>
                         </div>
                       </div>
-                      <p className="text-neutral-600 text-xs mb-3 flex items-center gap-1">
+                      <p className="text-neutral-300 md:text-neutral-600 text-xs mb-3 flex items-center gap-1">
                         <MapPin size={12} className="shrink-0" /> <span className="truncate">{selectedItem.address}</span>
                       </p>
                       <div className="flex gap-1.5 mb-4 flex-wrap">
                         {selectedItem.amenities?.map((am: string) => (
-                          <span key={am} className="text-[10px] bg-white/50 border border-neutral-200 px-1.5 py-0.5 rounded font-medium text-neutral-600 backdrop-blur-sm">{am}</span>
+                          <span key={am} className="text-[10px] bg-white/10 md:bg-white/50 border border-white/20 md:border-neutral-200 px-1.5 py-0.5 rounded font-medium text-neutral-200 md:text-neutral-600 backdrop-blur-sm">{am}</span>
                         ))}
                       </div>
                       <div className="space-y-2 mt-auto">
@@ -551,7 +551,7 @@ export default function GameMapPage() {
                         >
                           <Bell size={14} /> {selectedItem.isSubscribed ? t("Subscribed") : t("Subscribe")}
                         </button>
-                        <button onClick={() => openGoogleMaps(selectedItem.coordinates.lat, selectedItem.coordinates.lng)} className="w-full py-2.5 bg-white/50 border border-neutral-300 text-neutral-800 hover:bg-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"><Navigation size={14} /> Google Maps</button>
+                        <button onClick={() => openGoogleMaps(selectedItem.coordinates.lat, selectedItem.coordinates.lng)} className="w-full py-2.5 bg-white/20 md:bg-white/50 border border-white/30 md:border-neutral-300 text-white md:text-neutral-800 hover:bg-white/30 md:hover:bg-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors backdrop-blur-sm"><Navigation size={14} /> Google Maps</button>
                       </div>
                     </>
                   ) : (

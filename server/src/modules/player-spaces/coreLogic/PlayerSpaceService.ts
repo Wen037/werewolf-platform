@@ -28,6 +28,13 @@ function toVenueDTO(
     ...(doc.maxPax !== undefined ? { maxPax: doc.maxPax } : {}),
     images: doc.images ?? [],
     wechatQrUrl: doc.wechatQrUrl,
+    ...(doc.socialLinks && Object.values(doc.socialLinks).some(Boolean)
+      ? { socialLinks: {
+          ...(doc.socialLinks.wechatId       ? { wechatId:       doc.socialLinks.wechatId }       : {}),
+          ...(doc.socialLinks.telegramHandle ? { telegramHandle: doc.socialLinks.telegramHandle } : {}),
+          ...(doc.socialLinks.facebookUrl    ? { facebookUrl:    doc.socialLinks.facebookUrl }    : {}),
+        }}
+      : {}),
     isPinned: doc.isPinned ?? false,
     amenities: doc.amenities,
     rules: doc.rules,
@@ -105,6 +112,13 @@ export class PlayerSpaceService {
       ...(dto.images !== undefined && { images: dto.images }),
       ...(dto.wechatQrUrl !== undefined && { wechatQrUrl: dto.wechatQrUrl }),
       ...(dto.rules !== undefined && { rules: dto.rules }),
+      ...(dto.socialLinks !== undefined && {
+        socialLinks: {
+          ...(dto.socialLinks.wechatId       ? { wechatId:       dto.socialLinks.wechatId }       : {}),
+          ...(dto.socialLinks.telegramHandle ? { telegramHandle: dto.socialLinks.telegramHandle } : {}),
+          ...(dto.socialLinks.facebookUrl    ? { facebookUrl:    dto.socialLinks.facebookUrl }    : {}),
+        }
+      }),
     };
 
     const venue = await PlayerSpaceModel.create(docData);
@@ -140,6 +154,14 @@ export class PlayerSpaceService {
     if (dto.wechatQrUrl !== undefined) {
       if (dto.wechatQrUrl === '') { unsetFields['wechatQrUrl'] = 1; }
       else { update['wechatQrUrl'] = dto.wechatQrUrl; }
+    }
+
+    // socialLinks — merge individual fields; empty string removes that sub-field
+    if (dto.socialLinks !== undefined) {
+      const sl = dto.socialLinks;
+      if (sl.wechatId       !== undefined) { sl.wechatId       ? (update['socialLinks.wechatId']       = sl.wechatId)       : (unsetFields['socialLinks.wechatId']       = 1); }
+      if (sl.telegramHandle !== undefined) { sl.telegramHandle ? (update['socialLinks.telegramHandle'] = sl.telegramHandle) : (unsetFields['socialLinks.telegramHandle'] = 1); }
+      if (sl.facebookUrl    !== undefined) { sl.facebookUrl    ? (update['socialLinks.facebookUrl']    = sl.facebookUrl)    : (unsetFields['socialLinks.facebookUrl']    = 1); }
     }
 
     const mongoOp: Record<string, unknown> = { $set: update };

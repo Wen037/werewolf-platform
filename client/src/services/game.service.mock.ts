@@ -94,6 +94,12 @@ export const MockGameService = {
     console.log(`[Mock] rateVenue ${id}: ${rating}`);
   },
 
+  bookingInquiry: async (id: string, payload: object): Promise<{ autoConfirmed: boolean }> => {
+    await delay(600);
+    console.log(`[Mock] bookingInquiry ${id}`, payload);
+    return { autoConfirmed: false };
+  },
+
   getSessionsByVenue: async (venueId: string): Promise<GameSessionDTO[]> => {
     await delay(200);
     const currentUserId = getCurrentUserId();

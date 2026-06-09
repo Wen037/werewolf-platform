@@ -34,6 +34,7 @@ import {
   IconBuildingStore,
   IconCheck,
   IconLoader2,
+  IconAddressBook,
 } from "@tabler/icons-react";
 
 // ── Venue Image Carousel ───────────────────────────────────────────────────
@@ -364,18 +365,21 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
-    name:         venue.name,
-    address:      venue.address,
-    area:         venue.area ?? "",
-    privacy:      (venue.privacy ?? "public") as VenuePrivacy,
-    description:  venue.description,
-    pricePerHour: venue.pricePerHour,
-    priceType:    (venue.priceType ?? "per_session") as "per_person" | "per_session",
-    type:         (venue.type ?? "boardgame_store") as VenueSpaceType,
-    openingHours: venue.openingHours ?? "",
-    maxPax:       venue.maxPax ?? "",
-    rules:        venue.rules ?? "",
-    amenities:    venue.amenities.join(", "),
+    name:            venue.name,
+    address:         venue.address,
+    area:            venue.area ?? "",
+    privacy:         (venue.privacy ?? "public") as VenuePrivacy,
+    description:     venue.description,
+    pricePerHour:    venue.pricePerHour,
+    priceType:       (venue.priceType ?? "per_session") as "per_person" | "per_session",
+    type:            (venue.type ?? "boardgame_store") as VenueSpaceType,
+    openingHours:    venue.openingHours ?? "",
+    maxPax:          venue.maxPax ?? "",
+    rules:           venue.rules ?? "",
+    amenities:       venue.amenities.join(", "),
+    wechatId:        venue.socialLinks?.wechatId ?? "",
+    telegramHandle:  venue.socialLinks?.telegramHandle ?? "",
+    facebookUrl:     venue.socialLinks?.facebookUrl ?? "",
   });
   const [images, setImages] = useState<ImageEntry[]>(() => buildInitialImages(venue));
   const [wechatQrFile, setWechatQrFile] = useState<File | null>(null);
@@ -388,18 +392,21 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
   useEffect(() => {
     if (isOpen) {
       setForm({
-        name:         venue.name,
-        address:      venue.address,
-        area:         venue.area ?? "",
-        privacy:      (venue.privacy ?? "public") as VenuePrivacy,
-        description:  venue.description,
-        pricePerHour: venue.pricePerHour,
-        priceType:    (venue.priceType ?? "per_session") as "per_person" | "per_session",
-        type:         (venue.type ?? "boardgame_store") as VenueSpaceType,
-        openingHours: venue.openingHours ?? "",
-        maxPax:       venue.maxPax ?? "",
-        rules:        venue.rules ?? "",
-        amenities:    venue.amenities.join(", "),
+        name:            venue.name,
+        address:         venue.address,
+        area:            venue.area ?? "",
+        privacy:         (venue.privacy ?? "public") as VenuePrivacy,
+        description:     venue.description,
+        pricePerHour:    venue.pricePerHour,
+        priceType:       (venue.priceType ?? "per_session") as "per_person" | "per_session",
+        type:            (venue.type ?? "boardgame_store") as VenueSpaceType,
+        openingHours:    venue.openingHours ?? "",
+        maxPax:          venue.maxPax ?? "",
+        rules:           venue.rules ?? "",
+        amenities:       venue.amenities.join(", "),
+        wechatId:        venue.socialLinks?.wechatId ?? "",
+        telegramHandle:  venue.socialLinks?.telegramHandle ?? "",
+        facebookUrl:     venue.socialLinks?.facebookUrl ?? "",
       });
       setImages(buildInitialImages(venue));
       setWechatQrFile(null);
@@ -499,6 +506,11 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
         maxPax:       form.maxPax !== "" ? Number(form.maxPax) : undefined,
         amenities:    form.amenities.split(",").map(a => a.trim()).filter(Boolean),
         rules:        form.rules || undefined,
+        socialLinks: {
+          wechatId:       form.wechatId       || undefined,
+          telegramHandle: form.telegramHandle || undefined,
+          facebookUrl:    form.facebookUrl    || undefined,
+        },
       });
       setSaved(true);
       setTimeout(onClose, 1200);
@@ -764,6 +776,26 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
                       </label>
                     )}
                   </div>
+
+                  {/* ── Social / Contact Links ── */}
+                  <div className="space-y-3">
+                    <label className={labelCls}>Contact Links <span className="normal-case font-normal text-neutral-500">(optional — shown in Contact Owner modal)</span></label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500 font-mono">WeChat ID</span>
+                      <input type="text" value={form.wechatId} onChange={set("wechatId")} placeholder="e.g. myid_123"
+                        className={`${inputCls} pl-24`} />
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500 font-mono">Telegram</span>
+                      <input type="text" value={form.telegramHandle} onChange={set("telegramHandle")} placeholder="e.g. @myhandle"
+                        className={`${inputCls} pl-24`} />
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500 font-mono">Facebook</span>
+                      <input type="url" value={form.facebookUrl} onChange={set("facebookUrl")} placeholder="https://facebook.com/mypage"
+                        className={`${inputCls} pl-24`} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Footer */}
@@ -797,23 +829,50 @@ function EditSpaceModal({ isOpen, onClose, venue, onSave }: EditSpaceModalProps)
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  venueId: string;
+  venueType?: string;
   venueName: string;
   pricePerHour?: number;
   priceType?: "per_person" | "per_session";
 }
 
-function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: BookingModalProps) {
+function BookingModal({ isOpen, onClose, venueId, venueType, venueName, pricePerHour, priceType }: BookingModalProps) {
   const { t } = useLang();
   const [form, setForm] = useState({
     date: "", time: "", duration: "2", pax: 8, name: "", contact: "", notes: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [autoConfirmed, setAutoConfirmed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const handleClose = () => { onClose(); setTimeout(() => setSubmitted(false), 300); };
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setSubmitted(true); };
+  const handleClose = () => { onClose(); setTimeout(() => { setSubmitted(false); setSubmitError(""); }, 300); };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const result = await GameService.bookingInquiry(venueId, {
+        date: form.date,
+        time: form.time,
+        duration: form.duration,
+        pax: form.pax,
+        name: form.name,
+        contact: form.contact,
+        notes: form.notes || undefined,
+      });
+      setAutoConfirmed(result.autoConfirmed);
+      setSubmitted(true);
+    } catch {
+      setSubmitError(t("Failed to send enquiry. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const isFree = pricePerHour === 0;
   const dur = parseFloat(form.duration);
@@ -860,12 +919,21 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
 
               {submitted ? (
                 <div className="flex flex-col items-center justify-center py-16 px-8 text-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center">
-                    <IconCircleCheck size={36} className="text-green-400" />
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${autoConfirmed ? "bg-green-500/15 border border-green-500/25" : "bg-amber-500/15 border border-amber-500/25"}`}>
+                    <IconCircleCheck size={36} className={autoConfirmed ? "text-green-400" : "text-amber-400"} />
                   </div>
                   <div>
-                    <p className="text-white font-bold text-lg">Enquiry Sent!</p>
-                    <p className="text-neutral-400 text-sm mt-1">The venue will reach out to confirm your booking via the contact you provided.</p>
+                    {autoConfirmed ? (
+                      <>
+                        <p className="text-white font-bold text-lg">{t('Booking Auto-Confirmed!')}</p>
+                        <p className="text-neutral-400 text-sm mt-1">{t('This is a public space — your session has been auto-confirmed. Please make sure the space is available at your chosen time.')}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-white font-bold text-lg">{t('Enquiry Sent!')}</p>
+                        <p className="text-neutral-400 text-sm mt-1">{t('The venue will reach out to confirm your booking via the contact you provided.')}</p>
+                      </>
+                    )}
                   </div>
                   <button onClick={handleClose} className="mt-2 px-8 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl transition-colors">
                     {t('Done')}
@@ -937,19 +1005,154 @@ function BookingModal({ isOpen, onClose, venueName, pricePerHour, priceType }: B
                     </div>
                   </div>
 
+                  {/* Error */}
+                  {submitError && (
+                    <p className="px-5 text-red-400 text-xs">{submitError}</p>
+                  )}
+
                   {/* Footer */}
                   <div className="px-5 pb-5 flex gap-3">
                     <button type="button" onClick={handleClose}
                       className="flex-1 py-3 rounded-xl font-semibold text-white hover:bg-white/5 transition-colors text-sm border border-white/10">
                       {t('Cancel')}
                     </button>
-                    <button type="submit"
-                      className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-all text-sm">
-                      {t('Send Enquiry')}
+                    <button type="submit" disabled={submitting}
+                      className={`flex-1 py-3 font-bold rounded-xl shadow-lg transition-all text-sm ${submitting ? "bg-red-800 text-red-300 cursor-not-allowed" : "bg-red-600 hover:bg-red-500 text-white"}`}>
+                      {submitting ? t('Sending...') : (venueType === 'school' ? t('Confirm Booking') : t('Send Enquiry'))}
                     </button>
                   </div>
                 </form>
               )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ── Contact Owner Modal ────────────────────────────────────────────────────
+
+interface ContactOwnerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  venueName: string;
+  wechatQrUrl?: string;
+  socialLinks?: { wechatId?: string; telegramHandle?: string; facebookUrl?: string };
+}
+
+function ContactOwnerModal({ isOpen, onClose, venueName, wechatQrUrl, socialLinks }: ContactOwnerModalProps) {
+  const { t } = useLang();
+  const hasWechatQr   = !!wechatQrUrl;
+  const hasWechatId   = !!socialLinks?.wechatId;
+  const hasTelegram   = !!socialLinks?.telegramHandle;
+  const hasFacebook   = !!socialLinks?.facebookUrl;
+  const hasAnything   = hasWechatQr || hasWechatId || hasTelegram || hasFacebook;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={onClose} className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100]" />
+
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
+          >
+            <div className="bg-neutral-900 border border-white/10 w-full max-w-sm rounded-2xl shadow-2xl pointer-events-auto">
+
+              {/* Header */}
+              <div className="flex justify-between items-center p-5 border-b border-white/5">
+                <div>
+                  <h2 className="text-xl font-bold text-white">{t('Contact Owner')}</h2>
+                  <p className="text-xs text-neutral-400 mt-0.5">{venueName}</p>
+                </div>
+                <button onClick={onClose} className="text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors">
+                  <IconX size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+
+                {!hasAnything && (
+                  <p className="text-neutral-400 text-sm text-center py-6">
+                    {t('No contact information available for this space.')}
+                  </p>
+                )}
+
+                {/* WeChat ID (text) */}
+                {hasWechatId && (
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/8">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center flex-shrink-0">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M9.5 12a1 1 0 1 0 2 0 1 1 0 0 0-2 0m4 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0M12 2C6.477 2 2 6.477 2 12c0 2.136.678 4.114 1.832 5.726L2.5 21l3.382-1.287A9.933 9.933 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">WeChat ID</p>
+                      <p className="text-white font-semibold select-all">{socialLinks!.wechatId}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Telegram */}
+                {hasTelegram && (
+                  <a
+                    href={`https://t.me/${socialLinks!.telegramHandle!.replace(/^@/, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 transition-colors group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-sky-500/15 border border-sky-500/25 flex items-center justify-center flex-shrink-0">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="m22 2-7 20-4-9-9-4zm0 0L11 13" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Telegram</p>
+                      <p className="text-white font-semibold group-hover:text-sky-300 transition-colors">
+                        {socialLinks!.telegramHandle!.startsWith('@') ? socialLinks!.telegramHandle : `@${socialLinks!.telegramHandle}`}
+                      </p>
+                    </div>
+                  </a>
+                )}
+
+                {/* Facebook */}
+                {hasFacebook && (
+                  <a
+                    href={socialLinks!.facebookUrl!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 transition-colors group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-blue-500/15 border border-blue-500/25 flex items-center justify-center flex-shrink-0">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="#60a5fa">
+                        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Facebook</p>
+                      <p className="text-white font-semibold group-hover:text-blue-300 transition-colors truncate max-w-[200px]">
+                        {socialLinks!.facebookUrl!.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}
+                      </p>
+                    </div>
+                  </a>
+                )}
+
+                {/* WeChat Group QR */}
+                {hasWechatQr && (
+                  <div className="flex flex-col items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/8">
+                    <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider self-start">{t('WeChat Group QR')}</p>
+                    <img
+                      src={wechatQrUrl}
+                      alt="WeChat QR"
+                      className="w-40 h-40 object-contain rounded-xl bg-white p-2"
+                    />
+                    <p className="text-xs text-neutral-500">{t('Scan QR code to join WeChat group')}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         </>
@@ -967,9 +1170,10 @@ export default function VenueDetailPage() {
   const { t } = useLang();
   const [venue, setVenue]         = useState<GameVenueDTO | null>(null);
   const [sessions, setSessions]   = useState<GameSessionDTO[]>([]);
-  const [isReportOpen, setIsReportOpen]   = useState(false);
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen]       = useState(false);
+  const [isReportOpen, setIsReportOpen]     = useState(false);
+  const [isBookingOpen, setIsBookingOpen]   = useState(false);
+  const [isContactOpen, setIsContactOpen]   = useState(false);
+  const [isEditOpen, setIsEditOpen]         = useState(false);
   const [showToast, setShowToast]         = useState(false);
   const [drawer, setDrawer]               = useState<"upcoming" | "past" | null>(null);
   const [hoverRating, setHoverRating]     = useState(0);
@@ -1168,7 +1372,15 @@ export default function VenueDetailPage() {
 
         <BookingModal
           isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)}
+          venueId={venue.id} venueType={venue.type}
           venueName={venue.name} pricePerHour={venue.pricePerHour} priceType={venue.priceType}
+        />
+
+        <ContactOwnerModal
+          isOpen={isContactOpen} onClose={() => setIsContactOpen(false)}
+          venueName={venue.name}
+          wechatQrUrl={venue.wechatQrUrl}
+          socialLinks={venue.socialLinks}
         />
 
         <EditSpaceModal
@@ -1548,6 +1760,15 @@ export default function VenueDetailPage() {
                   {isSubscribed ? <BellOff size={20} /> : <Bell size={20} />}
                   {isSubscribed ? t("Subscribed") : t("Subscribe")}
                 </button>
+
+                {/* Contact Owner — hidden for public/school venues */}
+                {venue.type !== 'school' && (
+                  <button
+                    onClick={() => setIsContactOpen(true)}
+                    className="w-full py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl border border-white/10 flex items-center justify-center gap-2 transition-all">
+                    <IconAddressBook size={20} /> {t('Contact Owner')}
+                  </button>
+                )}
               </div>
 
               {/* WeChat Group QR */}
