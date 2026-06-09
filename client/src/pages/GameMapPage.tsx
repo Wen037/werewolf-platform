@@ -121,10 +121,10 @@ export default function GameMapPage() {
 
     Promise.all([GameService.getAllVenues(), GameService.getActiveGames()])
       .then(([vData, gData]) => {
-        setVenues(vData.map(v => ({ ...v, isLiked: false })));
+        setVenues(vData.map(v => ({ ...v, isLiked: v.myInteraction?.isLiked ?? false })));
         // Filter out events that started more than 1 hour ago
         const freshGames = gData.filter(isFresh);
-        setGames(freshGames.map(g => ({ ...g, isLiked: false })));
+        setGames(freshGames.map(g => ({ ...g, isLiked: g.myInteraction?.isLiked ?? false })));
         // Initialize join states from existing interactions
         const initial: Record<string, JoinState> = {};
         for (const g of freshGames) {
