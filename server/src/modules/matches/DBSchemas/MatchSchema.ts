@@ -32,6 +32,7 @@ export interface IMatchDocument extends Document {
   waitlist: mongoose.Types.ObjectId[];
   guests: IMatchGuest[];
   totalLikes: number;
+  isPinned: boolean;
   cancelledAt?: Date;
   createdAt: Date;
   updatedAt: Date;

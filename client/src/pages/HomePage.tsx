@@ -673,10 +673,10 @@ export default function HomePage() {
           {t('A Night of Deception')}
         </p>
 
-        {/* Buttons — mobile: above hill/trees; desktop: lower third */}
+        {/* Buttons — mobile: directly below subtitle text; desktop: pinned to lower third */}
         <div
-          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 absolute items-center w-full px-6 bottom-[52%] md:bottom-[10vh]"
-          style={{ left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap", maxWidth: "32rem" }}
+          className="pointer-events-auto flex flex-col sm:flex-row gap-4 sm:gap-8 items-center w-full px-6 mt-6 md:absolute md:bottom-[10vh] md:left-1/2 md:-translate-x-1/2"
+          style={{ whiteSpace: "nowrap", maxWidth: "32rem" }}
         >
           <button
             style={btnStyle}

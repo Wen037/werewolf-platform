@@ -24,6 +24,7 @@ export interface IPlayerSpaceDocument extends Document {
   averageRating: number;
   totalLikes: number;
   totalSubscribers: number;
+  isPinned: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +68,7 @@ const PlayerSpaceSchema = new Schema<IPlayerSpaceDocument>(
     averageRating: { type: Number, default: 0 },
     totalLikes: { type: Number, default: 0 },
     totalSubscribers: { type: Number, default: 0 },
+    isPinned: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
