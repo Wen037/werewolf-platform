@@ -395,4 +395,22 @@ export const MockGameService = {
     console.log(`[Mock] rejectApplicant ${userId} for ${sessionId}`);
     return { success: true };
   },
+
+  // ── Admin pin ─────────────────────────────────────────────────────────────
+
+  pinVenue: async (id: string): Promise<{ isPinned: boolean }> => {
+    await delay(200);
+    const venue = MOCK_VENUES.find(v => v.id === id);
+    if (venue) { venue.isPinned = !venue.isPinned; }
+    console.log(`[Mock] pinVenue ${id}:`, venue?.isPinned);
+    return { isPinned: venue?.isPinned ?? false };
+  },
+
+  pinGame: async (sessionId: string): Promise<{ isPinned: boolean }> => {
+    await delay(200);
+    const session = MOCK_GAMES.find(s => s.id === sessionId);
+    if (session) { session.isPinned = !session.isPinned; }
+    console.log(`[Mock] pinGame ${sessionId}:`, session?.isPinned);
+    return { isPinned: session?.isPinned ?? false };
+  },
 };

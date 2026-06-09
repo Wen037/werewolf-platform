@@ -28,6 +28,7 @@ function toVenueDTO(
     ...(doc.maxPax !== undefined ? { maxPax: doc.maxPax } : {}),
     images: doc.images ?? [],
     wechatQrUrl: doc.wechatQrUrl,
+    isPinned: doc.isPinned ?? false,
     amenities: doc.amenities,
     rules: doc.rules,
     averageRating: doc.averageRating,
@@ -39,7 +40,7 @@ function toVenueDTO(
 
 export class PlayerSpaceService {
   async getAllVenues(requestingUserId?: string): Promise<GameVenueResponseDTO[]> {
-    const venues = await PlayerSpaceModel.find().sort({ createdAt: -1 });
+    const venues = await PlayerSpaceModel.find().sort({ isPinned: -1, createdAt: -1 });
 
     if (!requestingUserId) {
       return venues.map(v => toVenueDTO(v));
@@ -78,8 +79,14 @@ export class PlayerSpaceService {
   }
 
   async createVenue(userId: string, dto: CreatePlayerSpaceDTO): Promise<Result<GameVenueResponseDTO>> {
-    const count = await PlayerSpaceModel.countDocuments({ owner_id: userId });
-    if (count >= 3) return Result.fail('You can only create up to 3 places.');
+    const user = await UserModel.findById(userId, 'role');
+    const isAdmin = user && ['admin', 'web_admin'].includes(user.role ?? '');
+
+    // Regular users are capped at 3 spaces; admins have no limit
+    if (!isAdmin) {
+      const count = await PlayerSpaceModel.countDocuments({ owner_id: userId });
+      if (count >= 3) return Result.fail('You can only create up to 3 places.');
+    }
 
     // Build document without undefined optional fields
     const docData: Parameters<typeof PlayerSpaceModel.create>[0] = {
@@ -91,6 +98,8 @@ export class PlayerSpaceService {
       geoLocation: { type: 'Point', coordinates: [dto.lng, dto.lat] },
       financials: { is_chargeable: dto.is_chargeable, approx_fee: dto.approx_fee ?? 0 },
       amenities: dto.amenities ?? [],
+      // Admins get their spaces auto-verified; regular users start as unVerified
+      status: isAdmin ? 'Verified' : 'unVerified',
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
       ...(dto.images !== undefined && { images: dto.images }),
@@ -279,6 +288,24 @@ export class PlayerSpaceService {
     });
 
     return Result.ok();
+  }
+
+  /**
+   * Admin-only: toggle the pin status of a venue.
+   * Pinned venues always appear first in listings.
+   */
+  async pinVenue(venueId: string, adminId: string): Promise<Result<{ isPinned: boolean }>> {
+    const requestingUser = await UserModel.findById(adminId, 'role');
+    if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+      return Result.fail('Forbidden: admin access required.');
+    }
+
+    const venue = await PlayerSpaceModel.findById(venueId);
+    if (!venue) return Result.fail('Venue not found.');
+
+    const newPinned = !venue.isPinned;
+    await PlayerSpaceModel.findByIdAndUpdate(venueId, { $set: { isPinned: newPinned } });
+    return Result.ok({ isPinned: newPinned });
   }
 
   /**

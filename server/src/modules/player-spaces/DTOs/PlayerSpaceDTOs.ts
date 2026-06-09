@@ -67,6 +67,7 @@ export interface GameVenueResponseDTO {
   maxPax?: number;
   images: string[];
   wechatQrUrl: string | undefined;
+  isPinned: boolean;
   amenities: string[];
   rules: string | undefined;
   averageRating: number;

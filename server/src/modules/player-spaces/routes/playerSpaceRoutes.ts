@@ -93,6 +93,17 @@ router.patch('/admin/venues/:id/verify', requireAuth, async (req: Request, res: 
   res.status(200).json({ message: approved ? 'Venue verified.' : 'Venue verification removed.' });
 });
 
+// ─── Admin: toggle pin status of a venue ─────────────────────────────────────
+router.patch('/admin/venues/:id/pin', requireAuth, async (req: Request, res: Response) => {
+  const result = await playerSpaceService.pinVenue(String(req.params['id']), req.user!.userId);
+  if (result.isFailure) {
+    const status = result.getError()?.includes('Forbidden') ? 403 : 404;
+    res.status(status).json({ message: result.getError() });
+    return;
+  }
+  res.status(200).json(result.getValue());
+});
+
 // ─── Admin: transfer venue ownership to another registered user ─────────────
 // Body: { newOwnerEmail: string }
 router.patch('/admin/venues/:id/transfer-owner', requireAuth, async (req: Request, res: Response) => {

@@ -6,7 +6,7 @@ import { AuthService } from "../services/auth.service";
 import type { GameVenue } from "../types";
 import { VENUE_TYPE_LABELS, getDisplayAddress } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Star, Heart, Bell, BellOff, Search, Plus, CheckCircle, BadgeCheck, Lock, Settings } from "lucide-react";
+import { MapPin, Star, Heart, Bell, BellOff, Search, Plus, CheckCircle, BadgeCheck, Lock, Settings, Pin, PinOff } from "lucide-react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { CreateSpaceModal } from "../components/CreateSpaceModal";
@@ -78,6 +78,18 @@ export default function GameSpacePage() {
     }
   };
 
+  const handlePinVenue = async (e: React.MouseEvent, venueId: string) => {
+    e.stopPropagation();
+    try {
+      const { isPinned } = await GameService.pinVenue(venueId);
+      setVenues(prev => {
+        const updated = prev.map(v => v.id === venueId ? { ...v, isPinned } : v);
+        // Re-sort: pinned first, then by original order
+        return [...updated].sort((a, b) => Number(b.isPinned ?? false) - Number(a.isPinned ?? false));
+      });
+    } catch { /* silent */ }
+  };
+
   // ── Derived lists ──────────────────────────────────────────────────────────
 
   const myVenues = useMemo(
@@ -128,6 +140,13 @@ export default function GameSpacePage() {
           alt={venue.name}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
+        {/* Pinned badge */}
+        {venue.isPinned && (
+          <div className="absolute top-3 left-3 flex items-center gap-1 bg-amber-500/90 backdrop-blur-sm text-black text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg z-10">
+            <Pin size={10} />
+            {t('Pinned')}
+          </div>
+        )}
         <div className="absolute top-3 right-3 flex gap-1.5">
           <div className="bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1">
             <Star size={12} className="text-yellow-400 fill-yellow-400" />
@@ -256,6 +275,21 @@ export default function GameSpacePage() {
                   ? `$${venue.pricePerHour}/${t('person/hr')}`
                   : `$${venue.pricePerHour}/hr`}
             </span>
+          )}
+
+          {/* Admin pin toggle */}
+          {isAdmin && (
+            <button
+              onClick={(e) => handlePinVenue(e, venue.id)}
+              title={venue.isPinned ? t('Unpin') : t('Pin')}
+              className={`p-1.5 rounded-lg border transition-all active:scale-95 shrink-0 ${
+                venue.isPinned
+                  ? "bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/30"
+                  : "bg-white/5 border-white/10 text-neutral-500 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-400"
+              }`}
+            >
+              {venue.isPinned ? <PinOff size={12} /> : <Pin size={12} />}
+            </button>
           )}
         </div>
       </div>

@@ -196,4 +196,12 @@ export const RealGameService = {
 
   rejectApplicant: (sessionId: string, userId: string) =>
     api.patch(`/games/${sessionId}/applicants/${userId}/reject`, {}),
+
+  // ── Admin pin ─────────────────────────────────────────────────────────────
+
+  pinVenue: (id: string): Promise<{ isPinned: boolean }> =>
+    api.patch(`/admin/venues/${id}/pin`, {}),
+
+  pinGame: (sessionId: string): Promise<{ isPinned: boolean }> =>
+    api.patch(`/admin/games/${sessionId}/pin`, {}),
 };

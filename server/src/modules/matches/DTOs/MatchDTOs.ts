@@ -132,6 +132,7 @@ export interface GameSessionResponseDTO {
   venueApprovalStatus: 'pending' | 'confirmed' | 'rejected';
   groupLink: string | undefined;
   groupType: 'telegram' | 'whatsapp' | 'wechat' | 'facebook' | undefined;
+  isPinned: boolean;
   guests: MatchGuestDTO[];
   joinedPlayerAvatars: string[];
   venueImageUrl: string | undefined;

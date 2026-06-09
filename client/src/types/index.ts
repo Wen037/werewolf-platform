@@ -85,6 +85,7 @@ export interface GameVenue {
   imageUrl: string;
   images?: string[];
   wechatQrUrl?: string;
+  isPinned?: boolean;
   coordinates: {
     lat: number;
     lng: number;
@@ -133,6 +134,7 @@ export interface GameSession {
   groupType?: SocialGroupType;
   // Who can join: open (anyone), approval (host must approve), invite_only (host invites)
   approvalMode?: 'open' | 'approval' | 'invite_only';
+  isPinned?: boolean;
 }
 
 // ── Interaction / join-table records ──────────────────────────────────────

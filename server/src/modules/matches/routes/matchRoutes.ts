@@ -161,6 +161,17 @@ router.patch('/games/:sessionId/cancel', requireAuth, async (req: Request, res: 
   res.status(200).json({ message: 'Session cancelled.' });
 });
 
+// ── Admin: toggle pin status of a match ──────────────────────────────────────
+router.patch('/admin/games/:sessionId/pin', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.pinMatch(id(req), req.user!.userId);
+  if (result.isFailure) {
+    const status = result.getError()?.includes('Forbidden') ? 403 : 404;
+    res.status(status).json({ message: result.getError() });
+    return;
+  }
+  res.status(200).json(result.getValue());
+});
+
 // ── Venue approval routes ─────────────────────────────────────────────────────
 
 router.patch('/games/:sessionId/venue-approve', requireAuth, async (req: Request, res: Response) => {

@@ -4,9 +4,10 @@ import { MapContainer, TileLayer, Marker, Tooltip, useMap, ZoomControl } from "r
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { GameService } from "../services/game.service";
+import { AuthService } from "../services/auth.service";
 import type { GameVenue, GameSession } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, X, Navigation, Heart, Bell, Clock, CheckCircle, SlidersHorizontal } from "lucide-react";
+import { MapPin, X, Navigation, Heart, Bell, Clock, CheckCircle, SlidersHorizontal, Pin, PinOff } from "lucide-react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { ReportModal } from "../components/ReportModal";
 import { AuthModal } from "../components/AuthModal";
@@ -94,6 +95,8 @@ export default function GameMapPage() {
   const [showToast, setShowToast] = useState(false);
   const [joinStates, setJoinStates] = useState<Record<string, JoinState>>({});
   const navigate = useNavigate();
+  const currentUser = AuthService.getCurrentUser();
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'web_admin';
   // Guests can browse the map (view spaces & events) freely; subscribing,
   // liking and joining require an account — gate behind a login prompt.
   const { isAuthOpen, setAuthOpen, requireAuth } = useAuthGate();
@@ -197,6 +200,31 @@ export default function GameMapPage() {
       }
       return g;
     }));
+  };
+
+  // --- ADMIN PIN HANDLERS ---
+  const handlePinGame = async (e: React.MouseEvent, gameId: string) => {
+    e.stopPropagation();
+    try {
+      const { isPinned } = await GameService.pinGame(gameId);
+      setGames(prev => prev.map(g => {
+        const updated = g.id === gameId ? { ...g, isPinned } : g;
+        if (selectedItem?.id === gameId) setSelectedItem({ ...selectedItem, isPinned });
+        return updated;
+      }));
+    } catch { /* silent */ }
+  };
+
+  const handlePinVenueMap = async (e: React.MouseEvent, venueId: string) => {
+    e.stopPropagation();
+    try {
+      const { isPinned } = await GameService.pinVenue(venueId);
+      setVenues(prev => prev.map(v => {
+        const updated = v.id === venueId ? { ...v, isPinned } : v;
+        if (selectedItem?.id === venueId) setSelectedItem({ ...selectedItem, isPinned });
+        return updated;
+      }));
+    } catch { /* silent */ }
   };
 
   const handleJoinGame = async (gameId: string) => {
@@ -443,16 +471,32 @@ export default function GameMapPage() {
                   {mode === "places" ? (
                     <>
                       <div className="flex justify-between items-start mb-1">
-                        <h3 className="text-lg font-bold leading-tight text-neutral-900 pr-2">{selectedItem.name}</h3>
+                        <div className="pr-2">
+                          {selectedItem.isPinned && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded mb-1">
+                              <Pin size={9} />{t('Pinned')}
+                            </span>
+                          )}
+                          <h3 className="text-lg font-bold leading-tight text-neutral-900">{selectedItem.name}</h3>
+                        </div>
                         <div className="flex items-center gap-0.5 shrink-0 translate-x-2">
-                          <button 
+                          <button
                             onClick={(e) => handleLikeVenue(e, selectedItem.id)}
                             className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-neutral-900/5 transition-all group"
                           >
                             <Heart size={18} className={`transition-all duration-300 ${selectedItem.isLiked ? 'text-red-500 fill-red-500 scale-110' : 'text-red-400 group-hover:text-red-400'}`} />
                             <span className="text-xs font-bold text-neutral-500">{selectedItem.totalLikes || 0}</span>
                           </button>
-                          <button 
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => handlePinVenueMap(e, selectedItem.id)}
+                              title={selectedItem.isPinned ? t('Unpin') : t('Pin')}
+                              className={`p-1.5 rounded-lg border transition-all ${selectedItem.isPinned ? 'text-amber-500 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20' : 'text-neutral-500 border-transparent hover:bg-amber-500/10 hover:text-amber-400'}`}
+                            >
+                              {selectedItem.isPinned ? <PinOff size={18} /> : <Pin size={18} />}
+                            </button>
+                          )}
+                          <button
                             onClick={(e) => { e.stopPropagation(); setReportData({ isOpen: true, name: selectedItem.name, type: "Space" }); }}
                             className="p-1.5 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/30 text-neutral-500 hover:text-red-500 transition-all"
                           >
@@ -486,7 +530,12 @@ export default function GameMapPage() {
                     <>
                       <div className="flex justify-between items-start mb-1">
                         <div className="pr-2">
-                           <span className="inline-block text-[10px] font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-1.5 py-0.5 rounded mb-1">{t('RECRUITING')}</span>
+                           {selectedItem.isPinned && (
+                             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded mb-1">
+                               <Pin size={9} />{t('Pinned')}
+                             </span>
+                           )}
+                           <span className="inline-block text-[10px] font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-1.5 py-0.5 rounded mb-1 ml-1">{t('RECRUITING')}</span>
                            <h3 className="text-lg font-bold leading-tight text-white">{selectedItem.title}</h3>
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0 translate-x-2 mt-4">
@@ -503,6 +552,15 @@ export default function GameMapPage() {
                           >
                             <Bell size={18} />
                           </button>
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => handlePinGame(e, selectedItem.id)}
+                              title={selectedItem.isPinned ? t('Unpin') : t('Pin')}
+                              className={`p-1.5 rounded-lg border transition-all ${selectedItem.isPinned ? 'text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20' : 'text-neutral-400 border-transparent hover:bg-amber-500/10 hover:text-amber-400'}`}
+                            >
+                              {selectedItem.isPinned ? <PinOff size={18} /> : <Pin size={18} />}
+                            </button>
+                          )}
                           <button
                             onClick={(e) => { e.stopPropagation(); setReportData({ isOpen: true, name: selectedItem.title, type: "Event" }); }}
                             className="p-1.5 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/30 text-neutral-500 hover:text-red-500 transition-all"

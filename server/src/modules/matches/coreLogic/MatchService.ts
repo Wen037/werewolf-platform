@@ -120,6 +120,7 @@ async function enrichWithNamesAndInteraction(
     joinedPlayerAvatars: d.players.slice(0, 5)
       .map(p => playerAvatarMap.get(p.toString()))
       .filter((a): a is string => !!a),
+    isPinned: d.isPinned ?? false,
     venueImageUrl: venueImageMap.get(d.venue_id.toString()),
     myInteraction: interactionMap.get(d._id.toString()),
   }));
@@ -129,7 +130,7 @@ export class MatchService {
   async getActiveMatches(requestingUserId?: string): Promise<GameSessionResponseDTO[]> {
     const docs = await MatchModel.find({
       status: { $in: ['Open', 'Full', 'Started'] },
-    }).sort({ scheduledAt: 1 }) as MatchDoc[];
+    }).sort({ isPinned: -1, scheduledAt: 1 }) as MatchDoc[];
 
     return enrichWithNamesAndInteraction(docs, requestingUserId);
   }
@@ -888,5 +889,23 @@ export class MatchService {
     });
 
     return Result.ok();
+  }
+
+  /**
+   * Admin-only: toggle the pin status of a match.
+   * Pinned matches always appear first in the active matches listing.
+   */
+  async pinMatch(sessionId: string, adminId: string): Promise<Result<{ isPinned: boolean }>> {
+    const requestingUser = await UserModel.findById(adminId, 'role');
+    if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+      return Result.fail('Forbidden: admin access required.');
+    }
+
+    const doc = await MatchModel.findById(sessionId);
+    if (!doc) return Result.fail('Match not found.');
+
+    const newPinned = !doc.isPinned;
+    await MatchModel.findByIdAndUpdate(sessionId, { $set: { isPinned: newPinned } });
+    return Result.ok({ isPinned: newPinned });
   }
 }

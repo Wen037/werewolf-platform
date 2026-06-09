@@ -91,6 +91,7 @@ const MatchSchema = new Schema<IMatchDocument>(
       addedAt: { type: Date, default: Date.now },
     }],
     totalLikes: { type: Number, default: 0 },
+    isPinned: { type: Boolean, default: false },
     cancelledAt: { type: Date },
   },
   { timestamps: true }
