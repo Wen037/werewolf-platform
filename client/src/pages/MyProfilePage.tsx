@@ -358,14 +358,19 @@ function MatchDetailModal({ event, onClose }: { event: GameSessionDTO | null; on
 
 // --- PREDEFINED AVATARS ---
 const PREDEFINED_AVATARS = [
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Alpha",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Beta",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Gamma",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Delta",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Echo",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Leo",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Mia"
+  // lorelei — clean illustrated style, no weird expressions
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Luna",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Marcus",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Sofia",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Kai",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Jade",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Zoe",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Alex",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Riley",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Nova",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Ember",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=River",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Sage",
 ];
 
 const SkillBadge = ({ level, onChange }: { level: string, onChange: (l: any) => void }) => {
