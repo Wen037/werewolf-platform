@@ -81,7 +81,7 @@ export const Sidebar = ({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25, ease: "easeInOut" }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99]"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[699]"
                 onClick={() => _setOpen(false)}
               />
               <motion.div
@@ -90,7 +90,7 @@ export const Sidebar = ({
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: "-100%", opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="fixed inset-x-0 top-14 bg-black z-[100] flex flex-col p-4 w-full max-h-[75%] overflow-y-auto shadow-2xl rounded-b-2xl"
+                className="fixed inset-x-0 top-14 bg-black z-[700] flex flex-col p-4 w-full max-h-[75%] overflow-y-auto shadow-2xl rounded-b-2xl"
               >
                 {children}
               </motion.div>
