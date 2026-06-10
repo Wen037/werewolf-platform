@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Lock, User, ArrowRight, AlertCircle } from "lucide-react";
 import { AuthService } from "../services/auth.service";
+import { useLang } from "../context/LanguageContext";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface AuthModalProps {
 
 export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalProps) => {
   const navigate = useNavigate();
+  const { t, lang } = useLang();
   const [view, setView] = useState<"login" | "register" | "forgot" | "reset">(initialView);
 
   // Register state
@@ -62,13 +64,13 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
   const handleSendOtp = async () => {
     setError(null);
     if (!regEmail || !regUsername || !regPassword) {
-      setError("All fields are required."); return;
+      setError(t("All fields are required.")); return;
     }
     if (regPassword.length < 8) {
-      setError("Password must be at least 8 characters."); return;
+      setError(t("Password must be at least 8 characters.")); return;
     }
     if (regUsername.length < 3) {
-      setError("Username must be at least 3 characters."); return;
+      setError(t("Username must be at least 3 characters.")); return;
     }
     setLoading(true);
     try {
@@ -76,7 +78,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
       setRegStep(2);
       setCooldown(60);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Registration failed.");
+      setError(e instanceof Error ? e.message : t("All fields are required."));
     } finally {
       setLoading(false);
     }
@@ -85,14 +87,14 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
   // ── Register Step 2: verify OTP ───────────────────────────────────────────
   const handleVerifyOtp = async () => {
     setError(null);
-    if (regOtp.length !== 6) { setError("Enter the 6-digit code."); return; }
+    if (regOtp.length !== 6) { setError(t("Enter the 6-digit code.")); return; }
     setLoading(true);
     try {
       await AuthService.verifyOtp(regEmail, regOtp);
       onClose();
       navigate("/lobby");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Verification failed.");
+      setError(e instanceof Error ? e.message : t("Enter the 6-digit code."));
     } finally {
       setLoading(false);
     }
@@ -111,17 +113,17 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
   const handleLogin = async () => {
     setError(null);
     setIsGoogleAccountError(false);
-    if (!loginEmail || !loginPassword) { setError("Email and password required."); return; }
+    if (!loginEmail || !loginPassword) { setError(t("Email and password required.")); return; }
     setLoading(true);
     try {
       await AuthService.login(loginEmail, loginPassword);
       onClose();
       navigate("/lobby");
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Login failed.";
+      const msg = e instanceof Error ? e.message : t("Email and password required.");
       if (msg.startsWith('GOOGLE_ACCOUNT:')) {
         setIsGoogleAccountError(true);
-        setError('This account uses Google Sign-In. Please log in with Google, or set a password using "Forgot Password".');
+        setError(t('This account uses Google Sign-In. Please log in with Google, or set a password using "Forgot Password".'));
       } else {
         setError(msg);
       }
@@ -133,14 +135,14 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
   // ── Forgot / Reset password ────────────────────────────────────────────────
   const handleForgotSubmit = async () => {
     setError(null);
-    if (!forgotEmail) { setError("Please enter your email."); return; }
+    if (!forgotEmail) { setError(t("Please enter your email.")); return; }
     setLoading(true);
     try {
       const { api } = await import("../services/api");
       await api.post("/auth/forgot-password", { email: forgotEmail });
       setView("reset");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to send reset code.");
+      setError(e instanceof Error ? e.message : t("Please enter your email."));
     } finally {
       setLoading(false);
     }
@@ -148,8 +150,8 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
 
   const handleResetSubmit = async () => {
     setError(null);
-    if (resetToken.length !== 6) { setError("Enter the 6-digit code from your email."); return; }
-    if (resetPassword.length < 8) { setError("New password must be at least 8 characters."); return; }
+    if (resetToken.length !== 6) { setError(t("Enter the 6-digit code from your email.")); return; }
+    if (resetPassword.length < 8) { setError(t("New password must be at least 8 characters.")); return; }
     setLoading(true);
     try {
       const { api } = await import("../services/api");
@@ -157,7 +159,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
       setResetSuccess(true);
       setTimeout(() => { setView("login"); setResetSuccess(false); setForgotEmail(""); setResetToken(""); setResetPassword(""); }, 2000);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Reset failed.");
+      setError(e instanceof Error ? e.message : t("Enter the 6-digit code from your email."));
     } finally {
       setLoading(false);
     }
@@ -185,17 +187,17 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
               <div className="flex justify-between items-center p-4 border-b border-white/5">
                 <div className="flex gap-4 text-sm font-bold">
                   {view === "forgot" || view === "reset" ? (
-                    <span className="text-white">RESET PASSWORD</span>
+                    <span className="text-white">{t("RESET PASSWORD")}</span>
                   ) : (
                     <>
                       <button
                         onClick={() => { setView("login"); setError(null); }}
                         className={view === "login" ? "text-white" : "text-neutral-500 hover:text-neutral-300"}
-                      >LOGIN</button>
+                      >{t("LOGIN")}</button>
                       <button
                         onClick={() => { setView("register"); setError(null); }}
                         className={view === "register" ? "text-white" : "text-neutral-500 hover:text-neutral-300"}
-                      >REGISTER</button>
+                      >{t("REGISTER")}</button>
                     </>
                   )}
                 </div>
@@ -220,14 +222,14 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                           onClick={handleGoogleLogin}
                           className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all"
                         >
-                          <span className="text-red-500 font-bold">G</span> Sign in with Google
+                          <span className="text-red-500 font-bold">G</span> {t("Sign in with Google")}
                         </button>
                         <button
                           type="button"
                           onClick={() => { setView("forgot"); setError(null); setIsGoogleAccountError(false); setForgotEmail(loginEmail); }}
                           className="w-full text-sm text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-400/50 rounded-lg py-2 transition-all"
                         >
-                          Set a password for this account →
+                          {t("Set a password for this account →")}
                         </button>
                       </div>
                     )}
@@ -238,15 +240,15 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                 {view === "login" && (
                   <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                     <h2 className="text-2xl font-bold text-white mb-6">
-                      Welcome Back,<br />
-                      <span className="text-neutral-400 text-lg font-normal">The village awaits.</span>
+                      {t("Welcome Back,")}<br />
+                      <span className="text-neutral-400 text-lg font-normal">{t("The village awaits.")}</span>
                     </h2>
 
                     <div className="space-y-3">
                       <div className="relative">
                         <Mail className="absolute left-3 top-3 text-neutral-500" size={18} />
                         <input
-                          type="email" placeholder="Email" value={loginEmail}
+                          type="email" placeholder={t("Email")} value={loginEmail}
                           onChange={e => setLoginEmail(e.target.value)}
                           onKeyDown={e => e.key === "Enter" && handleLogin()}
                           className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
@@ -255,7 +257,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                       <div className="relative">
                         <Lock className="absolute left-3 top-3 text-neutral-500" size={18} />
                         <input
-                          type="password" placeholder="Password" value={loginPassword}
+                          type="password" placeholder={t("Password")} value={loginPassword}
                           onChange={e => setLoginPassword(e.target.value)}
                           onKeyDown={e => e.key === "Enter" && handleLogin()}
                           className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
@@ -267,7 +269,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                       onClick={handleLogin} disabled={loading}
                       className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg shadow-lg mt-2 transition-all"
                     >
-                      {loading ? "Logging in…" : "Enter Village"}
+                      {loading ? t("Logging in…") : t("Enter Village")}
                     </button>
                     <div className="text-right">
                       <button
@@ -275,14 +277,14 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                         onClick={() => { setView("forgot"); setError(null); setForgotEmail(loginEmail); }}
                         className="text-xs text-neutral-500 hover:text-blue-400 transition-colors"
                       >
-                        Forgot password?
+                        {t("Forgot password?")}
                       </button>
                     </div>
 
                     <div className="relative my-4">
                       <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-[#171717] px-2 text-neutral-500">Or login with</span>
+                        <span className="bg-[#171717] px-2 text-neutral-500">{t("Or login with")}</span>
                       </div>
                     </div>
                     <button
@@ -298,7 +300,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                 {/* ── REGISTER ── */}
                 {view === "register" && (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                    <h2 className="text-2xl font-bold text-white mb-2">Join the Pack</h2>
+                    <h2 className="text-2xl font-bold text-white mb-2">{t("Join the Pack")}</h2>
 
                     <div className="flex gap-2 mb-6">
                       {[1, 2].map(s => (
@@ -312,7 +314,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 text-neutral-500" size={18} />
                           <input
-                            type="email" placeholder="Email" value={regEmail}
+                            type="email" placeholder={t("Email")} value={regEmail}
                             onChange={e => setRegEmail(e.target.value)}
                             className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
                           />
@@ -320,7 +322,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                         <div className="relative">
                           <User className="absolute left-3 top-3 text-neutral-500" size={18} />
                           <input
-                            type="text" placeholder="Username (letters, numbers, _)" value={regUsername}
+                            type="text" placeholder={t("Username (letters, numbers, _)")} value={regUsername}
                             onChange={e => setRegUsername(e.target.value)}
                             className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
                           />
@@ -328,7 +330,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                         <div className="relative">
                           <Lock className="absolute left-3 top-3 text-neutral-500" size={18} />
                           <input
-                            type="password" placeholder="Password (min 8 chars)" value={regPassword}
+                            type="password" placeholder={t("Password (min 8 chars)")} value={regPassword}
                             onChange={e => setRegPassword(e.target.value)}
                             className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
                           />
@@ -337,13 +339,13 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                           onClick={handleSendOtp} disabled={loading}
                           className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-all"
                         >
-                          {loading ? "Sending…" : <><span>Send Verification Code</span><ArrowRight size={16} /></>}
+                          {loading ? t("Sending…") : <><span>{t("Send Verification Code")}</span><ArrowRight size={16} /></>}
                         </button>
 
                         <div className="relative my-4">
                           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
                           <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-[#171717] px-2 text-neutral-500">Or join with</span>
+                            <span className="bg-[#171717] px-2 text-neutral-500">{t("Or join with")}</span>
                           </div>
                         </div>
                         <button
@@ -360,7 +362,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                     {regStep === 2 && (
                       <div className="space-y-4 text-center animate-in fade-in slide-in-from-right-4">
                         <p className="text-sm text-neutral-400">
-                          A 6-digit code was sent to <span className="text-white font-medium">{regEmail}</span>
+                          {t("A 6-digit code was sent to")} <span className="text-white font-medium">{regEmail}</span>
                         </p>
                         <input
                           type="text" inputMode="numeric" placeholder="123456"
@@ -372,12 +374,12 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                           onClick={handleVerifyOtp} disabled={loading}
                           className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-lg font-bold transition-all"
                         >
-                          {loading ? "Verifying…" : "Verify & Create Account"}
+                          {loading ? t("Verifying…") : t("Verify & Create Account")}
                         </button>
                         <div className="text-xs text-neutral-500">
                           {cooldown > 0
-                            ? `Resend in ${cooldown}s`
-                            : <span className="text-blue-400 cursor-pointer" onClick={handleSendOtp}>Resend Code</span>
+                            ? (lang === 'zh' ? `${cooldown}秒后重发` : `Resend in ${cooldown}s`)
+                            : <span className="text-blue-400 cursor-pointer" onClick={handleSendOtp}>{t("Resend Code")}</span>
                           }
                         </div>
                       </div>
@@ -389,13 +391,13 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                 {view === "forgot" && (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                     <div>
-                      <h2 className="text-xl font-bold text-white">Reset Password</h2>
-                      <p className="text-sm text-neutral-400 mt-1">Enter your email to receive a 6-digit reset code.</p>
+                      <h2 className="text-xl font-bold text-white">{t("Reset Password")}</h2>
+                      <p className="text-sm text-neutral-400 mt-1">{t("Enter your email to receive a 6-digit reset code.")}</p>
                     </div>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 text-neutral-500" size={18} />
                       <input
-                        type="email" placeholder="Email" value={forgotEmail}
+                        type="email" placeholder={t("Email")} value={forgotEmail}
                         onChange={e => setForgotEmail(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && handleForgotSubmit()}
                         className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
@@ -405,11 +407,11 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                       onClick={handleForgotSubmit} disabled={loading}
                       className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-all"
                     >
-                      {loading ? "Sending…" : "Send Reset Code"}
+                      {loading ? t("Sending…") : t("Send Reset Code")}
                     </button>
                     <button type="button" onClick={() => { setView("login"); setError(null); }}
                       className="w-full text-sm text-neutral-500 hover:text-white transition-colors py-1">
-                      ← Back to Login
+                      {t("← Back to Login")}
                     </button>
                   </motion.div>
                 )}
@@ -419,15 +421,15 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                     {resetSuccess ? (
                       <div className="text-center py-4">
-                        <p className="text-green-400 font-bold text-lg">Password reset!</p>
-                        <p className="text-sm text-neutral-400 mt-1">Redirecting to login…</p>
+                        <p className="text-green-400 font-bold text-lg">{t("Password reset!")}</p>
+                        <p className="text-sm text-neutral-400 mt-1">{t("Redirecting to login…")}</p>
                       </div>
                     ) : (
                       <>
                         <div>
-                          <h2 className="text-xl font-bold text-white">Enter Reset Code</h2>
+                          <h2 className="text-xl font-bold text-white">{t("Enter Reset Code")}</h2>
                           <p className="text-sm text-neutral-400 mt-1">
-                            A 6-digit code was sent to <span className="text-white font-medium">{forgotEmail}</span>
+                            {t("A 6-digit code was sent to")} <span className="text-white font-medium">{forgotEmail}</span>
                           </p>
                         </div>
                         <input
@@ -439,7 +441,7 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                         <div className="relative">
                           <Lock className="absolute left-3 top-3 text-neutral-500" size={18} />
                           <input
-                            type="password" placeholder="New password (min 8 chars)" value={resetPassword}
+                            type="password" placeholder={t("New password (min 8 chars)")} value={resetPassword}
                             onChange={e => setResetPassword(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && handleResetSubmit()}
                             className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 text-white focus:border-blue-500 outline-none"
@@ -449,11 +451,11 @@ export const AuthModal = ({ isOpen, onClose, initialView = "login" }: AuthModalP
                           onClick={handleResetSubmit} disabled={loading}
                           className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-all"
                         >
-                          {loading ? "Resetting…" : "Reset Password"}
+                          {loading ? t("Resetting…") : t("Reset Password")}
                         </button>
                         <button type="button" onClick={() => { setView("forgot"); setError(null); }}
                           className="w-full text-sm text-neutral-500 hover:text-white transition-colors py-1">
-                          ← Resend code
+                          {t("← Resend code")}
                         </button>
                       </>
                     )}

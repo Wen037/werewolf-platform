@@ -211,15 +211,21 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
-              <div className="bg-white/5 border border-white/8 rounded-2xl p-5 flex items-center gap-4">
+              <button
+                className="w-full text-left bg-white/5 border border-white/8 rounded-2xl p-5 flex items-center gap-4 hover:bg-white/10 transition-colors cursor-pointer"
+                onClick={() => event.hostId && navigate(`/user/${event.hostId}`)}
+              >
                 <div className="bg-black/40 p-3 rounded-xl">
                   <IconUser size={20} className="text-neutral-300" />
                 </div>
                 <div>
                   <div className="text-xs text-neutral-300 uppercase tracking-wider mb-0.5">{t("Host")}</div>
                   <div className="text-white font-bold">{event.hostName || t("Unknown")}</div>
+                  {event.hostId && (
+                    <div className="text-xs text-blue-400 mt-0.5">{t("View Profile")}</div>
+                  )}
                 </div>
-              </div>
+              </button>
 
               {event.description && (
                 <div className="bg-white/5 border border-white/8 rounded-2xl p-5">

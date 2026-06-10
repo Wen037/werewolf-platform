@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { IconX, IconAlertTriangle } from "@tabler/icons-react";
+import { useLang } from "../context/LanguageContext";
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface ReportModalProps {
 }
 
 export function ReportModal({ isOpen, onClose, onSuccess, targetType, targetName }: ReportModalProps) {
+  const { t } = useLang();
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,36 +60,36 @@ export function ReportModal({ isOpen, onClose, onSuccess, targetType, targetName
           <div className="p-2 bg-red-500/10 rounded-lg">
             <IconAlertTriangle className="w-6 h-6 text-red-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Report {targetType}</h2>
+          <h2 className="text-2xl font-bold text-white">{t(`Report ${targetType}`)}</h2>
         </div>
 
         <p className="text-sm text-neutral-400 mb-6">
-          You are reporting <span className="text-white font-semibold">{targetName}</span>.
+          {t("You are reporting")} <span className="text-white font-semibold">{targetName}</span>.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-1">Reason</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-1">{t("Reason")}</label>
             <select
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full px-4 py-2 bg-black border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500"
             >
-              <option value="" disabled>Select a reason</option>
+              <option value="" disabled>{t("Select a reason")}</option>
               {reportReasons.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>{t(r)}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-1">Additional Details</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-1">{t("Additional Details")}</label>
             <textarea
               required
               value={details}
               onChange={(e) => setDetails(e.target.value)}
-              placeholder="Describe the issue..."
+              placeholder={t("Describe the issue...")}
               rows={3}
               className="w-full px-4 py-2 bg-black border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
             />
@@ -98,7 +100,7 @@ export function ReportModal({ isOpen, onClose, onSuccess, targetType, targetName
             disabled={isSubmitting || !reason}
             className="w-full py-3 mt-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
           >
-            {isSubmitting ? "Submitting..." : "Submit Report"}
+            {isSubmitting ? t("Submitting...") : t("Submit Report")}
           </button>
         </form>
       </div>

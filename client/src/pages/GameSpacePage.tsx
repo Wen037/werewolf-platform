@@ -225,7 +225,7 @@ export default function GameSpacePage() {
                 ? "bg-amber-500/15 border-amber-500/25 text-amber-400"
                 : "bg-amber-500/10 border-amber-500/20 text-amber-400"
             }`}>
-              {VENUE_TYPE_LABELS[venue.type]}
+              {t(VENUE_TYPE_LABELS[venue.type])}
             </span>
           )}
           {venue.maxPax && (

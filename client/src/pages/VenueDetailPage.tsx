@@ -1536,7 +1536,7 @@ export default function VenueDetailPage() {
                 {venue.type && (
                   <div className="flex items-center gap-2 text-sm text-neutral-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
                     <IconBuildingStore size={14} className="text-sky-400" />
-                    {VENUE_TYPE_LABELS[venue.type]}
+                    {t(VENUE_TYPE_LABELS[venue.type])}
                   </div>
                 )}
                 {venue.maxPax && (

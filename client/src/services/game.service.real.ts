@@ -162,8 +162,25 @@ export const RealGameService = {
 
   // ── Host control ──────────────────────────────────────────────────────────
 
-  getSessionRoster: (sessionId: string) =>
-    api.get(`/games/${sessionId}/roster`),
+  getSessionRoster: async (sessionId: string) => {
+    // Backend returns { roster: [...], pending: [...], guests: [...] }
+    // Frontend RosterTab expects RosterEntry[] = { user, interaction }[]
+    const raw = await api.get(`/games/${sessionId}/roster`);
+    type RawItem = {
+      userId: string; username: string; avatarUrl?: string;
+      creditScore?: number; role?: string; interactionStatus: string;
+      punctuality?: string; isWaitlisted?: boolean; waitlistPosition?: number;
+    };
+    const toEntry = (item: RawItem) => ({
+      user: { id: item.userId, username: item.username, avatarUrl: item.avatarUrl ?? '', creditScore: item.creditScore ?? 100, role: item.role ?? 'player', email: '', bio: '' },
+      interaction: { userId: item.userId, sessionId, status: item.interactionStatus, isLiked: false, waitlistPosition: item.waitlistPosition, punctuality: item.punctuality },
+    });
+    const combined: ReturnType<typeof toEntry>[] = [
+      ...((raw as { roster?: RawItem[] }).roster ?? []).map(toEntry),
+      ...((raw as { pending?: RawItem[] }).pending ?? []).map(toEntry),
+    ];
+    return combined;
+  },
 
   kickPlayer: (sessionId: string, userId: string) =>
     api.delete(`/games/${sessionId}/players/${userId}`),
