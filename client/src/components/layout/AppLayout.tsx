@@ -246,8 +246,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       ease: "linear"      
                     }}
                   />
-                  <span className="text-neutral font-extrabold hidden md:inline">Werewolf SG</span> 
-                  <span className="text-neutral-500 hidden md:inline"> - </span> 
+                  <span className="text-neutral font-extrabold hidden md:inline">Werewolf SG</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 tracking-widest hidden md:inline">BETA</span>
+                  <span className="text-neutral-500 hidden md:inline"> - </span>
                   <span>{currentTitle}</span>
               </h1>
 
