@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useLang } from "../context/LanguageContext";
 import { ReportModal } from "../components/ReportModal";
+import { AuthModal } from "../components/AuthModal";
 import { IconAlertTriangle } from "@tabler/icons-react";
 
 const PROFICIENCY_STYLES: Record<string, string> = {
@@ -30,10 +31,12 @@ export default function PublicProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const currentUser = AuthService.getCurrentUser();
+  const isLoggedIn = AuthService.isLoggedIn();
   const isOwnProfile = currentUser?.id === id;
 
   useEffect(() => {
@@ -49,6 +52,7 @@ export default function PublicProfilePage() {
   }, [id]);
 
   const handleFollow = async () => {
+    if (!isLoggedIn) { setAuthOpen(true); return; }
     if (!id || followLoading) return;
     setFollowLoading(true);
     try {
@@ -116,6 +120,8 @@ export default function PublicProfilePage() {
           )}
         </AnimatePresence>
 
+        <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
+
         <ReportModal
           isOpen={reportOpen}
           onClose={() => setReportOpen(false)}
@@ -168,7 +174,7 @@ export default function PublicProfilePage() {
                 {!isOwnProfile && (
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => setReportOpen(true)}
+                      onClick={() => isLoggedIn ? setReportOpen(true) : setAuthOpen(true)}
                       className="p-2 rounded-full text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
                       title="Report player"
                     >
