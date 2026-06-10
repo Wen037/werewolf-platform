@@ -746,19 +746,20 @@ export default function HomePage() {
             color: "rgba(200,185,150,0.50)",
             lineHeight: 1.7,
           }}>
-            {t('Find & host in-person Werewolf (狼人杀) game nights in Singapore.')}
+            {t('Find & host in-person Werewolf game in Singapore.')}
             <br />
-            {t('Browse open sessions, discover venues, and meet local players.')}
+            {t('Browse open game events, discover venues, and meet local players.')}
           </p>
           <p style={{
             fontFamily: "'Cinzel', serif",
             fontSize: "0.5rem",
             letterSpacing: "0.04em",
-            color: "rgba(251,191,36,0.55)",
+            color: "rgba(251,191,36,0.60)",
             lineHeight: 1.6,
             marginTop: "0.4em",
+            fontWeight: "bold",
           }}>
-            ⚔ {t('Offline game nights only — not an online game')}
+            {t('Offline game gathering only')}
           </p>
         </div>
 
@@ -780,19 +781,20 @@ export default function HomePage() {
             color: "rgba(200,185,150,0.55)",
             lineHeight: 1.8,
           }}>
-            {t('Find & host in-person Werewolf (狼人杀) game nights in Singapore.')}
+            {t('Find & host in-person Werewolf game in Singapore.')}
             <br />
-            {t('Browse open sessions, discover venues, and meet local players.')}
+            {t('Browse open game events, discover venues, and meet local players.')}
           </p>
           <p style={{
             fontFamily: "'Cinzel', serif",
             fontSize: "clamp(0.50rem, 0.85vw, 0.65rem)",
             letterSpacing: "0.06em",
-            color: "rgba(251,191,36,0.60)",
+            color: "rgba(251,191,36,0.65)",
             lineHeight: 1.6,
             marginTop: "0.5em",
+            fontWeight: "bold",
           }}>
-            ⚔ {t('Offline game nights only — not an online game')}
+            {t('Offline game gathering only')}
           </p>
         </div>
 

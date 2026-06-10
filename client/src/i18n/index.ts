@@ -19,12 +19,12 @@ export const zh: Record<string, string> = {
   'Login / Register':     '登录 / 注册',
   'Find a Game':          '找一局',
   'The village awaits.':  '进入狼村',
-  'Find & host in-person Werewolf (狼人杀) game nights in Singapore.':
-    '新加坡狼人杀线下组局平台，找牌局、约狼友。',
-  'Browse open sessions, discover venues, and meet local players.':
+  'Find & host in-person Werewolf game in Singapore.':
+    '新加坡狼人杀线下组局平台，找狼局、约狼友。',
+  'Browse open game events, discover venues, and meet local players.':
     '浏览开放牌局、发现附近场地、结识本地狼友。',
-  'Offline game nights only — not an online game':
-    '本平台仅限线下组局，不提供线上对战功能',
+  'Offline game gathering only':
+    '本平台仅限线下组局',
 
   // ── Credit ranks ──────────────────────────────────────────────────
   '⚠ Flagged':   '⚠ 警告',
