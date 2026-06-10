@@ -12,6 +12,7 @@ export const CreateMatchSchema = z.object({
   judge_method: z.string().max(50).optional(),
   proficiency_required: z.number().int().min(0).max(4).optional(),
   approvalMode: z.enum(['open', 'approval', 'invite_only']).optional(),
+  recurrence: z.enum(['none', 'weekly', 'biweekly', 'monthly']).optional(),
 }).refine(data => data.max_pax >= data.min_pax, {
   message: 'max_pax must be >= min_pax',
   path: ['max_pax'],
@@ -54,6 +55,14 @@ export const NotifyAllSchema = z.object({
   message: z.string().min(1).max(500),
 });
 
+export const AddCommentSchema = z.object({
+  text: z.string().min(1).max(500),
+});
+
+export const UpdateRecapSchema = z.object({
+  text: z.string().max(2000).optional(),
+});
+
 export const UpdateSessionSchema = z.object({
   title: z.string().min(3).max(80).optional(),
   description: z.string().max(500).optional(),
@@ -89,6 +98,8 @@ export type AddGuestDTO = z.infer<typeof AddGuestSchema>;
 export type MessagePlayerDTO = z.infer<typeof MessagePlayerSchema>;
 export type NotifyAllDTO = z.infer<typeof NotifyAllSchema>;
 export type UpdateSessionDTO = z.infer<typeof UpdateSessionSchema>;
+export type AddCommentDTO = z.infer<typeof AddCommentSchema>;
+export type UpdateRecapDTO = z.infer<typeof UpdateRecapSchema>;
 
 // ─── Response DTOs (use explicit | undefined for exactOptionalPropertyTypes) ──
 
@@ -106,6 +117,16 @@ export interface MatchGuestDTO {
   name: string;
   addedBy: string;
   addedAt: string;
+}
+
+export interface CommentResponseDTO {
+  id: string;
+  matchId: string;
+  userId: string;
+  username: string;
+  avatarUrl: string | undefined;
+  text: string;
+  createdAt: string;
 }
 
 export interface GameSessionResponseDTO {
@@ -138,6 +159,8 @@ export interface GameSessionResponseDTO {
   joinedPlayerIds: string[];
   venueImageUrl: string | undefined;
   myInteraction: SessionInteractionDTO | undefined;
+  recurrence: 'none' | 'weekly' | 'biweekly' | 'monthly';
+  recap: { text?: string } | undefined;
 }
 
 export function toFrontendStatus(status: string): 'open' | 'playing' | 'finished' {

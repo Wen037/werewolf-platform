@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
-import type { GameSessionDTO } from "../types";
+import { AuthService } from "../services/auth.service";
+import type { EventComment, GameSessionDTO } from "../types";
 import { AppLayout } from "../components/layout/AppLayout";
 import { AuthModal } from "../components/AuthModal";
 import { useAuthGate } from "../hooks/useAuthGate";
@@ -16,7 +17,49 @@ import {
   IconUser,
   IconStar,
   IconCalendarEvent,
+  IconShare,
+  IconBrandTelegram,
+  IconBrandWhatsapp,
+  IconCopy,
+  IconCheck,
+  IconMessageCircle,
+  IconTrash,
+  IconPencil,
+  IconFileText,
 } from "@tabler/icons-react";
+
+function generateIcs(event: GameSessionDTO): string {
+  const start = new Date(event.date);
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const loc = [event.venueName, event.venueAddress].filter(Boolean).join(", ");
+  return [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Werewolf SG//EN",
+    "BEGIN:VEVENT",
+    `UID:${event.id}@werewolf.sg`,
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:${event.title}`,
+    `DESCRIPTION:${event.description ?? "Werewolf game in Singapore"}`,
+    `LOCATION:${loc}`,
+    "END:VEVENT", "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+function googleCalUrl(event: GameSessionDTO): string {
+  const start = new Date(event.date);
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const loc = [event.venueName, event.venueAddress].filter(Boolean).join(", ");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: event.title,
+    dates: `${fmt(start)}/${fmt(end)}`,
+    details: (event.description ?? "") + `\n\nJoin: ${window.location.href}`,
+    location: loc,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 function formatEventDate(iso: string) {
   const d = new Date(iso);
@@ -48,6 +91,20 @@ export default function EventDetailPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
 
+  // Comments
+  const [comments, setComments] = useState<EventComment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+
+  // Recap editor (host only, after event Completed)
+  const [recapText, setRecapText] = useState("");
+  const [recapEditing, setRecapEditing] = useState(false);
+  const [recapSaving, setRecapSaving] = useState(false);
+
+  // Share copy-link feedback
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!id) return;
     GameService.getGameById(id).then(data => {
@@ -56,8 +113,10 @@ export default function EventDetailPage() {
         const status = data.myInteraction?.status;
         if (status === "registered" || status === "attended") setJoinState("joined");
         else if (status === "pending") setJoinState("pending");
+        setRecapText(data.recap?.text ?? "");
       }
     });
+    GameService.getComments(id).then(setComments).catch(() => {});
   }, [id]);
 
   const triggerToast = (msg: string) => {
@@ -89,6 +148,68 @@ export default function EventDetailPage() {
     } catch {
       setJoinState("idle");
       triggerToast(t("Failed to join. Please try again."));
+    }
+  };
+
+  const currentUser = AuthService.getCurrentUser();
+  const isHost = !!(event && currentUser && event.hostId === currentUser.id);
+  const isLoggedIn = !!currentUser;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href).catch(() => {});
+    setCopied(true);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadIcs = () => {
+    if (!event) return;
+    const blob = new Blob([generateIcs(event)], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${event.title.replace(/[^a-z0-9]/gi, "_")}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleAddComment = async () => {
+    if (!requireAuth()) return;
+    if (!id || !commentText.trim()) return;
+    setCommentSubmitting(true);
+    try {
+      const newComment = await GameService.addComment(id, commentText.trim());
+      setComments(prev => [...prev, newComment]);
+      setCommentText("");
+    } catch {
+      triggerToast(t("Failed to post comment."));
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!id) return;
+    try {
+      await GameService.deleteComment(id, commentId);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+    } catch {
+      triggerToast(t("Failed to delete comment."));
+    }
+  };
+
+  const handleSaveRecap = async () => {
+    if (!id) return;
+    setRecapSaving(true);
+    try {
+      await GameService.updateRecap(id, recapText);
+      setEvent(e => e ? { ...e, recap: { text: recapText } } : e);
+      setRecapEditing(false);
+      triggerToast(t("Recap saved."));
+    } catch {
+      triggerToast(t("Failed to save recap."));
+    } finally {
+      setRecapSaving(false);
     }
   };
 
@@ -280,7 +401,126 @@ export default function EventDetailPage() {
               </div>
 
             </div>
+
+            {/* Post-event recap */}
+            {event.status === "finished" && (
+              <div className="bg-white/5 border border-white/8 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <IconFileText size={13} /> {t("Event Recap")}
+                  </div>
+                  {isHost && !recapEditing && (
+                    <button
+                      onClick={() => setRecapEditing(true)}
+                      className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white transition-colors"
+                    >
+                      <IconPencil size={12} /> {t("Edit")}
+                    </button>
+                  )}
+                </div>
+
+                {recapEditing ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={recapText}
+                      onChange={e => setRecapText(e.target.value)}
+                      rows={4}
+                      maxLength={2000}
+                      placeholder={t("Write a recap for this event...")}
+                      className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-red-500/50 resize-none placeholder:text-neutral-600"
+                    />
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => setRecapEditing(false)} className="text-xs text-neutral-500 hover:text-white px-3 py-1.5">
+                        {t("Cancel")}
+                      </button>
+                      <button
+                        onClick={handleSaveRecap}
+                        disabled={recapSaving}
+                        className="text-xs bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded-lg disabled:opacity-50"
+                      >
+                        {recapSaving ? t("Saving...") : t("Save")}
+                      </button>
+                    </div>
+                  </div>
+                ) : event.recap?.text ? (
+                  <p className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap">{event.recap.text}</p>
+                ) : (
+                  <p className="text-sm text-neutral-500 italic">
+                    {isHost ? t("No recap yet. Click Edit to add one.") : t("No recap posted yet.")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Comments / Q&A */}
+            <div className="bg-white/5 border border-white/8 rounded-2xl p-5">
+              <div className="text-xs text-neutral-300 uppercase tracking-wider flex items-center gap-1.5 mb-4">
+                <IconMessageCircle size={13} /> {t("Comments")} {comments.length > 0 && `(${comments.length})`}
+              </div>
+
+              {comments.length > 0 ? (
+                <div className="space-y-3 mb-4 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+                  {comments.map(c => (
+                    <div key={c.id} className="flex gap-3 group">
+                      <img
+                        src={c.avatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${c.userId}`}
+                        alt=""
+                        className="w-7 h-7 rounded-full flex-shrink-0 mt-0.5 bg-neutral-700"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-white">{c.username}</span>
+                          <span className="text-[10px] text-neutral-600">
+                            {new Date(c.createdAt).toLocaleDateString("en-SG", { day: "numeric", month: "short" })}
+                          </span>
+                          {(currentUser?.id === c.userId || isHost) && (
+                            <button
+                              onClick={() => handleDeleteComment(c.id)}
+                              className="opacity-0 group-hover:opacity-100 ml-auto text-neutral-600 hover:text-red-400 transition-all flex-shrink-0"
+                            >
+                              <IconTrash size={12} />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-sm text-neutral-300 mt-0.5 leading-snug">{c.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-600 italic mb-4">{t("No comments yet. Be the first!")}</p>
+              )}
+
+              {isLoggedIn ? (
+                <div className="flex gap-2">
+                  <input
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void handleAddComment(); } }}
+                    placeholder={t("Add a comment...")}
+                    maxLength={500}
+                    className="flex-1 bg-black border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500/50 placeholder:text-neutral-600"
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={commentSubmitting || !commentText.trim()}
+                    className="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded-xl disabled:opacity-40 transition-colors flex-shrink-0"
+                  >
+                    {t("Post")}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAuthOpen(true)}
+                  className="text-sm text-neutral-500 hover:text-white transition-colors"
+                >
+                  {t("Log in to comment")}
+                </button>
+              )}
+            </div>
+
           </div>
+        </div>
 
           {/* Right column */}
           <div className="lg:col-span-1">
@@ -324,6 +564,58 @@ export default function EventDetailPage() {
               >
                 <IconMapPin size={16} /> {t("View Venue")}
               </button>
+
+              {/* Add to Calendar */}
+              <div className="pt-1">
+                <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">{t("Add to Calendar")}</div>
+                <div className="flex gap-2">
+                  <a
+                    href={googleCalUrl(event)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-medium rounded-xl border border-white/10 flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <IconCalendarEvent size={14} /> Google
+                  </a>
+                  <button
+                    onClick={handleDownloadIcs}
+                    className="flex-1 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-medium rounded-xl border border-white/10 flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <IconCalendarEvent size={14} /> .ics
+                  </button>
+                </div>
+              </div>
+
+              {/* Share */}
+              <div className="pt-1">
+                <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <IconShare size={11} /> {t("Share")}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCopyLink}
+                    className="flex-1 py-2 bg-neutral-800 hover:bg-neutral-700 text-xs font-medium rounded-xl border border-white/10 flex items-center justify-center gap-1.5 transition-all text-white"
+                  >
+                    {copied ? <><IconCheck size={13} className="text-green-400" /> {t("Copied!")}</> : <><IconCopy size={13} /> {t("Copy Link")}</>}
+                  </button>
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(event.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2 px-3 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/25 text-sky-300 rounded-xl flex items-center justify-center transition-all"
+                  >
+                    <IconBrandTelegram size={16} />
+                  </a>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(event.title + " " + window.location.href)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2 px-3 bg-green-500/15 hover:bg-green-500/25 border border-green-500/25 text-green-300 rounded-xl flex items-center justify-center transition-all"
+                  >
+                    <IconBrandWhatsapp size={16} />
+                  </a>
+                </div>
+              </div>
 
             </div>
           </div>

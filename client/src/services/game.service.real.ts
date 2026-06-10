@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from '../types';
+import type { EventComment, GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from '../types';
 
 /**
  * The frontend's `GameVenue` shape uses `pricePerHour`/`priceType` (matching the
@@ -39,6 +39,7 @@ export interface CreateSessionInput {
   minPlayers?: number;
   proficiency?: string;
   description?: string;
+  recurrence?: 'none' | 'weekly' | 'biweekly' | 'monthly';
 }
 
 /**
@@ -62,6 +63,9 @@ function toCreateSessionPayload(input: CreateSessionInput): Record<string, unkno
   }
   if (input.description !== undefined && input.description.trim() !== '') {
     payload['description'] = input.description.trim();
+  }
+  if (input.recurrence !== undefined) {
+    payload['recurrence'] = input.recurrence;
   }
   return payload;
 }
@@ -230,4 +234,20 @@ export const RealGameService = {
 
   pinGame: (sessionId: string): Promise<{ isPinned: boolean }> =>
     api.patch(`/admin/games/${sessionId}/pin`, {}),
+
+  // ── Comments ──────────────────────────────────────────────────────────────
+
+  getComments: (sessionId: string): Promise<EventComment[]> =>
+    api.get(`/games/${sessionId}/comments`),
+
+  addComment: (sessionId: string, text: string): Promise<EventComment> =>
+    api.post(`/games/${sessionId}/comments`, { text }),
+
+  deleteComment: (sessionId: string, commentId: string): Promise<void> =>
+    api.delete(`/games/${sessionId}/comments/${commentId}`),
+
+  // ── Post-event recap ──────────────────────────────────────────────────────
+
+  updateRecap: (sessionId: string, text: string): Promise<void> =>
+    api.patch(`/games/${sessionId}/recap`, { text }),
 };

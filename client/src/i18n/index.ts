@@ -437,6 +437,27 @@ export const zh: Record<string, string> = {
   'Send Message':         '发送消息',
   'Message sent successfully to the web admin!': '消息已成功发送给管理员！',
   'Failed to send message. Please try again.':   '发送失败，请重试。',
+
+  // ── Event detail — share, calendar, comments, recap ───────────────
+  'Add to Calendar':           '添加到日历',
+  'Share':                     '分享',
+  'Copy Link':                 '复制链接',
+  'Copied!':                   '已复制！',
+  'Comments':                  '评论',
+  'No comments yet. Be the first!': '还没有评论，来抢占沙发！',
+  'Add a comment...':          '添加评论...',
+  'Post':                      '发送',
+  'Log in to comment':         '登录后评论',
+  'Failed to post comment.':   '评论发送失败。',
+  'Failed to delete comment.': '删除评论失败。',
+  'Event Recap':               '活动回顾',
+  'Write a recap for this event...': '写下本次活动的回顾...',
+  'No recap yet. Click Edit to add one.': '暂无回顾，点击编辑添加。',
+  'No recap posted yet.':      '暂无活动回顾。',
+  'Recap saved.':              '回顾已保存。',
+  'Failed to save recap.':     '保存回顾失败。',
+  'Saving...':                 '保存中...',
+  'Edit':                      '编辑',
 };
 
 export function t(key: string, lang: Lang): string {

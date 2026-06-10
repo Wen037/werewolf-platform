@@ -1,5 +1,5 @@
 import { MOCK_GAMES, MOCK_VENUES, MOCK_SESSION_INTERACTIONS, MOCK_USERS, MOCK_USER_SUBSCRIPTIONS, MOCK_VENUE_INTERACTIONS } from "../data/mockDB";
-import type { GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from "../types";
+import type { EventComment, GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from "../types";
 import type { CreateSessionInput } from "./game.service.real";
 
 // ── Current user resolved from localStorage (follows debug panel switches) ─
@@ -425,5 +425,30 @@ export const MockGameService = {
     if (session) { session.isPinned = !session.isPinned; }
     console.log(`[Mock] pinGame ${sessionId}:`, session?.isPinned);
     return { isPinned: session?.isPinned ?? false };
+  },
+
+  getComments: async (_sessionId: string): Promise<EventComment[]> => {
+    await delay(200);
+    return [];
+  },
+
+  addComment: async (sessionId: string, text: string): Promise<EventComment> => {
+    await delay(200);
+    return {
+      id: Math.random().toString(36).slice(2),
+      matchId: sessionId,
+      userId: 'mock-user',
+      username: 'MockUser',
+      text,
+      createdAt: new Date().toISOString(),
+    };
+  },
+
+  deleteComment: async (_sessionId: string, _commentId: string): Promise<void> => {
+    await delay(200);
+  },
+
+  updateRecap: async (_sessionId: string, _text: string): Promise<void> => {
+    await delay(200);
   },
 };

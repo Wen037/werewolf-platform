@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { app } from './app';
+import { ReminderService } from './shared/infra/ReminderService';
 
 dotenv.config();
 
@@ -24,7 +25,10 @@ const start = async () => {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
 
-    // 2. Start Server
+    // 2. Start background services
+    new ReminderService().start();
+
+    // 3. Start Server
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });

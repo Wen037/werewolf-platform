@@ -34,6 +34,8 @@ export interface IMatchDocument extends Document {
   totalLikes: number;
   isPinned: boolean;
   cancelledAt?: Date;
+  recurrence?: 'none' | 'weekly' | 'biweekly' | 'monthly';
+  recap?: { text?: string };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -93,6 +95,14 @@ const MatchSchema = new Schema<IMatchDocument>(
     totalLikes: { type: Number, default: 0 },
     isPinned: { type: Boolean, default: false },
     cancelledAt: { type: Date },
+    recurrence: {
+      type: String,
+      enum: ['none', 'weekly', 'biweekly', 'monthly'],
+      default: 'none',
+    },
+    recap: {
+      text: { type: String, maxlength: 2000 },
+    },
   },
   { timestamps: true }
 );

@@ -146,6 +146,7 @@ export interface GameSession {
   // Who can join: open (anyone), approval (host must approve), invite_only (host invites)
   approvalMode?: 'open' | 'approval' | 'invite_only';
   isPinned?: boolean;
+  recurrence?: 'none' | 'weekly' | 'biweekly' | 'monthly';
 }
 
 // ── Interaction / join-table records ──────────────────────────────────────
@@ -184,6 +185,16 @@ export interface GameVenueDTO extends GameVenue {
   pendingApplicationsCount?: number;
 }
 
+export interface EventComment {
+  id: string;
+  matchId: string;
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface GameSessionDTO extends GameSession {
   myInteraction?: SessionInteraction;
   hostName?: string;
@@ -193,6 +204,8 @@ export interface GameSessionDTO extends GameSession {
   joinedPlayerAvatars?: string[];
   joinedPlayerIds?: string[];
   venueImageUrl?: string;
+  recurrence?: 'none' | 'weekly' | 'biweekly' | 'monthly';
+  recap?: { text?: string };
 }
 
 export interface PublicSessionDTO {

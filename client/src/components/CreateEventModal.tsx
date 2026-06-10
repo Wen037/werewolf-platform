@@ -41,6 +41,7 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
   const [date, setDate] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(12);
   const [description, setDescription] = useState("");
+  const [recurrence, setRecurrence] = useState<"none" | "weekly" | "biweekly" | "monthly">("none");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -94,6 +95,7 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
         maxPlayers,
         proficiency,
         description,
+        recurrence,
       });
       onClose();
     } catch (err) {
@@ -126,6 +128,7 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
       setMinute("00");
       setPeriod("PM");
       setProficiency("All Welcome");
+      setRecurrence("none");
       setFormError(null);
       setSubmitting(false);
     }
@@ -364,6 +367,31 @@ export const CreateEventModal = ({ isOpen, onClose, defaultVenueId }: CreateEven
                       className="w-full bg-black/50 border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-red-500/50 transition-all min-h-[100px] resize-none placeholder:text-neutral-600 custom-scrollbar golden-scrollbar"
                       placeholder="Add any special rules or notes for players..."
                     ></textarea>
+                  </div>
+
+                  {/* Recurrence */}
+                  <div>
+                    <label className="text-sm font-semibold text-neutral-300 mb-2 block">Repeat</label>
+                    <div className="relative">
+                      <select
+                        value={recurrence}
+                        onChange={e => setRecurrence(e.target.value as typeof recurrence)}
+                        className="w-full bg-black border border-white/10 rounded-xl p-3.5 text-white appearance-none focus:outline-none focus:border-red-500/50 transition-all pr-10 cursor-pointer"
+                      >
+                        <option value="none" className="bg-neutral-900 text-white">Does not repeat</option>
+                        <option value="weekly" className="bg-neutral-900 text-white">Weekly</option>
+                        <option value="biweekly" className="bg-neutral-900 text-white">Every 2 weeks</option>
+                        <option value="monthly" className="bg-neutral-900 text-white">Monthly</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-neutral-400">
+                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
+                      </div>
+                    </div>
+                    {recurrence !== "none" && (
+                      <p className="text-[11px] text-neutral-500 mt-1.5">
+                        A new event will be auto-created when this one is marked as Completed.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

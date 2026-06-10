@@ -13,6 +13,8 @@ import {
   MessagePlayerSchema,
   NotifyAllSchema,
   UpdateSessionSchema,
+  AddCommentSchema,
+  UpdateRecapSchema,
 } from '../DTOs/MatchDTOs';
 import { MatchStatus } from '../domain/Match';
 
@@ -159,6 +161,33 @@ router.patch('/games/:sessionId/cancel', requireAuth, async (req: Request, res: 
   const result = await matchService.cancelWithPenalty(id(req), req.user!.userId);
   if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
   res.status(200).json({ message: 'Session cancelled.' });
+});
+
+// ── Comments ──────────────────────────────────────────────────────────────────
+
+router.get('/games/:sessionId/comments', optionalAuth, async (req: Request, res: Response) => {
+  const comments = await matchService.getComments(id(req));
+  res.status(200).json(comments);
+});
+
+router.post('/games/:sessionId/comments', requireAuth, validate(AddCommentSchema), async (req: Request, res: Response) => {
+  const result = await matchService.addComment(id(req), req.user!.userId, (req.body as { text: string }).text);
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(201).json(result.getValue());
+});
+
+router.delete('/games/:sessionId/comments/:commentId', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.deleteComment(id(req), String(req.params['commentId']), req.user!.userId);
+  if (result.isFailure) { res.status(403).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Comment deleted.' });
+});
+
+// ── Post-event recap ──────────────────────────────────────────────────────────
+
+router.patch('/games/:sessionId/recap', requireAuth, validate(UpdateRecapSchema), async (req: Request, res: Response) => {
+  const result = await matchService.updateRecap(id(req), req.user!.userId, (req.body as { text?: string }).text ?? '');
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Recap updated.' });
 });
 
 // ── Admin: toggle pin status of a match ──────────────────────────────────────

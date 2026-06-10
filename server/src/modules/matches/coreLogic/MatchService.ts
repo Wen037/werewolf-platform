@@ -10,6 +10,7 @@ import { PlayerSpaceModel, IPlayerSpaceDocument } from '../../player-spaces/DBSc
 import { Match, MatchStatus } from '../domain/Match';
 import { calculateRank } from '../../users/domain/User';
 import {
+  CommentResponseDTO,
   CreateMatchDTO,
   GameSessionResponseDTO,
   InviteUsersDTO,
@@ -20,6 +21,7 @@ import {
   UpdateSessionDTO,
   toFrontendStatus,
 } from '../DTOs/MatchDTOs';
+import { EventCommentModel } from '../DBSchemas/EventCommentSchema';
 
 type MatchDoc = IMatchDocument & { _id: { toString(): string } };
 
@@ -125,6 +127,8 @@ async function enrichWithNamesAndInteraction(
     isPinned: d.isPinned ?? false,
     venueImageUrl: venueImageMap.get(d.venue_id.toString()),
     myInteraction: interactionMap.get(d._id.toString()),
+    recurrence: (d.recurrence ?? 'none') as 'none' | 'weekly' | 'biweekly' | 'monthly',
+    recap: d.recap,
   }));
 }
 
@@ -203,6 +207,7 @@ export class MatchService {
         coordinates: [venue.location.long, venue.location.lat],  // GeoJSON: [lng, lat]
       },
       ...(dto.approvalMode !== undefined && { approvalMode: dto.approvalMode }),
+      ...(dto.recurrence !== undefined && { recurrence: dto.recurrence }),
       venueApprovalStatus,
       players: [hostId],
     }) as unknown as MatchDoc;
@@ -473,6 +478,7 @@ export class MatchService {
         const rank = calculateRank(host.eventsAttended, host.eventsHosted, host.noshows, host.lateCount);
         await UserModel.findByIdAndUpdate(hostId, { rank });
       }
+      await this.createNextOccurrence(doc);
     }
 
     await MatchModel.findByIdAndUpdate(sessionId, { $set: update });
@@ -909,5 +915,99 @@ export class MatchService {
     const newPinned = !doc.isPinned;
     await MatchModel.findByIdAndUpdate(sessionId, { $set: { isPinned: newPinned } });
     return Result.ok({ isPinned: newPinned });
+  }
+
+  // ── Comments ──────────────────────────────────────────────────────────────
+
+  async getComments(matchId: string): Promise<CommentResponseDTO[]> {
+    const comments = await EventCommentModel.find({ matchId }).sort({ createdAt: 1 }).lean();
+    const userIds = [...new Set(comments.map(c => c.userId.toString()))];
+    const users = await UserModel.find({ _id: { $in: userIds } }, 'username avatarUrl');
+    const userMap = new Map(users.map(u => [u._id.toString(), u]));
+    return comments.map(c => {
+      const user = userMap.get(c.userId.toString());
+      return {
+        id: (c._id as { toString(): string }).toString(),
+        matchId,
+        userId: c.userId.toString(),
+        username: user?.username ?? 'Unknown',
+        avatarUrl: user?.avatarUrl,
+        text: c.text,
+        createdAt: (c as unknown as { createdAt: Date }).createdAt.toISOString(),
+      };
+    });
+  }
+
+  async addComment(matchId: string, userId: string, text: string): Promise<Result<CommentResponseDTO>> {
+    const match = await MatchModel.findById(matchId);
+    if (!match) return Result.fail('Match not found.');
+    const raw = await EventCommentModel.create({ matchId, userId, text });
+    const comment = raw as unknown as { _id: { toString(): string }; text: string; createdAt: Date };
+    const user = await UserModel.findById(userId, 'username avatarUrl');
+    return Result.ok({
+      id: comment._id.toString(),
+      matchId,
+      userId,
+      username: user?.username ?? 'Unknown',
+      avatarUrl: user?.avatarUrl,
+      text: comment.text,
+      createdAt: comment.createdAt.toISOString(),
+    });
+  }
+
+  async deleteComment(matchId: string, commentId: string, userId: string): Promise<Result<void>> {
+    const comment = await EventCommentModel.findById(commentId);
+    if (!comment) return Result.fail('Comment not found.');
+    const match = await MatchModel.findById(matchId);
+    const isAuthor = comment.userId.toString() === userId;
+    const isHost = match?.host_id.toString() === userId;
+    if (!isAuthor && !isHost) return Result.fail('Cannot delete another user\'s comment.');
+    await EventCommentModel.findByIdAndDelete(commentId);
+    return Result.ok();
+  }
+
+  // ── Post-event recap ──────────────────────────────────────────────────────
+
+  async updateRecap(matchId: string, hostId: string, text: string): Promise<Result<void>> {
+    const match = await MatchModel.findById(matchId);
+    if (!match) return Result.fail('Match not found.');
+    if (match.host_id.toString() !== hostId) return Result.fail('Only the host can update the recap.');
+    if (match.status !== 'Completed') return Result.fail('Recap can only be added to completed events.');
+    await MatchModel.findByIdAndUpdate(matchId, { $set: { 'recap.text': text } });
+    return Result.ok();
+  }
+
+  // ── Recurring event helper ────────────────────────────────────────────────
+
+  private async createNextOccurrence(doc: MatchDoc): Promise<void> {
+    const recurrence = doc.recurrence;
+    if (!recurrence || recurrence === 'none') return;
+
+    const daysMap: Record<string, number> = { weekly: 7, biweekly: 14, monthly: 30 };
+    const daysToAdd = daysMap[recurrence] ?? 7;
+    const nextDate = new Date(doc.scheduledAt);
+    nextDate.setDate(nextDate.getDate() + daysToAdd);
+
+    const createPayload: Record<string, unknown> = {
+      host_id: doc.host_id,
+      venue_id: doc.venue_id,
+      title: doc.title,
+      scheduledAt: nextDate,
+      config: doc.config,
+      location: doc.location,
+      geoLocation: doc.geoLocation,
+      approvalMode: doc.approvalMode,
+      venueApprovalStatus: doc.venueApprovalStatus,
+      recurrence,
+      players: [doc.host_id],
+    };
+    if (doc.description !== undefined) createPayload['description'] = doc.description;
+    if (doc.groupLink  !== undefined) createPayload['groupLink']    = doc.groupLink;
+    if (doc.groupType  !== undefined) createPayload['groupType']    = doc.groupType;
+
+    const newDoc = await MatchModel.create(createPayload) as MatchDoc;
+
+    await SessionInteractionModel.create({ userId: doc.host_id, sessionId: newDoc._id });
+    console.log(`[Recurring] Created next ${recurrence} occurrence ${newDoc._id.toString()} from ${doc._id.toString()}`);
   }
 }
