@@ -26,6 +26,8 @@ import {
   IconTrash,
   IconPencil,
   IconFileText,
+  IconLock,
+  IconLockOpen,
 } from "@tabler/icons-react";
 
 function generateIcs(event: GameSessionDTO): string {
@@ -95,6 +97,8 @@ export default function EventDetailPage() {
   const [comments, setComments] = useState<EventComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [commentsLocked, setCommentsLocked] = useState(false);
+  const [lockingComments, setLockingComments] = useState(false);
 
   // Recap editor (host only, after event Completed)
   const [recapText, setRecapText] = useState("");
@@ -114,6 +118,7 @@ export default function EventDetailPage() {
         if (status === "registered" || status === "attended") setJoinState("joined");
         else if (status === "pending") setJoinState("pending");
         setRecapText(data.recap?.text ?? "");
+        setCommentsLocked(data.commentsLocked ?? false);
       }
     });
     GameService.getComments(id).then(setComments).catch(() => {});
@@ -195,6 +200,20 @@ export default function EventDetailPage() {
       setComments(prev => prev.filter(c => c.id !== commentId));
     } catch {
       triggerToast(t("Failed to delete comment."));
+    }
+  };
+
+  const handleLockComments = async (lock: boolean) => {
+    if (!id) return;
+    setLockingComments(true);
+    try {
+      await GameService.lockComments(id, lock);
+      setCommentsLocked(lock);
+      triggerToast(lock ? t("Comments locked.") : t("Comments unlocked."));
+    } catch {
+      triggerToast(t("Failed to update comment settings."));
+    } finally {
+      setLockingComments(false);
     }
   };
 
@@ -456,7 +475,28 @@ export default function EventDetailPage() {
             <div className="bg-white/5 border border-white/8 rounded-2xl p-5">
               <div className="text-xs text-neutral-300 uppercase tracking-wider flex items-center gap-1.5 mb-4">
                 <IconMessageCircle size={13} /> {t("Comments")} {comments.length > 0 && `(${comments.length})`}
+                {isHost && (
+                  <button
+                    onClick={() => handleLockComments(!commentsLocked)}
+                    disabled={lockingComments}
+                    title={commentsLocked ? t("Unlock comments") : t("Lock comments")}
+                    className={`ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                      commentsLocked
+                        ? "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                        : "border-white/10 text-neutral-500 hover:text-white hover:border-white/20"
+                    }`}
+                  >
+                    {commentsLocked ? <IconLock size={10} /> : <IconLockOpen size={10} />}
+                    {commentsLocked ? t("Locked") : t("Lock")}
+                  </button>
+                )}
               </div>
+
+              {commentsLocked && !isHost && (
+                <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-4">
+                  <IconLock size={12} /> {t("Comments locked by host")}
+                </div>
+              )}
 
               {comments.length > 0 ? (
                 <div className="space-y-3 mb-4 max-h-80 overflow-y-auto custom-scrollbar pr-1">
@@ -491,7 +531,7 @@ export default function EventDetailPage() {
                 <p className="text-sm text-neutral-600 italic mb-4">{t("No comments yet. Be the first!")}</p>
               )}
 
-              {isLoggedIn ? (
+              {isLoggedIn && (!commentsLocked || isHost) ? (
                 <div className="flex gap-2">
                   <input
                     value={commentText}
@@ -509,14 +549,14 @@ export default function EventDetailPage() {
                     {t("Post")}
                   </button>
                 </div>
-              ) : (
+              ) : !isLoggedIn ? (
                 <button
                   onClick={() => setAuthOpen(true)}
                   className="text-sm text-neutral-500 hover:text-white transition-colors"
                 >
                   {t("Log in to comment")}
                 </button>
-              )}
+              ) : null}
             </div>
 
           </div>

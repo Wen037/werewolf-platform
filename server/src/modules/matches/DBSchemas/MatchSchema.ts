@@ -36,6 +36,7 @@ export interface IMatchDocument extends Document {
   cancelledAt?: Date;
   recurrence?: 'none' | 'weekly' | 'biweekly' | 'monthly';
   recap?: { text?: string };
+  commentsLocked: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +104,7 @@ const MatchSchema = new Schema<IMatchDocument>(
     recap: {
       text: { type: String, maxlength: 2000 },
     },
+    commentsLocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

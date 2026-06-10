@@ -448,6 +448,10 @@ export const MockGameService = {
     await delay(200);
   },
 
+  lockComments: async (_sessionId: string, _locked: boolean): Promise<void> => {
+    await delay(200);
+  },
+
   updateRecap: async (_sessionId: string, _text: string): Promise<void> => {
     await delay(200);
   },

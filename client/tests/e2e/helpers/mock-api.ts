@@ -144,6 +144,10 @@ export async function interceptApi(page: Page) {
   });
 
   // Comments (must be before the generic games/* wildcard)
+  await page.route(`${base}/games/*/comments/lock`, async route => {
+    await route.fulfill({ json: { message: 'Comments locked.' } });
+  });
+
   await page.route(`${base}/games/*/comments/*`, async route => {
     await route.fulfill({ json: { message: 'Comment deleted.' } });
   });

@@ -182,6 +182,13 @@ router.delete('/games/:sessionId/comments/:commentId', requireAuth, async (req: 
   res.status(200).json({ message: 'Comment deleted.' });
 });
 
+router.patch('/games/:sessionId/comments/lock', requireAuth, async (req: Request, res: Response) => {
+  const locked = Boolean((req.body as { locked?: boolean }).locked);
+  const result = await matchService.lockComments(id(req), req.user!.userId, locked);
+  if (result.isFailure) { res.status(403).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: locked ? 'Comments locked.' : 'Comments unlocked.' });
+});
+
 // ── Post-event recap ──────────────────────────────────────────────────────────
 
 router.patch('/games/:sessionId/recap', requireAuth, validate(UpdateRecapSchema), async (req: Request, res: Response) => {

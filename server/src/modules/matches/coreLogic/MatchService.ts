@@ -129,6 +129,7 @@ async function enrichWithNamesAndInteraction(
     myInteraction: interactionMap.get(d._id.toString()),
     recurrence: (d.recurrence ?? 'none') as 'none' | 'weekly' | 'biweekly' | 'monthly',
     recap: d.recap,
+    commentsLocked: d.commentsLocked ?? false,
   }));
 }
 
@@ -941,6 +942,8 @@ export class MatchService {
   async addComment(matchId: string, userId: string, text: string): Promise<Result<CommentResponseDTO>> {
     const match = await MatchModel.findById(matchId);
     if (!match) return Result.fail('Match not found.');
+    const isHost = match.host_id.toString() === userId;
+    if (match.commentsLocked && !isHost) return Result.fail('Comments are locked by the host.');
     const raw = await EventCommentModel.create({ matchId, userId, text });
     const comment = raw as unknown as { _id: { toString(): string }; text: string; createdAt: Date };
     const user = await UserModel.findById(userId, 'username avatarUrl');
@@ -959,19 +962,35 @@ export class MatchService {
     const comment = await EventCommentModel.findById(commentId);
     if (!comment) return Result.fail('Comment not found.');
     const match = await MatchModel.findById(matchId);
+    const requestingUser = await UserModel.findById(userId, 'role');
+    const isAdmin = ['admin', 'web_admin'].includes(requestingUser?.role ?? '');
     const isAuthor = comment.userId.toString() === userId;
     const isHost = match?.host_id.toString() === userId;
-    if (!isAuthor && !isHost) return Result.fail('Cannot delete another user\'s comment.');
+    if (!isAuthor && !isHost && !isAdmin) return Result.fail('Cannot delete another user\'s comment.');
     await EventCommentModel.findByIdAndDelete(commentId);
+    return Result.ok();
+  }
+
+  async lockComments(matchId: string, userId: string, locked: boolean): Promise<Result<void>> {
+    const match = await MatchModel.findById(matchId);
+    if (!match) return Result.fail('Match not found.');
+    const requestingUser = await UserModel.findById(userId, 'role');
+    const isAdmin = ['admin', 'web_admin'].includes(requestingUser?.role ?? '');
+    const isHost = match.host_id.toString() === userId;
+    if (!isHost && !isAdmin) return Result.fail('Only the host or admin can lock comments.');
+    await MatchModel.findByIdAndUpdate(matchId, { $set: { commentsLocked: locked } });
     return Result.ok();
   }
 
   // ── Post-event recap ──────────────────────────────────────────────────────
 
-  async updateRecap(matchId: string, hostId: string, text: string): Promise<Result<void>> {
+  async updateRecap(matchId: string, userId: string, text: string): Promise<Result<void>> {
     const match = await MatchModel.findById(matchId);
     if (!match) return Result.fail('Match not found.');
-    if (match.host_id.toString() !== hostId) return Result.fail('Only the host can update the recap.');
+    const requestingUser = await UserModel.findById(userId, 'role');
+    const isAdmin = ['admin', 'web_admin'].includes(requestingUser?.role ?? '');
+    const isHost = match.host_id.toString() === userId;
+    if (!isHost && !isAdmin) return Result.fail('Only the host can update the recap.');
     if (match.status !== 'Completed') return Result.fail('Recap can only be added to completed events.');
     await MatchModel.findByIdAndUpdate(matchId, { $set: { 'recap.text': text } });
     return Result.ok();

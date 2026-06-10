@@ -457,6 +457,15 @@ export const zh: Record<string, string> = {
   'Failed to save recap.':     '保存回顾失败。',
   'Saving...':                 '保存中...',
   'Edit':                      '编辑',
+  'Lock':                      '锁定评论',
+  'Locked':                    '已锁定',
+  'Lock comments':             '锁定评论',
+  'Unlock comments':           '解锁评论',
+  'Comments locked by host':   '主持人已关闭评论',
+  'Comments locked.':          '评论已锁定。',
+  'Comments unlocked.':        '评论已解锁。',
+  'Failed to update comment settings.': '更新评论设置失败。',
+  "Cannot delete another user's comment.": '无法删除其他用户的评论。',
 };
 
 export function t(key: string, lang: Lang): string {

@@ -206,6 +206,7 @@ export interface GameSessionDTO extends GameSession {
   venueImageUrl?: string;
   recurrence?: 'none' | 'weekly' | 'biweekly' | 'monthly';
   recap?: { text?: string };
+  commentsLocked?: boolean;
 }
 
 export interface PublicSessionDTO {

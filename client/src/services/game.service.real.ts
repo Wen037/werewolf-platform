@@ -246,6 +246,9 @@ export const RealGameService = {
   deleteComment: (sessionId: string, commentId: string): Promise<void> =>
     api.delete(`/games/${sessionId}/comments/${commentId}`),
 
+  lockComments: (sessionId: string, locked: boolean): Promise<void> =>
+    api.patch(`/games/${sessionId}/comments/lock`, { locked }),
+
   // ── Post-event recap ──────────────────────────────────────────────────────
 
   updateRecap: (sessionId: string, text: string): Promise<void> =>

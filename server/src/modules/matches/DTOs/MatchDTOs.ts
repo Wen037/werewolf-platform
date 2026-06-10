@@ -161,6 +161,7 @@ export interface GameSessionResponseDTO {
   myInteraction: SessionInteractionDTO | undefined;
   recurrence: 'none' | 'weekly' | 'biweekly' | 'monthly';
   recap: { text?: string } | undefined;
+  commentsLocked: boolean;
 }
 
 export function toFrontendStatus(status: string): 'open' | 'playing' | 'finished' {
