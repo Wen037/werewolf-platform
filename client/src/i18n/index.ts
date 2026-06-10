@@ -402,7 +402,6 @@ export const zh: Record<string, string> = {
   // ── Report Modal ──────────────────────────────────────────────────
   'Report User':          '举报用户',
   'Report Event':         '举报活动',
-  'Report Space':         '举报场地',
   'You are reporting':    '你正在举报',
   'Reason':               '举报原因',
   'Select a reason':      '请选择原因',
