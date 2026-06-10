@@ -520,7 +520,6 @@ export default function EventDetailPage() {
             </div>
 
           </div>
-        </div>
 
           {/* Right column */}
           <div className="lg:col-span-1">

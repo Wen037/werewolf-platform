@@ -442,7 +442,6 @@ export const zh: Record<string, string> = {
   'Add to Calendar':           '添加到日历',
   'Share':                     '分享',
   'Copy Link':                 '复制链接',
-  'Copied!':                   '已复制！',
   'Comments':                  '评论',
   'No comments yet. Be the first!': '还没有评论，来抢占沙发！',
   'Add a comment...':          '添加评论...',

@@ -143,6 +143,27 @@ export async function interceptApi(page: Page) {
     await route.fulfill({ json: { success: true } });
   });
 
+  // Comments (must be before the generic games/* wildcard)
+  await page.route(`${base}/games/*/comments/*`, async route => {
+    await route.fulfill({ json: { message: 'Comment deleted.' } });
+  });
+
+  await page.route(`${base}/games/*/comments`, async route => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ status: 201, json: {
+        id: 'c1', matchId: 'g1', userId: 'u1', username: 'AlphaWolf',
+        text: 'Test comment', createdAt: new Date().toISOString(),
+      }});
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+
+  // Recap
+  await page.route(`${base}/games/*/recap`, async route => {
+    await route.fulfill({ json: { message: 'Recap updated.' } });
+  });
+
   await page.route(`${base}/games/*`, async route => {
     const method = route.request().method();
     if (method === 'POST' && route.request().url().endsWith('/games')) {
