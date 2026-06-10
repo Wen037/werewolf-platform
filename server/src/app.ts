@@ -103,7 +103,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     return;
   }
   // Body-parser: malformed JSON body (SyntaxError with .status = 400)
-  if (err.name === 'SyntaxError' && (err as NodeJS.ErrnoException).status === 400) {
+  if (err.name === 'SyntaxError' && (err as Error & { status?: number }).status === 400) {
     res.status(400).json({ message: 'Invalid JSON body.' });
     return;
   }

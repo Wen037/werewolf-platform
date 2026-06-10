@@ -226,14 +226,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
                <SidebarLink
                  link={{
-                   label: "GitHub",
-                   href: "https://github.com/Wen037/werewolf-platform",
-                   icon: <IconBrandGithub className="h-6 w-6 text-neutral-200" />,
+                   label: "GitHub — Coming Soon",
+                   href: "#",
+                   icon: <IconBrandGithub className="h-6 w-6 text-neutral-500" />,
                  }}
-                 onClick={(e) => {
-                   e.preventDefault();
-                   window.open("https://github.com/Wen037/werewolf-platform", "_blank", "noopener,noreferrer");
-                 }}
+                 onClick={(e) => e.preventDefault()}
                />
             </div>
           </SidebarBody>
