@@ -734,40 +734,67 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Mobile description — tiny footer text, well below in-flow buttons */}
-        <p
+        {/* Mobile description */}
+        <div
           className="md:hidden absolute pointer-events-none text-center px-8"
-          style={{
-            bottom: "0.8rem",
+          style={{ bottom: "0.8rem", userSelect: "none" }}
+        >
+          <p style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: "0.55rem",
+            letterSpacing: "0.06em",
+            color: "rgba(200,185,150,0.50)",
+            lineHeight: 1.7,
+          }}>
+            {t('Find & host in-person Werewolf (狼人杀) game nights in Singapore.')}
+            <br />
+            {t('Browse open sessions, discover venues, and meet local players.')}
+          </p>
+          <p style={{
             fontFamily: "'Cinzel', serif",
             fontSize: "0.5rem",
-            letterSpacing: "0.06em",
-            color: "rgba(180,165,130,0.28)",
+            letterSpacing: "0.04em",
+            color: "rgba(251,191,36,0.55)",
             lineHeight: 1.6,
-            userSelect: "none",
-          }}
-        >
-          {t('Singapore\'s platform for finding and hosting Werewolf social deduction game events. Sign in to join games, discover venues, and connect with players.')}
-        </p>
+            marginTop: "0.4em",
+          }}>
+            ⚔ {t('Offline game nights only — not an online game')}
+          </p>
+        </div>
 
-        {/* Desktop description — sits just below buttons, clear of overlap */}
-        <p
-          className="hidden md:block absolute pointer-events-none text-center px-6"
+        {/* Desktop description */}
+        <div
+          className="hidden md:block absolute pointer-events-none text-center"
           style={{
             bottom: "3vh",
-            fontFamily: "'Cinzel', serif",
-            fontSize: "clamp(0.52rem, 0.9vw, 0.7rem)",
-            letterSpacing: "0.08em",
-            color: "rgba(180,165,130,0.38)",
-            lineHeight: 1.7,
-            userSelect: "none",
-            maxWidth: "28rem",
             left: "50%",
             transform: "translateX(-50%)",
+            maxWidth: "36rem",
+            userSelect: "none",
           }}
         >
-          {t('Singapore\'s platform for finding and hosting Werewolf social deduction game events. Sign in to join games, discover venues, and connect with players.')}
-        </p>
+          <p style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: "clamp(0.56rem, 0.95vw, 0.75rem)",
+            letterSpacing: "0.08em",
+            color: "rgba(200,185,150,0.55)",
+            lineHeight: 1.8,
+          }}>
+            {t('Find & host in-person Werewolf (狼人杀) game nights in Singapore.')}
+            <br />
+            {t('Browse open sessions, discover venues, and meet local players.')}
+          </p>
+          <p style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: "clamp(0.50rem, 0.85vw, 0.65rem)",
+            letterSpacing: "0.06em",
+            color: "rgba(251,191,36,0.60)",
+            lineHeight: 1.6,
+            marginTop: "0.5em",
+          }}>
+            ⚔ {t('Offline game nights only — not an online game')}
+          </p>
+        </div>
 
       </div>
 
