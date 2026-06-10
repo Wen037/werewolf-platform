@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+export const LeaveOwnerMessageSchema = z.object({
+  message: z.string().min(1).max(500),
+});
+
 const SocialLinksSchema = z.object({
   wechatId:       z.string().max(100).optional(),
   telegramHandle: z.string().max(100).optional(),

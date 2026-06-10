@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, FormEvent } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
@@ -1037,17 +1037,37 @@ interface ContactOwnerModalProps {
   isOpen: boolean;
   onClose: () => void;
   venueName: string;
+  venueId: string;
   wechatQrUrl?: string;
   socialLinks?: { wechatId?: string; telegramHandle?: string; facebookUrl?: string };
 }
 
-function ContactOwnerModal({ isOpen, onClose, venueName, wechatQrUrl, socialLinks }: ContactOwnerModalProps) {
+function ContactOwnerModal({ isOpen, onClose, venueName, venueId, wechatQrUrl, socialLinks }: ContactOwnerModalProps) {
   const { t } = useLang();
+  const [msgText, setMsgText]         = useState('');
+  const [sending, setSending]         = useState(false);
+  const [msgState, setMsgState]       = useState<'idle' | 'sent' | 'duplicate'>('idle');
   const hasWechatQr   = !!wechatQrUrl;
   const hasWechatId   = !!socialLinks?.wechatId;
   const hasTelegram   = !!socialLinks?.telegramHandle;
   const hasFacebook   = !!socialLinks?.facebookUrl;
   const hasAnything   = hasWechatQr || hasWechatId || hasTelegram || hasFacebook;
+
+  const handleSendMessage = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!msgText.trim()) return;
+    setSending(true);
+    try {
+      await GameService.leaveOwnerMessage(venueId, msgText.trim());
+      setMsgState('sent');
+      setMsgText('');
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message ?? '';
+      if (msg.includes('already sent')) { setMsgState('duplicate'); }
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -1076,9 +1096,46 @@ function ContactOwnerModal({ isOpen, onClose, venueName, wechatQrUrl, socialLink
               <div className="p-5 space-y-4">
 
                 {!hasAnything && (
-                  <p className="text-neutral-400 text-sm text-center py-6">
-                    {t('No contact information available for this space.')}
-                  </p>
+                  <div>
+                    <p className="text-neutral-400 text-sm text-center pb-4">
+                      {t('No contact information available for this space.')}
+                    </p>
+                    {msgState === 'sent' ? (
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <CheckCircle size={32} className="text-green-400" />
+                        <p className="text-green-300 text-sm font-semibold">{t('Message sent to the owner!')}</p>
+                        <p className="text-neutral-400 text-xs">{t('The owner will see your message when they log in.')}</p>
+                      </div>
+                    ) : msgState === 'duplicate' ? (
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <p className="text-amber-300 text-sm font-semibold">{t('You have already sent a message to this owner.')}</p>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSendMessage} className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-neutral-400 mb-1">{t('Leave a message for the owner')}</label>
+                          <p className="text-[11px] text-neutral-500 mb-2">{t('The owner will see your message when they log in.')}</p>
+                          <textarea
+                            required
+                            maxLength={500}
+                            value={msgText}
+                            onChange={e => setMsgText(e.target.value)}
+                            placeholder={t('Write your message here...')}
+                            rows={4}
+                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
+                          />
+                          <p className="text-right text-[10px] text-neutral-500 mt-0.5">{msgText.length}/500</p>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={sending || !msgText.trim()}
+                          className="w-full py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-bold rounded-xl text-sm transition-colors"
+                        >
+                          {sending ? t('Sending…') : t('Send Message')}
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 )}
 
                 {/* WeChat ID (text) */}
@@ -1379,6 +1436,7 @@ export default function VenueDetailPage() {
         <ContactOwnerModal
           isOpen={isContactOpen} onClose={() => setIsContactOpen(false)}
           venueName={venue.name}
+          venueId={venue.id}
           wechatQrUrl={venue.wechatQrUrl}
           socialLinks={venue.socialLinks}
         />

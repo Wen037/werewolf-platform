@@ -1,6 +1,7 @@
 import { Result } from '../../../shared/core/Result';
 import { PlayerSpaceModel, IPlayerSpaceDocument } from '../DBSchemas/PlayerSpaceSchema';
 import { VenueInteractionModel } from '../DBSchemas/VenueInteractionSchema';
+import { SpaceMessageModel } from '../DBSchemas/SpaceMessageSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
 import { MatchModel } from '../../matches/DBSchemas/MatchSchema';
 import { CreatePlayerSpaceDTO, UpdatePlayerSpaceDTO, GameVenueResponseDTO } from '../DTOs/PlayerSpaceDTOs';
@@ -328,6 +329,20 @@ export class PlayerSpaceService {
     const newPinned = !venue.isPinned;
     await PlayerSpaceModel.findByIdAndUpdate(venueId, { $set: { isPinned: newPinned } });
     return Result.ok({ isPinned: newPinned });
+  }
+
+  async leaveOwnerMessage(venueId: string, senderId: string, message: string): Promise<Result<void>> {
+    const venue = await PlayerSpaceModel.findById(venueId);
+    if (!venue) return Result.fail('Venue not found.');
+    if (venue.owner_id.toString() === senderId) return Result.fail('You cannot message your own space.');
+
+    try {
+      await SpaceMessageModel.create({ venue_id: venueId, sender_id: senderId, message });
+      return Result.ok();
+    } catch (err: unknown) {
+      if ((err as { code?: number }).code === 11000) return Result.fail('ALREADY_SENT');
+      throw err;
+    }
   }
 
   /**

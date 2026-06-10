@@ -3,7 +3,7 @@ import { PlayerSpaceService } from '../coreLogic/PlayerSpaceService';
 import { MatchService } from '../../matches/coreLogic/MatchService';
 import { requireAuth, optionalAuth } from '../../../shared/middleware/auth';
 import { validate } from '../../../shared/middleware/validate';
-import { CreatePlayerSpaceSchema, UpdatePlayerSpaceSchema, RateVenueSchema } from '../DTOs/PlayerSpaceDTOs';
+import { CreatePlayerSpaceSchema, UpdatePlayerSpaceSchema, RateVenueSchema, LeaveOwnerMessageSchema } from '../DTOs/PlayerSpaceDTOs';
 import { PlayerSpaceModel } from '../DBSchemas/PlayerSpaceSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
 import { sendBookingInquiryEmail } from '../../../shared/infra/email';
@@ -135,6 +135,23 @@ router.patch('/admin/venues/:id/verify', requireAuth, async (req: Request, res: 
     return;
   }
   res.status(200).json({ message: approved ? 'Venue verified.' : 'Venue verification removed.' });
+});
+
+// ─── Leave a message for the space owner (1 per user per venue) ──────────────
+router.post('/venues/:id/owner-message', requireAuth, validate(LeaveOwnerMessageSchema), async (req: Request, res: Response) => {
+  const result = await playerSpaceService.leaveOwnerMessage(
+    String(req.params['id']),
+    req.user!.userId,
+    (req.body as { message: string }).message
+  );
+  if (result.isFailure) {
+    const err = result.getError() ?? '';
+    if (err === 'ALREADY_SENT') { res.status(409).json({ message: 'You have already sent a message to this space owner.' }); return; }
+    if (err.includes('not found')) { res.status(404).json({ message: err }); return; }
+    res.status(400).json({ message: err });
+    return;
+  }
+  res.status(201).json({ message: 'Message sent.' });
 });
 
 // ─── Admin: toggle pin status of a venue ─────────────────────────────────────

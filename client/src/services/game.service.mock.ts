@@ -100,6 +100,11 @@ export const MockGameService = {
     return { autoConfirmed: false };
   },
 
+  leaveOwnerMessage: async (venueId: string, message: string): Promise<void> => {
+    await delay(600);
+    console.log(`[Mock] leaveOwnerMessage ${venueId}:`, message);
+  },
+
   getSessionsByVenue: async (venueId: string): Promise<GameSessionDTO[]> => {
     await delay(200);
     const currentUserId = getCurrentUserId();

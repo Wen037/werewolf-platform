@@ -95,6 +95,9 @@ export const RealGameService = {
   ): Promise<{ autoConfirmed: boolean }> =>
     api.post(`/venues/${id}/booking-inquiry`, payload),
 
+  leaveOwnerMessage: (venueId: string, message: string): Promise<void> =>
+    api.post(`/venues/${venueId}/owner-message`, { message }),
+
   updateVenue: (id: string, fields: Partial<GameVenue>): Promise<GameVenueDTO> =>
     api.patch(`/venues/${id}`, toUpdateVenuePayload(fields)),
 
