@@ -19,6 +19,10 @@
 #
 # ── Session History ────────────────────────────────────────────────────────────
 
+## 2026-06-10 — i18n for PublicProfilePage (user details)
+- **`i18n/index.ts`**: added 11 new ZH keys — `Back`, `Edit Profile`, `Follow`, `Games Played`, `Hosted`, `Completion`, `Skill`, `Recent Games`, `No game history yet`, `Spaces`, `User not found`, `Go back`
+- **`pages/PublicProfilePage.tsx`**: wrapped all hardcoded EN strings with `t()`; destructured `lang` from `useLang`; skill level badge uses `t(profile.skillLevel)` for ZH; proficiency tags on recent games use `t(prof)`; event dates switch locale to `zh-SG` when in ZH; all stat labels, social counts, buttons, and error states now translate
+
 ## 2026-06-10 — venue tag fixes; venueApprovalStatus tag on map & event detail
 - **`i18n/index.ts`**: fixed `'Board Game Café'` ZH → `'桌游店'` (was '桌游咖啡馆'); added `'Contact space owner to confirm': '通知场地确认'`
 - **`pages/EventDetailPage.tsx`**: added amber `● Contact space owner to confirm` tag in hero when `venueApprovalStatus === 'pending'`
@@ -53,12 +57,5 @@
 - **`pages/EventDetailPage.tsx`**: host sees lock/unlock toggle in Comments header; when locked, non-host sees amber "Comments locked by host" banner and post input is hidden; host can still post when locked; `commentsLocked` state initialised from event data; added `IconLock`/`IconLockOpen` imports
 - **`i18n/index.ts`**: added ZH keys for lock/unlock/locked strings
 - **`client/.gitignore`**: added `test-results/`, `playwright-report/`, `tests/e2e/playwright-report/`, `blob-report/`, `playwright/.cache/`; existing artifacts removed from git tracking
-
-## 2026-06-09 — Session 38: Homepage button overlap fix, admin pin (置顶) for spaces & events
-- **`pages/HomePage.tsx`**: fixed button overlap on mobile — changed from `absolute` on all breakpoints to in-flow (`mt-6`) on mobile and `md:absolute md:bottom-[10vh]` on desktop
-- **`types/index.ts`**: added `isPinned?: boolean` to `GameVenue` and `GameSession` interfaces
-- **`i18n/index.ts`**: added `'Pinned' → '置顶'`, `'Pin' → '置顶'`, `'Unpin' → '取消置顶'`
-- **`pages/GameSpacePage.tsx`**: added admin pin toggle; pin badge on venue cards
-- **`pages/GameMapPage.tsx`**: added pin badge and admin pin button to venue/event popups
 
 

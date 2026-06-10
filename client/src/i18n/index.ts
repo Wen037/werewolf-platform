@@ -44,6 +44,20 @@ export const zh: Record<string, string> = {
   'All Welcome': '不限水平',
   'Newbie':      '新手',
 
+  // ── Public profile page ───────────────────────────────────────────
+  'Back':                   '返回',
+  'Edit Profile':           '编辑资料',
+  'Follow':                 '关注',
+  'Games Played':           '已游戏',
+  'Hosted':                 '主办',
+  'Completion':             '完成率',
+  'Skill':                  '技能',
+  'Recent Games':           '近期游戏',
+  'No game history yet':    '暂无游戏记录',
+  'Spaces':                 '场地',
+  'User not found':         '找不到该用户',
+  'Go back':                '返回',
+
   // ── Profile page ──────────────────────────────────────────────────
   'Following':              '关注',
   'Followers':              '粉丝',

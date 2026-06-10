@@ -26,7 +26,7 @@ const PROFICIENCY_STYLES: Record<string, string> = {
 export default function PublicProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [profile, setProfile] = useState<UserProfileDTO | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -92,9 +92,9 @@ export default function PublicProfilePage() {
       <AppLayout>
         <div className="h-full flex flex-col items-center justify-center gap-4 text-neutral-400">
           <Shield size={48} className="opacity-30" />
-          <p className="text-lg font-semibold">User not found</p>
+          <p className="text-lg font-semibold">{t("User not found")}</p>
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-neutral-500 hover:text-white transition-colors">
-            <ArrowLeft size={16} /> Go back
+            <ArrowLeft size={16} /> {t("Go back")}
           </button>
         </div>
       </AppLayout>
@@ -115,7 +115,7 @@ export default function PublicProfilePage() {
               exit={{ opacity: 0, y: 20, x: "-50%" }}
               className="fixed bottom-10 left-1/2 z-[200] flex items-center gap-2 px-6 py-3 bg-neutral-900 border border-green-500/30 rounded-full shadow-2xl"
             >
-              <span className="text-white font-bold text-sm">Report submitted</span>
+              <span className="text-white font-bold text-sm">{t("Report Submitted")}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -139,7 +139,7 @@ export default function PublicProfilePage() {
             onClick={() => navigate(-1)}
             className="absolute top-0 left-6 flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition-colors bg-neutral-900/80 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-sm"
           >
-            <ArrowLeft size={14} /> Back
+            <ArrowLeft size={14} /> {t("Back")}
           </button>
 
           {/* Avatar + header */}
@@ -164,7 +164,7 @@ export default function PublicProfilePage() {
                         {ci.label}
                       </span>
                       {profile.role === "web_admin" && (
-                        <span className="text-[11px] font-bold text-yellow-400 uppercase tracking-wider">Admin</span>
+                        <span className="text-[11px] font-bold text-yellow-400 uppercase tracking-wider">{t("Admin")}</span>
                       )}
                     </div>
                   </div>
@@ -190,7 +190,7 @@ export default function PublicProfilePage() {
                       }`}
                     >
                       {isFollowing ? <UserCheck size={15} /> : <UserPlus size={15} />}
-                      {isFollowing ? "Following" : "Follow"}
+                      {isFollowing ? t("Following") : t("Follow")}
                     </button>
                   </div>
                 )}
@@ -199,7 +199,7 @@ export default function PublicProfilePage() {
                     onClick={() => navigate("/myprofile")}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 transition-all"
                   >
-                    Edit Profile
+                    {t("Edit Profile")}
                   </button>
                 )}
               </div>
@@ -217,14 +217,14 @@ export default function PublicProfilePage() {
                     <Trophy size={14} className="text-yellow-400" />
                     <span className="text-white font-bold text-lg">{gamesAttended}</span>
                   </div>
-                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Games Played</div>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider">{t("Games Played")}</div>
                 </div>
                 <div className="bg-neutral-800/50 rounded-xl p-3 text-center border border-white/5">
                   <div className="flex items-center justify-center gap-1.5 mb-1">
                     <Star size={14} className="text-red-400" />
                     <span className="text-white font-bold text-lg">{gamesHosted}</span>
                   </div>
-                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Hosted</div>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider">{t("Hosted")}</div>
                 </div>
                 <div className="bg-neutral-800/50 rounded-xl p-3 text-center border border-white/5">
                   <div className="flex items-center justify-center gap-1.5 mb-1">
@@ -232,15 +232,15 @@ export default function PublicProfilePage() {
                       {completionRate}%
                     </span>
                   </div>
-                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Completion</div>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider">{t("Completion")}</div>
                 </div>
                 <div className="bg-neutral-800/50 rounded-xl p-3 text-center border border-white/5">
                   <div className="flex items-center justify-center gap-1.5 mb-1">
                     <span className={`font-bold text-sm ${ci.color}`}>
-                      {profile.skillLevel || "—"}
+                      {profile.skillLevel ? t(profile.skillLevel) : "—"}
                     </span>
                   </div>
-                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Skill</div>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider">{t("Skill")}</div>
                 </div>
               </div>
             </div>
@@ -250,11 +250,11 @@ export default function PublicProfilePage() {
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="bg-neutral-900/60 border border-white/8 rounded-2xl p-4 text-center">
               <div className="text-2xl font-bold text-white">{profile.followersCount ?? 0}</div>
-              <div className="text-xs text-neutral-500 uppercase tracking-wider mt-0.5">Followers</div>
+              <div className="text-xs text-neutral-500 uppercase tracking-wider mt-0.5">{t("Followers")}</div>
             </div>
             <div className="bg-neutral-900/60 border border-white/8 rounded-2xl p-4 text-center">
               <div className="text-2xl font-bold text-white">{profile.followingCount ?? 0}</div>
-              <div className="text-xs text-neutral-500 uppercase tracking-wider mt-0.5">Following</div>
+              <div className="text-xs text-neutral-500 uppercase tracking-wider mt-0.5">{t("Following")}</div>
             </div>
           </div>
 
@@ -262,7 +262,7 @@ export default function PublicProfilePage() {
           {recentEvents.length > 0 && (
             <div className="mt-6">
               <h2 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Calendar size={14} /> Recent Games
+                <Calendar size={14} /> {t("Recent Games")}
               </h2>
               <div className="space-y-2">
                 {recentEvents.map(event => {
@@ -280,13 +280,13 @@ export default function PublicProfilePage() {
                       <div className="min-w-0">
                         <div className="font-semibold text-white text-sm truncate">{event.title}</div>
                         <div className="text-xs text-neutral-500 mt-0.5">
-                          {d.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })}
+                          {d.toLocaleDateString(lang === "zh" ? "zh-SG" : "en-SG", { day: "numeric", month: "short", year: "numeric" })}
                           {event.venueName && <span className="text-neutral-400"> · {event.venueName}</span>}
                         </div>
                       </div>
                       {prof && (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${profCls}`}>
-                          {prof.toUpperCase()}
+                          {t(prof).toUpperCase()}
                         </span>
                       )}
                     </motion.div>
