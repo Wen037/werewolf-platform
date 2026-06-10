@@ -260,14 +260,17 @@ export default function EventDetailPage() {
                 {event.joinedPlayerAvatars && event.joinedPlayerAvatars.length > 0 && (
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-2">
-                      {event.joinedPlayerAvatars.slice(0, 8).map((url, i) => (
-                        <img
-                          key={i}
-                          src={url}
-                          alt=""
-                          className="h-8 w-8 rounded-full border-2 border-neutral-900 object-cover bg-neutral-700"
-                        />
-                      ))}
+                      {event.joinedPlayerAvatars.slice(0, 8).map((url, i) => {
+                        const uid = event.joinedPlayerIds?.[i];
+                        return uid ? (
+                          <button key={i} onClick={() => navigate(`/user/${uid}`)} title={t("View Profile")}
+                            className="h-8 w-8 rounded-full border-2 border-neutral-900 bg-neutral-700 overflow-hidden hover:ring-2 hover:ring-red-500 hover:z-10 transition-all flex-shrink-0">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ) : (
+                          <img key={i} src={url} alt="" className="h-8 w-8 rounded-full border-2 border-neutral-900 object-cover bg-neutral-700" />
+                        );
+                      })}
                     </div>
                     {event.currentPlayers > 8 && (
                       <span className="text-xs text-neutral-500 ml-1">+{event.currentPlayers - 8} more</span>

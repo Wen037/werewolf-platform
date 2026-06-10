@@ -81,7 +81,7 @@ function MapUpdater({ userLoc, venues }: { userLoc: { lat: number, lng: number }
 
 // Extend Types Locally for UI State
 type VenueUI = GameVenue & { isLiked?: boolean; isSubscribed?: boolean };
-type GameUI = GameSession & { isLiked?: boolean; isSubscribed?: boolean; venueDetails?: GameVenue; joinedPlayerAvatars?: string[]; venueImageUrl?: string };
+type GameUI = GameSession & { isLiked?: boolean; isSubscribed?: boolean; venueDetails?: GameVenue; joinedPlayerAvatars?: string[]; joinedPlayerIds?: string[]; venueImageUrl?: string };
 
 type JoinState = "idle" | "joining" | "joined" | "pending";
 
@@ -617,9 +617,17 @@ export default function GameMapPage() {
                       </div>
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex -space-x-1.5">
-                          {selectedItem.joinedPlayerAvatars?.slice(0, 4).map((url: string, i: number) => (
-                            <img key={i} src={url} alt="" className="h-6 w-6 rounded-full border border-neutral-700 object-cover bg-neutral-700" />
-                          )) ?? [1,2,3].map(i => <div key={i} className="h-6 w-6 rounded-full bg-neutral-600 border border-neutral-700"/>)}
+                          {selectedItem.joinedPlayerAvatars?.slice(0, 4).map((url: string, i: number) => {
+                            const uid = selectedItem.joinedPlayerIds?.[i];
+                            return uid ? (
+                              <button key={i} onClick={e => { e.stopPropagation(); navigate(`/user/${uid}`); }}
+                                className="h-6 w-6 rounded-full border border-neutral-700 bg-neutral-700 overflow-hidden hover:ring-2 hover:ring-red-400 hover:z-10 transition-all flex-shrink-0">
+                                <img src={url} alt="" className="w-full h-full object-cover" />
+                              </button>
+                            ) : (
+                              <img key={i} src={url} alt="" className="h-6 w-6 rounded-full border border-neutral-700 object-cover bg-neutral-700" />
+                            );
+                          }) ?? [1,2,3].map(i => <div key={i} className="h-6 w-6 rounded-full bg-neutral-600 border border-neutral-700"/>)}
                         </div>
                         <div className="text-xs font-bold text-neutral-400"><span className="text-white">{selectedItem.currentPlayers}</span>/{selectedItem.maxPlayers}</div>
                       </div>

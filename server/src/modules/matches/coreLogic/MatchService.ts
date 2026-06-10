@@ -120,6 +120,7 @@ async function enrichWithNamesAndInteraction(
     joinedPlayerAvatars: d.players.slice(0, 5)
       .map(p => playerAvatarMap.get(p.toString()))
       .filter((a): a is string => !!a),
+    joinedPlayerIds: d.players.slice(0, 5).map(p => p.toString()),
     isPinned: d.isPinned ?? false,
     venueImageUrl: venueImageMap.get(d.venue_id.toString()),
     myInteraction: interactionMap.get(d._id.toString()),

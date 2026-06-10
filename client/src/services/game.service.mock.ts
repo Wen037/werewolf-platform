@@ -143,6 +143,7 @@ export const MockGameService = {
           joinedPlayerAvatars: Array.from({ length: avatarCount }, (_, i) =>
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${game.id}${i}`
           ),
+          joinedPlayerIds: MOCK_USERS.slice(0, avatarCount).map(u => u.id),
         };
       });
   },
@@ -162,6 +163,7 @@ export const MockGameService = {
       joinedPlayerAvatars: Array.from({ length: avatarCount }, (_, i) =>
         `https://api.dicebear.com/7.x/avataaars/svg?seed=${sessionId}${i}`
       ),
+      joinedPlayerIds: MOCK_USERS.slice(0, avatarCount).map(u => u.id),
       myInteraction: MOCK_SESSION_INTERACTIONS.find(i => i.sessionId === sessionId && i.userId === getCurrentUserId()),
     };
   },

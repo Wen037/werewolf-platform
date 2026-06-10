@@ -135,6 +135,7 @@ export interface GameSessionResponseDTO {
   isPinned: boolean;
   guests: MatchGuestDTO[];
   joinedPlayerAvatars: string[];
+  joinedPlayerIds: string[];
   venueImageUrl: string | undefined;
   myInteraction: SessionInteractionDTO | undefined;
 }

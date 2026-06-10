@@ -186,6 +186,7 @@ export interface GameSessionDTO extends GameSession {
   venueAddress?: string;
   pricePerHour?: number;
   joinedPlayerAvatars?: string[];
+  joinedPlayerIds?: string[];
   venueImageUrl?: string;
 }
 
