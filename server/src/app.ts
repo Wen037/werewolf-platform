@@ -7,7 +7,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import passport from 'passport';
 
-import { apiLimiter } from './shared/middleware/rateLimiter';
+import { apiLimiter, contactLimiter } from './shared/middleware/rateLimiter';
 
 // Passport strategy registration (side-effect: registers Google OAuth strategy)
 import './shared/infra/passport';
@@ -65,7 +65,7 @@ app.use('/api', mapRoutes);
 app.use('/api', uploadRoutes);
 
 // ─── Contact form (public, no auth) ──────────────────────────────────────────
-app.post('/api/contact', async (req: Request, res: Response, next: NextFunction) => {
+app.post('/api/contact', contactLimiter, async (req: Request, res: Response, next: NextFunction) => {
   const { email, message } = req.body as { email?: unknown; message?: unknown };
   if (typeof email !== 'string' || !email.trim() ||
       typeof message !== 'string' || !message.trim()) {

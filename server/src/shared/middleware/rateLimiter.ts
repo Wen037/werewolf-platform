@@ -11,6 +11,15 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+export const contactLimiter = rateLimit({
+  windowMs: 2 * 60 * 60 * 1000, // 2 hours
+  max: (_req: Request, _res: Response) => (process.env.NODE_ENV === 'test' ? 1000 : 1),
+  message: { message: 'You can only send one message every 2 hours. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+});
+
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: (_req: Request, _res: Response) => (process.env.NODE_ENV === 'test' ? 10000 : 60),

@@ -27,7 +27,8 @@ export function ContactModal({ isOpen, onClose }: ContactModalProps) {
       setEmail("");
       onClose();
     } catch (error) {
-      alert(t("Failed to send message. Please try again."));
+      const msg = error instanceof Error ? error.message : "";
+      alert(msg || t("Failed to send message. Please try again."));
     } finally {
       setIsSubmitting(false);
     }
