@@ -96,7 +96,7 @@ async function enrichWithNamesAndInteraction(
     description: d.description,
     date: d.scheduledAt.toISOString(),
     maxPlayers: d.config.max_pax,
-    currentPlayers: d.players.length,
+    currentPlayers: d.players.length + (d.guests?.length ?? 0) + (d.config.external_pax ?? 0),
     waitlistCount: d.waitlist.length,
     status: toFrontendStatus(d.status),
     totalLikes: d.totalLikes,

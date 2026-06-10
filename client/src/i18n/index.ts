@@ -77,7 +77,8 @@ export const zh: Record<string, string> = {
   'After Quit':                 '退出后',
   'rank drop':                  '等级下降',
   'Venue Confirmed':            '场地已确认',
-  'Pending Space Approval':     '等待场地确认',
+  'Pending Space Approval':              '等待场地确认',
+  'Contact space owner to confirm':     '通知场地确认',
   'Invite Friends':             '邀请好友',
   'Hosted by':                  '发起人',
   'No upcoming events found.':  '没有即将进行的活动。',
@@ -90,7 +91,7 @@ export const zh: Record<string, string> = {
   'Copied!':                    '已复制!',
 
   // ── Venue type labels ─────────────────────────────────────────────
-  'Board Game Café':  '桌游咖啡馆',
+  'Board Game Café':  '桌游店',
   'Home':             '家',
   'Office / Co-work': '办公室',
   'School / Campus':  '学校',

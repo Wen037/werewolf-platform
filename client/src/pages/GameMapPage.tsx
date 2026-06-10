@@ -564,6 +564,11 @@ export default function GameMapPage() {
                              </span>
                            )}
                            <span className="inline-block text-[10px] font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-1.5 py-0.5 rounded mb-1 ml-1">{t('RECRUITING')}</span>
+                           {selectedItem.venueApprovalStatus === 'pending' && (
+                             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded mb-1 ml-1">
+                               ● {t('Contact space owner to confirm')}
+                             </span>
+                           )}
                            <h3 className="text-lg font-bold leading-tight text-white">{selectedItem.title}</h3>
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0 translate-x-2 mt-4">

@@ -180,6 +180,11 @@ export default function EventDetailPage() {
                       HOST APPROVAL
                     </span>
                   )}
+                  {event.venueApprovalStatus === "pending" && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-300">
+                      ● {t("Contact space owner to confirm")}
+                    </span>
+                  )}
                 </div>
                 <h1 className="text-3xl md:text-4xl font-bold text-white">{event.title}</h1>
               </div>
