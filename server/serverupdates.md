@@ -1,0 +1,117 @@
+# Server (Backend) Update Log
+# Append-only. Read this at the START of every backend session.
+# Format: ## YYYY-MM-DD — Topic, then bullet points.
+# Never overwrite — always append new entries at the bottom.
+#
+# ── Pending Backend Changes (batched from frontend sessions) ──────────────────
+# All items below are defined but NOT yet implemented. Apply when user requests.
+#
+# - Admin: reset another user's password
+#   - New route: POST /admin/users/:id/reset-password (admin/web_admin only, BFLA-guarded)
+#   - Generates a temp password (or OTP-style reset link) + emails it to the user via Resend
+#   - UserService: add resetPasswordByAdmin(adminId, targetUserId) method
+# - Admin: ban / suspend a user account
+#   - UserSchema: add `isBanned: boolean` (+ optionally `bannedReason`, `bannedUntil`)
+#   - New route: PATCH /admin/users/:id/ban { banned: boolean, reason?: string }
+#   - requireAuth / login flow: reject banned users with 403 "Account suspended"
+#   - UserService: add banUser(adminId, targetUserId, reason) / unbanUser(...)
+# - Admin: list / search all users
+#   - New route: GET /admin/users?search=&role=&page= (admin/web_admin only)
+#   - Prerequisite for password-reset / ban / credit-adjust UIs — admin needs to find users first
+#   - UserService: add listUsersForAdmin(filters, pagination)
+# - Admin: handle user reports
+#   - `ReportModal.tsx` exists on frontend but has no backend — needs ReportSchema (reporterId, targetType: 'user'|'venue'|'match', targetId, reason, status, createdAt)
+#   - New routes: POST /reports (any user), GET /admin/reports, PATCH /admin/reports/:id { status, action }
+#   - ReportService: create/list/resolve (resolve action can trigger ban/removal via existing services)
+# - Admin: force-remove/cancel any event or venue
+#   - Beyond normal host/owner permissions and beyond the existing venue-verification flow
+#   - New routes: DELETE /admin/matches/:id, DELETE /admin/venues/:id (admin/web_admin only, BFLA-guarded)
+#   - MatchService/PlayerSpaceService: add adminForceCancel/adminRemove methods — should publish notification events to affected users
+#
+# ── Session History ────────────────────────────────────────────────────────────
+
+## 2026-06-10 — Comment permissions: commentsLocked field; admin delete; lockComments method
+- **`MatchSchema.ts`**: added `commentsLocked: boolean` (interface + schema field, `default: false`)
+- **`MatchDTOs.ts`**: added `commentsLocked: boolean` to `GameSessionResponseDTO`
+- **`MatchService.ts`**: `enrichWithNamesAndInteraction` includes `commentsLocked`; `addComment` checks `commentsLocked` (host exempt); `deleteComment` now allows admin to delete any comment on any event; new `lockComments(matchId, userId, locked)` — host or admin only; `updateRecap` now also allows admin
+- **`matchRoutes.ts`**: added `PATCH /games/:sessionId/comments/lock` (requireAuth)
+
+## 2026-06-09 — Contact Owner: PDPA-safe socialLinks on venue
+- **`PlayerSpaceSchema.ts`**: added `socialLinks?: { wechatId, telegramHandle, facebookUrl }` sub-document
+- **`PlayerSpaceDTOs.ts`**: added `socialLinks` to create/update Zod schemas + `GameVenueResponseDTO`; removed `ownerContact` (no phone numbers)
+- **`PlayerSpaceService.ts`**: `toVenueDTO` includes `socialLinks`; `createVenue`/`updateVenue` persist it; removed owner User lookup from `getVenueById`
+
+## 2026-06-09 — Contact Owner — expose owner contact in venue detail DTO
+- **`PlayerSpaceDTOs.ts`**: added `ownerContact?: { contactNumber?: string; whatsappPhone?: string }` to `GameVenueResponseDTO`
+- **`PlayerSpaceService.ts` `getVenueById()`**: fetches owner's `contactNumber` + `whatsappPhone` from User model and attaches to DTO; skipped entirely for `type === 'school'` (public venue, no owner to contact)
+
+## 2026-06-09 — Booking inquiry email
+- **`shared/infra/email.ts`**: added `BookingInquiryPayload` interface and `sendBookingInquiryEmail(ownerEmail, payload)` — sends formatted HTML email to space owner; non-fatal (logs error but does not throw) so API call succeeds even if email fails
+- **`player-spaces/routes/playerSpaceRoutes.ts`**: added `POST /venues/:id/booking-inquiry` (public, no auth required); fetches venue + owner email; `isAutoConfirmed = venue.type === 'school'`; calls `sendBookingInquiryEmail`; returns `{ autoConfirmed: boolean }`
+
+## 2026-06-09 — Session 38: Admin space auto-verify + unlimited spaces + pin (置顶) for spaces & events
+- **`PlayerSpaceSchema.ts`**: added `isPinned: boolean` (interface + schema field, `default: false`)
+- **`MatchSchema.ts`**: added `isPinned: boolean` (interface + schema field, `default: false`)
+- **`PlayerSpaceDTOs.ts`**: added `isPinned: boolean` to `GameVenueResponseDTO`
+- **`MatchDTOs.ts`**: added `isPinned: boolean` to `GameSessionResponseDTO`
+- **`PlayerSpaceService.ts`**: `createVenue()` — looks up user role; admins skip the 3-space limit; admins get status `'Verified'` automatically (no approval needed); `getAllVenues()` sort changed to `{ isPinned: -1, createdAt: -1 }`; `toVenueDTO` includes `isPinned`; added `pinVenue(venueId, adminId)` — admin-only toggle
+- **`MatchService.ts`**: `enrichWithNamesAndInteraction` includes `isPinned`; `getActiveMatches()` sort changed to `{ isPinned: -1, scheduledAt: 1 }`; added `pinMatch(sessionId, adminId)` — admin-only toggle
+- **`playerSpaceRoutes.ts`**: added `PATCH /admin/venues/:id/pin`
+- **`matchRoutes.ts`**: added `PATCH /admin/games/:id/pin`
+
+## 2026-06-09 — Session 37: Google OAuth FRONTEND_URL fix, OTP startup validation, WeChat QR for spaces, password reset
+- **`server/fly.toml`**: added `FRONTEND_URL = 'https://werewolf.sg'` to `[env]` — root cause of Google OAuth redirect going to `localhost:5173` after successful auth on production
+- **`server/src/server.ts`**: added startup env validation — fails on missing `JWT_SECRET`/`MONGO_URI`; warns on missing `RESEND_API_KEY`, `FROM_EMAIL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONTEND_URL` (root cause of silent OTP email failures)
+- **`PasswordResetSchema.ts`** (new): `email`, `token` (6-digit OTP), `expiresAt`; TTL index auto-deletes expired records
+- **`UserDTOs.ts`**: added `ForgotPasswordSchema` (email), `ResetPasswordSchema` (email + token + newPassword)
+- **`email.ts`**: added `sendPasswordResetEmail()` (same Resend pattern as OTP email, `NODE_ENV=test` skip)
+- **`UserService.ts`**: added `forgotPassword()` (anti-enumeration — always returns same message), `resetPassword()`, `adminResetPassword()` (admin sends reset email to target user)
+- **`userRoutes.ts`**: added `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /admin/users/:id/reset-password`
+- **`PlayerSpaceSchema.ts`**: added `wechatQrUrl?: string` field
+- **`PlayerSpaceDTOs.ts`**: added `wechatQrUrl` to create/update schemas + `GameVenueResponseDTO`
+- **`PlayerSpaceService.ts`**: `createVenue` passes `wechatQrUrl`; `updateVenue` sets or `$unset`s it (empty string = removal)
+
+## 2026-06-09 — Session 30: Auto-approve venueApprovalStatus for own-space and public venues
+- **`MatchService.ts` `createMatch()`**: added `PUBLIC_VENUE_TYPES = ['school', 'boardgame_store']` constant; when host is the venue owner OR venue type is in that list, `venueApprovalStatus` is set to `'confirmed'` immediately on create — owner never needs to self-approve their own space, and school/store venues are treated as public
+- Added `IPlayerSpaceDocument` to the import from `PlayerSpaceSchema.ts` for type-safe comparison
+
+## 2026-06-10 — 5 Meetup-gap features: comments, recap, recurrence, 24h reminder
+- **`MatchSchema.ts`**: added `recurrence?: 'none'|'weekly'|'biweekly'|'monthly'` and `recap?: { text?: string }` fields
+- **`EventCommentSchema.ts`** (new): `matchId`, `userId`, `text`; index on `(matchId, createdAt)`
+- **`MatchDTOs.ts`**: added `AddCommentSchema`, `UpdateRecapSchema` (Zod); `CommentResponseDTO` type; `recurrence` + `recap` in `GameSessionResponseDTO`; `recurrence` added to `CreateMatchSchema`
+- **`MatchService.ts`**: `enrichWithNamesAndInteraction` includes `recurrence` + `recap`; added `getComments`, `addComment`, `deleteComment`, `updateRecap` methods; `createNextOccurrence` private helper auto-creates next event when status → Completed + recurrence set; `updateMatchStatus` calls `createNextOccurrence`; `createMatch` persists `recurrence`
+- **`matchRoutes.ts`**: added `GET/POST /games/:id/comments`, `DELETE /games/:id/comments/:commentId`, `PATCH /games/:id/recap`
+- **`shared/infra/ReminderService.ts`** (new): `node-cron` hourly job; finds Open/Full matches in 23–25h window; sends HTML reminder email via Resend to all registered players
+- **`server.ts`**: starts `ReminderService` after MongoDB connects
+
+## 2026-06-10 — Contact form email endpoint
+- **`shared/infra/email.ts`**: added `sendContactEmail(fromEmail, message)` — sends to `ADMIN_EMAIL` env var (fallback `becky.fuwen@gmail.com`); sets `replyTo` to sender so admin can reply directly; `NODE_ENV=test` logs and skips
+- **`app.ts`**: added inline `POST /api/contact` (public, no auth); validates email + message presence and length (email≤254, message≤2000); calls `sendContactEmail`; uses global `apiLimiter`
+
+## 2026-06-10 — Fix currentPlayers to include guests and externalPax
+- **`MatchService.ts` `enrichWithNamesAndInteraction()`**: `currentPlayers` now = `players.length + (guests?.length ?? 0) + (config.external_pax ?? 0)`; previously only counted `players.length`, so adding a guest didn't reflect in the map/event detail count
+
+## 2026-06-10 — Session 41: OWASP security test suite + fix app.ts error handler + fix validate middleware
+- **`shared/middleware/validate.ts`** (carried from Session 40): fixed Express 5 `req.query` read-only getter via `Object.defineProperty`
+- **`app.ts`**: global error handler now correctly handles `SyntaxError` (malformed JSON body → 400) and `PayloadTooLargeError` (body > 10kb → 413); previously both fell through to 500 (OWASP A05 misconfiguration)
+- **New** `src/__tests__/security/A01-access-control.sec.test.ts`: 16 tests — OWASP A01 missing auth (5), BFLA vertical privilege escalation (5+1 positive), BOLA horizontal privilege escalation (6)
+- **New** `src/__tests__/security/A02-A07-auth-crypto.sec.test.ts`: 20 tests — A02 sensitive data not in responses (5), A07 JWT alg:none attack (2), wrong secret (3), expiry bypass (2), role injection via JWT payload (3), token structure tampering (6)
+- **New** `src/__tests__/security/A03-injection.sec.test.ts`: 21 tests — NoSQL injection in body (7), operator injection in query strings (2), mass assignment CWE-915 (4), XSS payload storage (4), large payload DoS probe (2), HTTP verb tampering (2)
+- **New** `src/__tests__/security/A05-misconfiguration.sec.test.ts`: 20 tests — stack trace leakage (4), security headers (3), error handling robustness (6), debug endpoint exposure (5), prototype pollution (2)
+- **New** `src/__tests__/security/rate-limiting.sec.test.ts`: 8 tests + 4 skipped — burst resilience (4), timing attack probe (1), credential stuffing/anti-enumeration (2), Cloudflare WAF/RL manual checklist (4 skipped — NOT hitting production)
+- **Applied standard**: OWASP Top 10 (2021) — A01, A02, A03, A05, A07; OWASP API Security 2023 — API4, API8
+- Final: **519/523 passing** (4 intentionally skipped = Cloudflare production-only tests)
+
+## 2026-06-10 — Session 40: Comprehensive test suite expansion + fix Express 5 validate middleware bug
+- **`shared/middleware/validate.ts`**: fixed critical bug — `Object.assign(req.query, ...)` is a no-op in Express 5 (req.query is a read-only computed getter); replaced with `Object.defineProperty(req, 'query', { value: result.data, ... })` which overrides the getter on the specific request instance; this also fixed a production bug where all map "nearby" queries returned 400 due to `radiusKm = undefined → NaN`
+- **New** `src/modules/player-spaces/__tests__/socialLinks.integ.test.ts`: 13 service-layer tests for venue socialLinks (create, update, clear, non-owner rejection, DTO propagation)
+- **New** `src/modules/matches/__tests__/matchRoutes.extended.integ.test.ts`: ~40 HTTP-layer tests — toggleLike, setExternalPax, PATCH status, kick player, invite-only approval flow, waitlist, pin
+- **New** `src/modules/matches/__tests__/matchService.extended.integ.test.ts`: 35 service-layer tests — rateMatch, toggleLike, setExternalPax, updateSession, pinMatch, addGuest/removeGuest, getMatchById, getActiveMatches, getMyEvents, deleteMatch
+- **New** `src/modules/users/__tests__/userRoutes.extended.integ.test.ts`: ~30 HTTP-layer tests — forgot/reset password, public profile, follow/unfollow, admin credit/reset
+- **New** `src/modules/users/__tests__/userService.extended.integ.test.ts`: 22 service-layer tests — forgotPassword (anti-enumeration), resetPassword, adminResetPassword, updateProfile, getMyProfile, getUserById
+- **New** `src/modules/notifications/__tests__/notificationRoutes.integ.test.ts`: 16 HTTP-layer tests — list, unread-count, mark-read (no-op behavior), read-all
+- **New** `src/modules/map/__tests__/mapRoutes.integ.test.ts`: 17 HTTP-layer tests — nearby venues/events, geocode, reverse-geocode, validation guards
+- **Fixed** `src/modules/matches/__tests__/joinLeaveFlow.integ.test.ts`: 4 tests corrected (host can leave, waitlist Full status, error message regex, kick error regex)
+- Final test count: **434/434 passing** across 28 test files, 0 failures
+
+
