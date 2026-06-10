@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "../ui/sidebar";
-import { IconLogin, IconLogout, IconMail, IconShieldCheck } from "@tabler/icons-react";
+import { IconBrandGithub, IconLogin, IconLogout, IconMail, IconShieldCheck } from "@tabler/icons-react";
 import { useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { FireflyBackground } from "../ui/firefly-background";
@@ -221,6 +221,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                  onClick={(e) => {
                    e.preventDefault();
                    setContactOpen(true);
+                 }}
+               />
+
+               <SidebarLink
+                 link={{
+                   label: "GitHub",
+                   href: "https://github.com/Wen037/werewolf-platform",
+                   icon: <IconBrandGithub className="h-6 w-6 text-neutral-200" />,
+                 }}
+                 onClick={(e) => {
+                   e.preventDefault();
+                   window.open("https://github.com/Wen037/werewolf-platform", "_blank", "noopener,noreferrer");
                  }}
                />
             </div>

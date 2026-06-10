@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { IconX } from "@tabler/icons-react";
 import { useLang } from "../context/LanguageContext";
+import { api } from "../services/api";
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -19,16 +20,14 @@ export function ContactModal({ isOpen, onClose }: ContactModalProps) {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Mocking an API call to your Node.js backend
-    // In the future, this should be an endpoint like POST /api/contact
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      alert("Message sent successfully to the web admin!");
+      await api.post('/contact', { email, message });
+      alert(t("Message sent successfully to the web admin!"));
       setMessage("");
       setEmail("");
       onClose();
     } catch (error) {
-      alert("Failed to send message.");
+      alert(t("Failed to send message. Please try again."));
     } finally {
       setIsSubmitting(false);
     }

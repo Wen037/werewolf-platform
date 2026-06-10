@@ -12,6 +12,7 @@ import { apiLimiter } from './shared/middleware/rateLimiter';
 // Passport strategy registration (side-effect: registers Google OAuth strategy)
 import './shared/infra/passport';
 
+import { sendContactEmail } from './shared/infra/email';
 import userRoutes from './modules/users/routes/userRoutes';
 import playerSpaceRoutes from './modules/player-spaces/routes/playerSpaceRoutes';
 import matchRoutes from './modules/matches/routes/matchRoutes';
@@ -62,6 +63,26 @@ app.use('/api', matchRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api', mapRoutes);
 app.use('/api', uploadRoutes);
+
+// ─── Contact form (public, no auth) ──────────────────────────────────────────
+app.post('/api/contact', async (req: Request, res: Response, next: NextFunction) => {
+  const { email, message } = req.body as { email?: unknown; message?: unknown };
+  if (typeof email !== 'string' || !email.trim() ||
+      typeof message !== 'string' || !message.trim()) {
+    res.status(400).json({ message: 'email and message are required.' });
+    return;
+  }
+  if (email.length > 254 || message.length > 2000) {
+    res.status(400).json({ message: 'Input too long.' });
+    return;
+  }
+  try {
+    await sendContactEmail(email.trim(), message.trim());
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

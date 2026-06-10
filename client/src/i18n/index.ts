@@ -429,6 +429,8 @@ export const zh: Record<string, string> = {
   'Your Email':           '你的邮箱',
   'Write your message here...': '请输入你的消息...',
   'Send Message':         '发送消息',
+  'Message sent successfully to the web admin!': '消息已成功发送给管理员！',
+  'Failed to send message. Please try again.':   '发送失败，请重试。',
 };
 
 export function t(key: string, lang: Lang): string {

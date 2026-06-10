@@ -131,6 +131,38 @@ export const sendBookingInquiryEmail = async (
   }
 };
 
+export const sendContactEmail = async (
+  fromEmail: string,
+  message: string
+): Promise<void> => {
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'becky.fuwen@gmail.com';
+  if (process.env.NODE_ENV === 'test') {
+    console.log(`[TEST] Contact form from ${fromEmail}: ${message}`);
+    return;
+  }
+  const { error } = await getResend().emails.send({
+    from: process.env.FROM_EMAIL ?? 'noreply@example.com',
+    to: adminEmail,
+    replyTo: fromEmail,
+    subject: `[Werewolf SG] Feedback from ${fromEmail}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <img src="https://werewolf.sg/werewolf_favicon.png" alt="Werewolf SG" width="28" height="28" style="border-radius:50%;vertical-align:middle;" />
+          <strong style="font-size:16px;">Werewolf SG — Contact Form</strong>
+        </div>
+        <p><strong>From:</strong> ${fromEmail}</p>
+        <div style="background:#f5f5f5;border-left:4px solid #7c3aed;padding:12px 16px;border-radius:4px;margin:16px 0;white-space:pre-wrap;">${message}</div>
+        <p style="color:#888;font-size:12px;">Reply directly to this email to respond to the sender.</p>
+      </div>
+    `,
+  });
+  if (error) {
+    console.error('[email] sendContactEmail failed:', error);
+    throw new Error(`Email delivery failed: ${error.message}`);
+  }
+};
+
 export const sendEventNotificationEmail = async (
   to: string,
   subject: string,
