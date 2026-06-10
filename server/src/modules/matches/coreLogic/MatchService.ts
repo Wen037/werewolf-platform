@@ -117,10 +117,11 @@ async function enrichWithNamesAndInteraction(
       addedBy: g.addedBy.toString(),
       addedAt: g.addedAt.toISOString(),
     })),
-    joinedPlayerAvatars: d.players.slice(0, 5)
-      .map(p => playerAvatarMap.get(p.toString()))
-      .filter((a): a is string => !!a),
     joinedPlayerIds: d.players.slice(0, 5).map(p => p.toString()),
+    joinedPlayerAvatars: d.players.slice(0, 5).map(p => {
+      const id = p.toString();
+      return playerAvatarMap.get(id) || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${id}`;
+    }),
     isPinned: d.isPinned ?? false,
     venueImageUrl: venueImageMap.get(d.venue_id.toString()),
     myInteraction: interactionMap.get(d._id.toString()),

@@ -8,6 +8,10 @@ import { UserFollowModel } from '../DBSchemas/UserFollowSchema';
 import { PendingRegistrationModel } from '../DBSchemas/PendingRegistrationSchema';
 import { PasswordResetModel } from '../DBSchemas/PasswordResetSchema';
 import { PROFICIENCY_TO_SKILL, SKILL_LEVEL_MAP, SkillLevel } from '../domain/User';
+import { MatchModel } from '../../matches/DBSchemas/MatchSchema';
+import { SessionInteractionModel } from '../../matches/DBSchemas/SessionInteractionSchema';
+import { PlayerSpaceModel } from '../../player-spaces/DBSchemas/PlayerSpaceSchema';
+import { PROFICIENCY_TO_LABEL } from '../../matches/DTOs/MatchDTOs';
 import {
   AuthResponseDTO,
   ForgotPasswordDTO,
@@ -404,19 +408,64 @@ export class UserService {
   async getUserById(
     targetId: string,
     requestingUserId?: string
-  ): Promise<Result<UserResponseDTO & { isFollowedByMe: boolean }>> {
+  ): Promise<Result<UserResponseDTO & {
+    isFollowedByMe: boolean;
+    recentSessions: { id: string; title: string; date: string; maxPlayers: number; currentPlayers: number; proficiency: string; venueName?: string }[];
+    ownedVenues: { id: string; name: string; type: string; imageUrl?: string; address: string }[];
+  }>> {
     const user = await UserModel.findById(targetId);
     if (!user) return Result.fail('User not found.');
 
-    let isFollowedByMe = false;
-    if (requestingUserId) {
-      const follow = await UserFollowModel.findOne({
-        followerId: requestingUserId,
-        followingId: targetId,
-      });
-      isFollowedByMe = follow !== null;
-    }
+    const [isFollowedByMeResult, recentInteractions, ownedVenueDocs] = await Promise.all([
+      requestingUserId
+        ? UserFollowModel.findOne({ followerId: requestingUserId, followingId: targetId })
+        : Promise.resolve(null),
+      SessionInteractionModel.find({ userId: targetId, status: { $in: ['attended', 'registered'] } })
+        .sort({ updatedAt: -1 }).limit(5).lean(),
+      PlayerSpaceModel.find({ owner_id: targetId }, 'name type imageUrl address').limit(5).lean(),
+    ]);
 
-    return Result.ok({ ...toUserResponseDTO(user), isFollowedByMe });
+    const sessionIds = recentInteractions.map(i => i.sessionId);
+    const matchDocs = sessionIds.length > 0
+      ? await MatchModel.find({ _id: { $in: sessionIds } }, 'title scheduledAt config venue_id').lean()
+      : [];
+
+    // Collect venue names for the recent sessions
+    const venueIds = [...new Set(matchDocs.map(m => m.venue_id?.toString()).filter(Boolean))];
+    const venueDocs = venueIds.length > 0
+      ? await PlayerSpaceModel.find({ _id: { $in: venueIds } }, 'name').lean()
+      : [];
+    const venueNameMap = new Map(venueDocs.map(v => [v._id.toString(), v.name]));
+
+    const recentSessions = matchDocs.map(m => {
+      const venueName = venueNameMap.get(m.venue_id?.toString() ?? '');
+      return {
+        id: m._id.toString(),
+        title: m.title,
+        date: (m.scheduledAt as Date).toISOString(),
+        maxPlayers: (m.config as { max_pax: number }).max_pax,
+        currentPlayers: (m.config as { min_pax: number }).min_pax,
+        proficiency: PROFICIENCY_TO_LABEL[(m.config as { proficiency_required: number }).proficiency_required] ?? 'All Welcome',
+        ...(venueName ? { venueName } : {}),
+      };
+    });
+
+    const ownedVenues = ownedVenueDocs.map(v => {
+      const imageUrl = (v as unknown as { imageUrl?: string }).imageUrl;
+      return {
+        id: v._id.toString(),
+        name: v.name,
+        type: (v.type as string) ?? 'other',
+        address: v.address,
+        ...(imageUrl ? { imageUrl } : {}),
+      };
+    });
+
+    return Result.ok({
+      ...toUserResponseDTO(user),
+      isFollowedByMe: isFollowedByMeResult !== null,
+      recentSessions,
+      ownedVenues,
+    });
   }
 }

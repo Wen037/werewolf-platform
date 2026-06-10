@@ -5,11 +5,12 @@ import { GameService } from "../services/game.service";
 import { AuthService } from "../services/auth.service";
 import { getCreditInfo, getUsernameColor } from "../types";
 import type { UserProfileDTO } from "../types";
-import { MOCK_SESSION_INTERACTIONS, MOCK_GAMES } from "../data/mockDB";
+import { MOCK_SESSION_INTERACTIONS, MOCK_GAMES } from "../data/mockDB"; // fallback for mock mode
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, UserPlus, UserCheck, Shield, Trophy, Star, Calendar, BadgeCheck,
 } from "lucide-react";
+import { useLang } from "../context/LanguageContext";
 import { ReportModal } from "../components/ReportModal";
 import { IconAlertTriangle } from "@tabler/icons-react";
 
@@ -24,6 +25,7 @@ const PROFICIENCY_STYLES: Record<string, string> = {
 export default function PublicProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLang();
   const [profile, setProfile] = useState<UserProfileDTO | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -62,21 +64,14 @@ export default function PublicProfilePage() {
     }
   };
 
-  // Compute game stats from mock data
-  const userInteractions = id ? MOCK_SESSION_INTERACTIONS.filter(i => i.userId === id) : [];
-  const gamesAttended = userInteractions.filter(i => i.status === "attended").length;
-  const gamesHosted = id ? MOCK_GAMES.filter(g => g.hostId === id && g.status === "finished").length : 0;
-  const totalParticipated = userInteractions.filter(i => i.status !== "cancelled").length;
-  const completionRate = totalParticipated > 0 ? Math.round((gamesAttended / totalParticipated) * 100) : 0;
+  // Use real stats from API; fall back to mock data for dev/preview
+  const gamesAttended = profile?.eventsAttended ?? MOCK_SESSION_INTERACTIONS.filter(i => i.userId === id && i.status === "attended").length;
+  const gamesHosted   = profile?.eventsHosted   ?? MOCK_GAMES.filter(g => g.hostId === id && g.status === "finished").length;
+  const noshows       = profile?.noshows ?? 0;
+  const completionRate = (gamesAttended + noshows) > 0 ? Math.round((gamesAttended / (gamesAttended + noshows)) * 100) : 0;
 
-  // Recent past events this user joined (public info only)
-  const recentEvents = id
-    ? userInteractions
-        .filter(i => i.status === "attended")
-        .map(i => MOCK_GAMES.find(g => g.id === i.sessionId))
-        .filter((g): g is NonNullable<typeof g> => g !== undefined && g.status === "finished")
-        .slice(0, 5)
-    : [];
+  // Recent past events — from API if available, else fall through to empty
+  const recentEvents = profile?.recentSessions ?? [];
 
   if (loading) {
     return (
@@ -273,14 +268,14 @@ export default function PublicProfilePage() {
                       key={event.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-neutral-900/60 border border-white/8 rounded-xl p-4 flex items-center justify-between gap-3"
+                      className="bg-neutral-900/60 border border-white/8 rounded-xl p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/5 transition-colors"
+                      onClick={() => navigate(`/event/${event.id}`)}
                     >
                       <div className="min-w-0">
                         <div className="font-semibold text-white text-sm truncate">{event.title}</div>
                         <div className="text-xs text-neutral-500 mt-0.5">
                           {d.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })}
-                          {" · "}
-                          <span className="text-neutral-400">{event.currentPlayers}/{event.maxPlayers} players</span>
+                          {event.venueName && <span className="text-neutral-400"> · {event.venueName}</span>}
                         </div>
                       </div>
                       {prof && (
@@ -298,7 +293,39 @@ export default function PublicProfilePage() {
           {recentEvents.length === 0 && (
             <div className="mt-6 text-center py-10 text-neutral-600">
               <Trophy size={32} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No game history yet</p>
+              <p className="text-sm">{t("No game history yet")}</p>
+            </div>
+          )}
+
+          {/* Owned spaces */}
+          {profile.ownedVenues && profile.ownedVenues.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Shield size={14} /> {t("Spaces")}
+              </h2>
+              <div className="space-y-2">
+                {profile.ownedVenues.map(venue => (
+                  <motion.div
+                    key={venue.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-neutral-900/60 border border-white/8 rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-colors"
+                    onClick={() => navigate(`/gamespace/${venue.id}`)}
+                  >
+                    {venue.imageUrl ? (
+                      <img src={venue.imageUrl} alt={venue.name} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-neutral-700" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-neutral-800 border border-white/10 flex items-center justify-center shrink-0">
+                        <Shield size={18} className="text-neutral-500" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-semibold text-white text-sm truncate">{venue.name}</div>
+                      <div className="text-xs text-neutral-500 truncate">{venue.address}</div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           )}
         </div>

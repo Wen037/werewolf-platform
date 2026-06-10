@@ -71,6 +71,11 @@ export interface User {
   bio?: string;
   contactNumber?: string;
   creditScore?: number;  // default 100; see getCreditInfo()
+  rank?: string;
+  eventsAttended?: number;
+  eventsHosted?: number;
+  noshows?: number;
+  lateCount?: number;
 }
 
 export interface GameVenue {
@@ -190,8 +195,28 @@ export interface GameSessionDTO extends GameSession {
   venueImageUrl?: string;
 }
 
+export interface PublicSessionDTO {
+  id: string;
+  title: string;
+  date: string;
+  maxPlayers: number;
+  currentPlayers: number;
+  proficiency?: string;
+  venueName?: string;
+}
+
+export interface PublicVenueDTO {
+  id: string;
+  name: string;
+  type?: string;
+  imageUrl?: string;
+  address: string;
+}
+
 export interface UserProfileDTO extends User {
   isFollowedByMe: boolean;
+  recentSessions?: PublicSessionDTO[];
+  ownedVenues?: PublicVenueDTO[];
 }
 
 export interface FullUserProfileDTO extends User {
