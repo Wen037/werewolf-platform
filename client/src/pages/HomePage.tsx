@@ -260,6 +260,12 @@ export default function HomePage() {
       return H * (L.groundY + L.bowlDepth * Math.min(dx * dx * 2.5, 1.0));
     }
 
+    // ── Returns the min panoramic width so the image covers from y=0 to ground ─
+    function panoW(img: HTMLImageElement, groundY: number, baseW: number): number {
+      const minW = groundY / img.height * img.width;
+      return Math.max(baseW, minW);
+    }
+
     // ── Layer save/restore with alpha+filter ───────────────────────
     function beginLayer(i: number) {
       const L = C.L[i]; ctx.save();
@@ -302,6 +308,9 @@ export default function HomePage() {
     // ─────────────────────────────────────────────────────────────────
     function drawSky() {
       beginLayer(1);
+      // Base fill prevents any transparent gaps between layers at all window sizes
+      ctx.fillStyle = "#010206";
+      ctx.fillRect(0, 0, W, H);
       const g = ctx.createLinearGradient(0, 0, 0, H * 0.22);
       g.addColorStop(0, "#010308"); g.addColorStop(0.5, "#040818"); g.addColorStop(1, "#081228");
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H * 0.22);
@@ -352,7 +361,7 @@ export default function HomePage() {
 
       if (IMGS.l2) {
         ctx.shadowColor = `rgba(210,225,255,${(C.EDGE_GLOW * 0.90).toFixed(2)})`; ctx.shadowBlur = 14;
-        drawPano(IMGS.l2, ox, gfn, W * 2.2 * sc);
+        drawPano(IMGS.l2, ox, gfn, panoW(IMGS.l2, gfn(W * 0.5 + ox), W * 2.2 * sc));
         ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
       } else {
         strokeGround(gfn, "#0f2820", xL, xR);
@@ -432,7 +441,7 @@ export default function HomePage() {
 
       if (IMGS.l5) {
         ctx.shadowColor = `rgba(210,225,255,${(C.EDGE_GLOW * 0.72).toFixed(2)})`; ctx.shadowBlur = 12;
-        drawPano(IMGS.l5, ox, gfn, W * 2.1 * sc);
+        drawPano(IMGS.l5, ox, gfn, panoW(IMGS.l5, gfn(W * 0.5 + ox), W * 2.1 * sc));
         ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
       } else {
         strokeGround(gfn, "#1e3a1e", xL, xR, 5);
@@ -562,7 +571,7 @@ export default function HomePage() {
       fillGround(gfn, "#040804", -W * 0.55 + ox, W * 1.55 + ox, 5);
       if (IMGS.l7) {
         ctx.shadowColor = `rgba(210,225,255,${C.EDGE_GLOW.toFixed(2)})`; ctx.shadowBlur = 18;
-        drawPano(IMGS.l7, ox, gfn, W * 2.2 * sc);
+        drawPano(IMGS.l7, ox, gfn, panoW(IMGS.l7, gfn(W * 0.5 + ox), W * 2.2 * sc));
         ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
       }
       endLayer();
