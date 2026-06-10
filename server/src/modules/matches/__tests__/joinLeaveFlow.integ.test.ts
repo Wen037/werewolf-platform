@@ -385,7 +385,7 @@ describe('JL: Host kick', () => {
     const match = await createTestMatch({ hostId: host._id.toString(), venueId: venue._id.toString() });
 
     await svc.joinMatch(match._id.toString(), player._id.toString());
-    const kickResult = await svc.kickPlayer(match._id.toString(), host._id.toString(), player._id.toString(), 'Misbehaviour');
+    const kickResult = await svc.kickPlayer(match._id.toString(), host._id.toString(), player._id.toString());
 
     expect(kickResult.isSuccess).toBe(true);
     const m = await MatchModel.findById(match._id);
@@ -400,7 +400,7 @@ describe('JL: Host kick', () => {
     const match = await createTestMatch({ hostId: host._id.toString(), venueId: venue._id.toString() });
 
     await svc.joinMatch(match._id.toString(), player._id.toString());
-    const result = await svc.kickPlayer(match._id.toString(), bully._id.toString(), player._id.toString(), 'Because I said so');
+    const result = await svc.kickPlayer(match._id.toString(), bully._id.toString(), player._id.toString());
 
     expect(result.isFailure).toBe(true);
     expect(result.getError()).toMatch(/only the host|forbidden|not.*host/i);

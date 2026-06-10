@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { MatchService } from '../coreLogic/MatchService';
-import { requireAuth, optionalAuth } from '../../../shared/middleware/auth';
+import { requireAuth, requireAdmin, optionalAuth } from '../../../shared/middleware/auth';
 import { validate } from '../../../shared/middleware/validate';
 import {
   CreateMatchSchema,
@@ -198,7 +198,7 @@ router.patch('/games/:sessionId/recap', requireAuth, validate(UpdateRecapSchema)
 });
 
 // ── Admin: toggle pin status of a match ──────────────────────────────────────
-router.patch('/admin/games/:sessionId/pin', requireAuth, async (req: Request, res: Response) => {
+router.patch('/admin/games/:sessionId/pin', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const result = await matchService.pinMatch(id(req), req.user!.userId);
   if (result.isFailure) {
     const status = result.getError()?.includes('Forbidden') ? 403 : 404;

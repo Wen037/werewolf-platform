@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import passport from '../../../shared/infra/passport';
 import { UserService } from '../coreLogic/UserService';
-import { requireAuth, optionalAuth } from '../../../shared/middleware/auth';
+import { requireAuth, requireAdmin, optionalAuth } from '../../../shared/middleware/auth';
 import { validate } from '../../../shared/middleware/validate';
 import { authLimiter } from '../../../shared/middleware/rateLimiter';
 import {
@@ -92,13 +92,9 @@ router.post('/admin/users/:id/reset-password', requireAuth, async (req: Request,
 // Only admin / web_admin can call this. Adjusts a user's creditScore by a delta.
 // Body: { delta: number }  (positive to add, negative to subtract)
 
-router.patch('/admin/users/:id/credit', requireAuth, async (req: Request, res: Response) => {
+router.patch('/admin/users/:id/credit', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const { UserModel } = await import('../DBSchemas/UserSchema');
   const { isValidObjectId } = await import('mongoose');
-  const requestingUser = await UserModel.findById(req.user!.userId);
-  if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
-    res.status(403).json({ message: 'Forbidden.' }); return;
-  }
   const delta = Number((req.body as { delta: unknown }).delta);
   if (!Number.isFinite(delta)) { res.status(400).json({ message: 'delta must be a number.' }); return; }
 
@@ -141,13 +137,15 @@ router.get(
 router.get(
   '/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/login?error=oauth_failed` }),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     // req.user is serialised by passport strategy to { userId, email, isNewUser }
     const { userId, email, isNewUser } = req.user!;
     const secret = process.env.JWT_SECRET;
     if (!secret) { res.status(500).json({ message: 'JWT not configured.' }); return; }
 
-    const token = jwt.sign({ userId, email }, secret, { expiresIn: '7d' });
+    const { UserModel } = await import('../DBSchemas/UserSchema');
+    const userDoc = await UserModel.findById(userId, 'role');
+    const token = jwt.sign({ userId, email, role: userDoc?.role ?? 'player' }, secret, { expiresIn: '7d' });
 
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
     // `isNew=1` tells the frontend this account was just created via Google,

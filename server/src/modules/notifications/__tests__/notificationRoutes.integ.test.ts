@@ -55,7 +55,7 @@ async function seedUser() {
     role: 'player',
     creditScore: 100,
   });
-  const token = jwt.sign({ userId: user._id.toString(), email: user.email }, SECRET, { expiresIn: '1h' });
+  const token = jwt.sign({ userId: user._id.toString(), email: user.email, role: user.role ?? 'player' }, SECRET, { expiresIn: '1h' });
   return { user, token };
 }
 

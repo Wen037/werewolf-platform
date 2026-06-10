@@ -51,7 +51,7 @@ async function seedUser(role: 'player' | 'admin' | 'web_admin' = 'player') {
     username: `vr_${uid}`, email: `vr_${uid}@test.com`,
     passwordHash: '$2b$10$hashedfakepw', role,
   });
-  const token = jwt.sign({ userId: user._id.toString(), email: user.email }, SECRET, { expiresIn: '1h' });
+  const token = jwt.sign({ userId: user._id.toString(), email: user.email, role: user.role ?? 'player' }, SECRET, { expiresIn: '1h' });
   return { user, token };
 }
 

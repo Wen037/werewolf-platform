@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Result } from '../../../shared/core/Result';
+import { isAdminRole } from '../../../shared/middleware/auth';
 import { eventBus } from '../../../shared/infra/EventBus';
 import { MatchModel, IMatchDocument } from '../DBSchemas/MatchSchema';
 import { SessionInteractionModel } from '../DBSchemas/SessionInteractionSchema';
@@ -906,7 +907,7 @@ export class MatchService {
    */
   async pinMatch(sessionId: string, adminId: string): Promise<Result<{ isPinned: boolean }>> {
     const requestingUser = await UserModel.findById(adminId, 'role');
-    if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+    if (!requestingUser || !isAdminRole(requestingUser.role)) {
       return Result.fail('Forbidden: admin access required.');
     }
 
@@ -963,7 +964,7 @@ export class MatchService {
     if (!comment) return Result.fail('Comment not found.');
     const match = await MatchModel.findById(matchId);
     const requestingUser = await UserModel.findById(userId, 'role');
-    const isAdmin = ['admin', 'web_admin'].includes(requestingUser?.role ?? '');
+    const isAdmin = isAdminRole(requestingUser?.role);
     const isAuthor = comment.userId.toString() === userId;
     const isHost = match?.host_id.toString() === userId;
     if (!isAuthor && !isHost && !isAdmin) return Result.fail('Cannot delete another user\'s comment.');
@@ -975,7 +976,7 @@ export class MatchService {
     const match = await MatchModel.findById(matchId);
     if (!match) return Result.fail('Match not found.');
     const requestingUser = await UserModel.findById(userId, 'role');
-    const isAdmin = ['admin', 'web_admin'].includes(requestingUser?.role ?? '');
+    const isAdmin = isAdminRole(requestingUser?.role);
     const isHost = match.host_id.toString() === userId;
     if (!isHost && !isAdmin) return Result.fail('Only the host or admin can lock comments.');
     await MatchModel.findByIdAndUpdate(matchId, { $set: { commentsLocked: locked } });
@@ -988,7 +989,7 @@ export class MatchService {
     const match = await MatchModel.findById(matchId);
     if (!match) return Result.fail('Match not found.');
     const requestingUser = await UserModel.findById(userId, 'role');
-    const isAdmin = ['admin', 'web_admin'].includes(requestingUser?.role ?? '');
+    const isAdmin = isAdminRole(requestingUser?.role);
     const isHost = match.host_id.toString() === userId;
     if (!isHost && !isAdmin) return Result.fail('Only the host can update the recap.');
     if (match.status !== 'Completed') return Result.fail('Recap can only be added to completed events.');
@@ -1027,6 +1028,6 @@ export class MatchService {
     const newDoc = await MatchModel.create(createPayload) as MatchDoc;
 
     await SessionInteractionModel.create({ userId: doc.host_id, sessionId: newDoc._id });
-    console.log(`[Recurring] Created next ${recurrence} occurrence ${newDoc._id.toString()} from ${doc._id.toString()}`);
+    console.info(`[Recurring] Created next ${recurrence} occurrence for match ${doc._id.toString()}`);
   }
 }

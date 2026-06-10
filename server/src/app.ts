@@ -37,13 +37,13 @@ app.use(
   cors({
     origin:
       process.env.NODE_ENV === 'production'
-        ? process.env.FRONTEND_URL
+        ? (process.env.FRONTEND_URL ?? 'https://werewolf.sg')
         : 'http://localhost:5173',
     credentials: true,
   })
 );
 app.use(express.json({ limit: '10kb' }));
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Passport (stateless — session: false used in all strategies)
 app.use(passport.initialize());

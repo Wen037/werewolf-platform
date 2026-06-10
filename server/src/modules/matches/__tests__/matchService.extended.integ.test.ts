@@ -114,7 +114,7 @@ describe('MatchService — toggleLike', () => {
   });
 
   it('MS-EXT-LIKE-3: host likesReceived increments on first like', async () => {
-    const host = await createTestUser({ likesReceived: 0 });
+    const host = await createTestUser();
     const liker = await createTestUser();
     const venue = await createTestVenue(host._id.toString());
     const match = await createTestMatch({ hostId: host._id.toString(), venueId: venue._id.toString() });

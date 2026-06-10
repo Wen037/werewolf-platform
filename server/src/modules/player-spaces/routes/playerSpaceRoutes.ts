@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PlayerSpaceService } from '../coreLogic/PlayerSpaceService';
 import { MatchService } from '../../matches/coreLogic/MatchService';
-import { requireAuth, optionalAuth } from '../../../shared/middleware/auth';
+import { requireAuth, requireAdmin, optionalAuth } from '../../../shared/middleware/auth';
 import { validate } from '../../../shared/middleware/validate';
 import { CreatePlayerSpaceSchema, UpdatePlayerSpaceSchema, RateVenueSchema, LeaveOwnerMessageSchema } from '../DTOs/PlayerSpaceDTOs';
 import { PlayerSpaceModel } from '../DBSchemas/PlayerSpaceSchema';
@@ -117,7 +117,7 @@ router.post('/venues/:id/booking-inquiry', async (req: Request, res: Response) =
 
 // ─── Admin: verify / reject a venue ──────────────────────────────────────────
 // Body: { approved: boolean, reason?: string }
-router.patch('/admin/venues/:id/verify', requireAuth, async (req: Request, res: Response) => {
+router.patch('/admin/venues/:id/verify', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const { approved, reason } = req.body as { approved: boolean; reason?: string };
   if (typeof approved !== 'boolean') {
     res.status(400).json({ message: 'approved (boolean) is required.' });
@@ -155,7 +155,7 @@ router.post('/venues/:id/owner-message', requireAuth, validate(LeaveOwnerMessage
 });
 
 // ─── Admin: toggle pin status of a venue ─────────────────────────────────────
-router.patch('/admin/venues/:id/pin', requireAuth, async (req: Request, res: Response) => {
+router.patch('/admin/venues/:id/pin', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const result = await playerSpaceService.pinVenue(String(req.params['id']), req.user!.userId);
   if (result.isFailure) {
     const status = result.getError()?.includes('Forbidden') ? 403 : 404;
@@ -167,7 +167,7 @@ router.patch('/admin/venues/:id/pin', requireAuth, async (req: Request, res: Res
 
 // ─── Admin: transfer venue ownership to another registered user ─────────────
 // Body: { newOwnerEmail: string }
-router.patch('/admin/venues/:id/transfer-owner', requireAuth, async (req: Request, res: Response) => {
+router.patch('/admin/venues/:id/transfer-owner', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const { newOwnerEmail } = req.body as { newOwnerEmail?: string };
   if (typeof newOwnerEmail !== 'string' || !newOwnerEmail.trim()) {
     res.status(400).json({ message: 'newOwnerEmail (string) is required.' });

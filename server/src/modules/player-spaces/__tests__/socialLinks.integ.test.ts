@@ -174,7 +174,7 @@ describe('socialLinks — getVenueById', () => {
     const venueId = createResult.getValue().id;
 
     const getResult = await svc.getVenueById(venueId);
-    const dto = getResult.getValue() as Record<string, unknown>;
+    const dto = getResult.getValue() as unknown as Record<string, unknown>;
     // ownerContact should be completely absent from the DTO
     expect(dto['ownerContact']).toBeUndefined();
   });

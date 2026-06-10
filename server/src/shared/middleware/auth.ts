@@ -4,18 +4,26 @@ import jwt from 'jsonwebtoken';
 export interface AuthPayload {
   userId: string;
   email: string;
+  role?: string;
+}
+
+// Roles that have admin access. Single source of truth — import wherever needed.
+export const ADMIN_ROLES = ['admin', 'web_admin'] as const;
+export type AdminRole = typeof ADMIN_ROLES[number];
+
+export function isAdminRole(role?: string): role is AdminRole {
+  return ADMIN_ROLES.includes(role as AdminRole);
 }
 
 // Augment Express.User so both JWT middleware and passport strategy
-// produce the same shape. Passport serialises to { userId, email }
-// before calling done(), so req.user always has these fields.
+// produce the same shape.
 declare global {
   namespace Express {
     interface User {
       userId: string;
       email: string;
-      // Set by the Google OAuth strategy when it just created a brand-new
-      // account (so the frontend can prompt the user to pick a nickname).
+      role?: string;
+      // Set by the Google OAuth strategy when it just created a brand-new account.
       isNewUser?: boolean;
     }
   }
@@ -47,6 +55,14 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
   } catch {
     res.status(401).json({ message: 'Invalid or expired token' });
   }
+};
+
+export const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
+  if (!isAdminRole(req.user?.role)) {
+    res.status(403).json({ message: 'Forbidden: admin access required.' });
+    return;
+  }
+  next();
 };
 
 export const optionalAuth = (req: Request, res: Response, next: NextFunction): void => {

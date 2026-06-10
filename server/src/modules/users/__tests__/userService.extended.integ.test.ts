@@ -279,7 +279,7 @@ describe('UserService — getMyProfile', () => {
 
     const result = await svc.getMyProfile(user._id.toString());
 
-    const dto = result.getValue() as Record<string, unknown>;
+    const dto = result.getValue() as unknown as Record<string, unknown>;
     expect(dto['passwordHash']).toBeUndefined();
   });
 

@@ -1,4 +1,5 @@
 import { Result } from '../../../shared/core/Result';
+import { isAdminRole } from '../../../shared/middleware/auth';
 import { PlayerSpaceModel, IPlayerSpaceDocument } from '../DBSchemas/PlayerSpaceSchema';
 import { VenueInteractionModel } from '../DBSchemas/VenueInteractionSchema';
 import { SpaceMessageModel } from '../DBSchemas/SpaceMessageSchema';
@@ -88,7 +89,7 @@ export class PlayerSpaceService {
 
   async createVenue(userId: string, dto: CreatePlayerSpaceDTO): Promise<Result<GameVenueResponseDTO>> {
     const user = await UserModel.findById(userId, 'role');
-    const isAdmin = user && ['admin', 'web_admin'].includes(user.role ?? '');
+    const isAdmin = user && isAdminRole(user.role);
 
     // Regular users are capped at 3 spaces; admins have no limit
     if (!isAdmin) {
@@ -225,7 +226,7 @@ export class PlayerSpaceService {
     reason?: string
   ): Promise<Result<void>> {
     const requestingUser = await UserModel.findById(adminId, 'role');
-    if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+    if (!requestingUser || !isAdminRole(requestingUser.role)) {
       return Result.fail('Forbidden: admin access required.');
     }
 
@@ -269,7 +270,7 @@ export class PlayerSpaceService {
    */
   async transferOwnership(venueId: string, adminId: string, newOwnerEmail: string): Promise<Result<GameVenueResponseDTO>> {
     const requestingUser = await UserModel.findById(adminId, 'role');
-    if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+    if (!requestingUser || !isAdminRole(requestingUser.role)) {
       return Result.fail('Forbidden: admin access required.');
     }
 
@@ -319,7 +320,7 @@ export class PlayerSpaceService {
    */
   async pinVenue(venueId: string, adminId: string): Promise<Result<{ isPinned: boolean }>> {
     const requestingUser = await UserModel.findById(adminId, 'role');
-    if (!requestingUser || !['admin', 'web_admin'].includes(requestingUser.role ?? '')) {
+    if (!requestingUser || !isAdminRole(requestingUser.role)) {
       return Result.fail('Forbidden: admin access required.');
     }
 

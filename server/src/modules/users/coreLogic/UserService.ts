@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Result } from '../../../shared/core/Result';
+import { isAdminRole } from '../../../shared/middleware/auth';
 import { sendOtpEmail, sendPasswordResetEmail } from '../../../shared/infra/email';
 import { eventBus } from '../../../shared/infra/EventBus';
 import { UserModel, IUserDocument } from '../DBSchemas/UserSchema';
@@ -53,11 +54,11 @@ function toUserResponseDTO(doc: IUserDocument): UserResponseDTO {
   };
 }
 
-function signToken(userId: string, email: string): string {
+function signToken(userId: string, email: string, role: string): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET is not set');
   const expiresIn = process.env.JWT_EXPIRES_IN ?? '7d';
-  return jwt.sign({ userId, email }, secret, { expiresIn } as jwt.SignOptions);
+  return jwt.sign({ userId, email, role }, secret, { expiresIn } as jwt.SignOptions);
 }
 
 function generateOtp(): string {
@@ -183,7 +184,7 @@ export class UserService {
       payload: { userId: user._id.toString(), email: user.email, username: user.username },
     });
 
-    const token = signToken(user._id.toString(), user.email);
+    const token = signToken(user._id.toString(), user.email, user.role ?? 'player');
     return Result.ok({ token, user: toUserResponseDTO(user) });
   }
 
@@ -198,7 +199,7 @@ export class UserService {
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) return Result.fail('Invalid email or password.');
 
-    const token = signToken(user._id.toString(), user.email);
+    const token = signToken(user._id.toString(), user.email, user.role ?? 'player');
     return Result.ok({ token, user: toUserResponseDTO(user) });
   }
 
@@ -379,7 +380,7 @@ export class UserService {
 
   async adminResetPassword(adminId: string, targetUserId: string): Promise<Result<{ message: string }>> {
     const admin = await UserModel.findById(adminId);
-    if (!admin || !['admin', 'web_admin'].includes(admin.role)) {
+    if (!admin || !isAdminRole(admin.role)) {
       return Result.fail('Forbidden.');
     }
 
