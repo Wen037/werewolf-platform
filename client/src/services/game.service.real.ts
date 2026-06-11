@@ -93,6 +93,12 @@ export const RealGameService = {
   rateVenue: (id: string, rating: number): Promise<void> =>
     api.post(`/venues/${id}/rate`, { rating }),
 
+  approveVenueSession: (sessionId: string): Promise<void> =>
+    api.patch(`/games/${sessionId}/venue-approve`, {}),
+
+  rejectVenueSession: (sessionId: string): Promise<void> =>
+    api.patch(`/games/${sessionId}/venue-reject`, {}),
+
   bookingInquiry: (
     id: string,
     payload: { date: string; time: string; duration: string; pax: number; name: string; contact: string; notes?: string }

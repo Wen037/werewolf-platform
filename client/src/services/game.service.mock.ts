@@ -94,6 +94,16 @@ export const MockGameService = {
     console.log(`[Mock] rateVenue ${id}: ${rating}`);
   },
 
+  approveVenueSession: async (sessionId: string): Promise<void> => {
+    await delay(200);
+    console.log(`[Mock] approveVenueSession ${sessionId}`);
+  },
+
+  rejectVenueSession: async (sessionId: string): Promise<void> => {
+    await delay(200);
+    console.log(`[Mock] rejectVenueSession ${sessionId}`);
+  },
+
   bookingInquiry: async (id: string, payload: object): Promise<{ autoConfirmed: boolean }> => {
     await delay(600);
     console.log(`[Mock] bookingInquiry ${id}`, payload);

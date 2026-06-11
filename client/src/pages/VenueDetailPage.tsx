@@ -1364,11 +1364,17 @@ export default function VenueDetailPage() {
     [sessions, permissions.canEdit]
   );
 
-  const handleApprove = (sessionId: string) => {
-    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, venueApprovalStatus: 'confirmed' as const } : s));
+  const handleApprove = async (sessionId: string) => {
+    try {
+      await GameService.approveVenueSession(sessionId);
+      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, venueApprovalStatus: 'confirmed' as const } : s));
+    } catch { /* keep showing pending on failure */ }
   };
-  const handleReject = (sessionId: string) => {
-    setSessions(prev => prev.filter(s => s.id !== sessionId));
+  const handleReject = async (sessionId: string) => {
+    try {
+      await GameService.rejectVenueSession(sessionId);
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    } catch { /* keep showing on failure */ }
   };
 
   const triggerToast = () => {
@@ -1456,6 +1462,9 @@ export default function VenueDetailPage() {
     } : v);
     try {
       await GameService.rateVenue(id, rating);
+      // Re-fetch so the displayed averageRating reflects the new multi-user average
+      const fresh = await GameService.getVenueById(id);
+      setVenue(v => v ? { ...v, averageRating: fresh.averageRating } : v);
     } catch {
       setVenue(v => v ? {
         ...v,
@@ -1673,7 +1682,7 @@ export default function VenueDetailPage() {
                 onClick={() => setActiveTab("about")}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
                   activeTab === "about"
-                    ? "bg-red-600/15 border-red-500/30 text-red-400"
+                    ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
                     : "bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:border-white/20"
                 }`}
               >
@@ -1683,7 +1692,7 @@ export default function VenueDetailPage() {
                 onClick={() => setActiveTab("comments")}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
                   activeTab === "comments"
-                    ? "bg-red-600/15 border-red-500/30 text-red-400"
+                    ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
                     : "bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:border-white/20"
                 }`}
               >
