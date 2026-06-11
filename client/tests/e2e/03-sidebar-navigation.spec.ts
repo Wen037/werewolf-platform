@@ -12,6 +12,8 @@ test.describe('Sidebar — Logged-in', () => {
   });
 
   test('NAV-1: Find Games link navigates to /lobby', async ({ page }) => {
+    // Sidebar labels are hidden until the sidebar expands on hover — expand it first
+    await page.locator('a[href="/myevents"]').first().hover();
     // Use role+name to avoid matching Logout/Contact Us links that also have href="/lobby"
     // (React Router resolves <Link to="#"> as href="/lobby" when current path is /lobby)
     await page.getByRole('link', { name: /Find Games/i }).first().dispatchEvent('click');
@@ -19,6 +21,7 @@ test.describe('Sidebar — Logged-in', () => {
   });
 
   test('NAV-2: Game Space link navigates to /gamespace', async ({ page }) => {
+    await page.locator('a[href="/myevents"]').first().hover();
     // Use role+name selector as fallback — href="/gamespace" may resolve differently
     await page.getByRole('link', { name: /Game Space/i }).first().dispatchEvent('click');
     await expect(page).toHaveURL(/\/gamespace/);
@@ -35,7 +38,8 @@ test.describe('Sidebar — Logged-in', () => {
   });
 
   test('NAV-5: Logout button clears token and redirects to /', async ({ page }) => {
-    // Logout is a link/button whose text is "Logout"
+    // Sidebar labels are hidden until the sidebar expands on hover — expand it first
+    await page.locator('a[href="/myevents"]').first().hover();
     const logoutLink = page.locator('a, button').filter({ hasText: /^Logout$/ }).first();
     if (await logoutLink.isVisible({ timeout: 2000 })) {
       await logoutLink.dispatchEvent('click');

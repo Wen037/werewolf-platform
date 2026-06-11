@@ -604,7 +604,14 @@ export default function HomePage() {
     window.addEventListener("resize", resize);
 
     resize();
-    rafId = requestAnimationFrame(loop);
+    // Respect prefers-reduced-motion (WCAG 2.3.3): render one static frame
+    // instead of a continuous rAF loop. Also keeps headless E2E runs responsive.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      loop();
+      cancelAnimationFrame(rafId);
+    } else {
+      rafId = requestAnimationFrame(loop);
+    }
 
     return () => {
       cancelAnimationFrame(rafId);

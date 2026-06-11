@@ -26,11 +26,13 @@ test.describe('My Events', () => {
     if (await createBtn.isVisible({ timeout: 3000 })) {
       await createBtn.dispatchEvent('click');
       await page.waitForTimeout(400); // allow modal animation to start
-      // CreateEventModal renders an "Event Title" label + plain input (no name/title placeholder)
+      // CreateEventModal renders an "Event Title" label + plain input (no name/title placeholder).
+      // .first() on the COMBINED locator — label and input can both match (strict mode)
       await expect(
-        page.getByText('Event Title').first()
-          .or(page.locator('input[placeholder*="Friday Night"], input[placeholder*="e.g."]').first())
-          .or(page.locator('input').filter({ visible: true }).first())
+        page.getByText('Event Title')
+          .or(page.locator('input[placeholder*="Friday Night"], input[placeholder*="e.g."]'))
+          .or(page.locator('input').filter({ visible: true }))
+          .first()
       ).toBeVisible({ timeout: 3000 });
     }
   });
@@ -71,9 +73,9 @@ test.describe('Create Event flow', () => {
       .or(page.locator('input').filter({ visible: true }).first());
     if (await titleInput.isVisible({ timeout: 3000 })) {
       await expect(titleInput).toBeVisible();
-      // Max players field
+      // Max players is a dropdown select (e.g. "12 Players"), not a number input
       await expect(
-        page.locator('input[placeholder*="max" i], input[name*="max" i], input[type="number"]').first()
+        page.locator('select, [role="combobox"]').first()
       ).toBeVisible({ timeout: 2000 });
     }
   });
@@ -86,11 +88,9 @@ test.describe('Create Event flow', () => {
       // Fill other required fields
       const dateInput = page.locator('input[type="datetime-local"], input[type="date"]').first();
       if (await dateInput.isVisible({ timeout: 1000 })) {
-        await dateInput.fill('2026-12-25T19:00');
-      }
-      const maxInput = page.locator('input[name*="max" i], input[placeholder*="max player" i]').first();
-      if (await maxInput.isVisible({ timeout: 1000 })) {
-        await maxInput.fill('10');
+        // type="date" rejects datetime strings — match the value format to the input type
+        const inputType = await dateInput.getAttribute('type');
+        await dateInput.fill(inputType === 'date' ? '2026-12-25' : '2026-12-25T19:00');
       }
       const postReq = page.waitForRequest(req => req.method() === 'POST' && req.url().includes('/games'));
       const submitBtn = page.getByRole('button', { name: /create|submit|save/i }).last();

@@ -14,6 +14,8 @@ export const MOCK_USER = {
   skillLevel: 'Expert', bio: 'Logic is my weapon.', creditScore: 152,
   eventsAttended: 30, eventsHosted: 12, noshows: 0,
   notifPreferences: { email: true, telegram: false, whatsapp: false },
+  // FullUserProfileDTO fields — GET /users/me must include these or MyProfilePage crashes
+  pastEvents: [], followedUsers: [], followedVenues: [], likedGamesCount: 3,
 };
 
 export const MOCK_VENUES = [
@@ -21,6 +23,7 @@ export const MOCK_VENUES = [
     ownerId: 'u2', type: 'boardgame_store', status: 'Verified', isVerified: true,
     averageRating: 4.5, totalLikes: 44, totalSubscribers: 10,
     location: { lat: 1.3521, long: 103.8198 }, area: 'Toa Payoh',
+    coordinates: { lat: 1.3521, lng: 103.8198 },
     imageUrl: 'https://placehold.co/400x200?text=The+Howling+Den',
     pricePerHour: 0, priceType: 'per_person',
     financials: { is_chargeable: false, approx_fee: 0, price_type: 'per_person' },
@@ -29,6 +32,7 @@ export const MOCK_VENUES = [
     ownerId: 'u2', type: 'house', status: 'Verified', isVerified: true,
     averageRating: 4.8, totalLikes: 88, totalSubscribers: 22,
     location: { lat: 1.3050, long: 103.8322 }, area: 'Orchard',
+    coordinates: { lat: 1.3050, lng: 103.8322 },
     imageUrl: 'https://placehold.co/400x200?text=Night+Garden',
     pricePerHour: 0, priceType: 'per_person',
     financials: { is_chargeable: false, approx_fee: 0, price_type: 'per_person' },
@@ -40,12 +44,14 @@ export const MOCK_GAMES = [
     date: new Date(Date.now() + 86400000).toISOString(),
     maxPlayers: 12, currentPlayers: 7, status: 'open',
     proficiency: 'All Welcome', approvalMode: 'open', totalLikes: 5,
-    hostName: 'SeerSally', venueName: 'The Howling Den', minPax: 6 },
+    hostName: 'SeerSally', venueName: 'The Howling Den', minPax: 6,
+    location: { lat: 1.3521, long: 103.8198 } },
   { id: 'g2', title: 'Advanced Tactics Game', hostId: 'u7', venueId: 'v2',
     date: new Date(Date.now() + 172800000).toISOString(),
     maxPlayers: 10, currentPlayers: 10, status: 'full',
     proficiency: 'Expert', approvalMode: 'approval', totalLikes: 12,
-    hostName: 'SilentBob', venueName: 'Night Garden', minPax: 8 },
+    hostName: 'SilentBob', venueName: 'Night Garden', minPax: 8,
+    location: { lat: 1.3050, long: 103.8322 } },
 ];
 
 export const MOCK_NOTIFICATIONS = [
@@ -123,6 +129,28 @@ export async function interceptApi(page: Page) {
   });
 
   // Games
+  // NOTE: Playwright matches routes in REVERSE registration order (last registered wins).
+  // Generic wildcards must be registered FIRST so specific routes take precedence —
+  // `**/api/games/*` also matches `/api/games/active`.
+  await page.route(`${base}/games/*`, async route => {
+    const method = route.request().method();
+    if (method === 'POST' && route.request().url().endsWith('/games')) {
+      await route.fulfill({ status: 201, json: { ...MOCK_GAMES[0], id: 'g-new' } });
+    } else if (method === 'DELETE') {
+      await route.fulfill({ json: { success: true } });
+    } else {
+      await route.fulfill({ json: MOCK_GAMES[0] });
+    }
+  });
+
+  await page.route(`${base}/games`, async route => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ status: 201, json: { ...MOCK_GAMES[0], id: 'g-new' } });
+    } else {
+      await route.fulfill({ json: MOCK_GAMES });
+    }
+  });
+
   await page.route(`${base}/games/active`, async route => {
     await route.fulfill({ json: MOCK_GAMES });
   });
@@ -166,25 +194,6 @@ export async function interceptApi(page: Page) {
   // Recap
   await page.route(`${base}/games/*/recap`, async route => {
     await route.fulfill({ json: { message: 'Recap updated.' } });
-  });
-
-  await page.route(`${base}/games/*`, async route => {
-    const method = route.request().method();
-    if (method === 'POST' && route.request().url().endsWith('/games')) {
-      await route.fulfill({ status: 201, json: { ...MOCK_GAMES[0], id: 'g-new' } });
-    } else if (method === 'DELETE') {
-      await route.fulfill({ json: { success: true } });
-    } else {
-      await route.fulfill({ json: MOCK_GAMES[0] });
-    }
-  });
-
-  await page.route(`${base}/games`, async route => {
-    if (route.request().method() === 'POST') {
-      await route.fulfill({ status: 201, json: { ...MOCK_GAMES[0], id: 'g-new' } });
-    } else {
-      await route.fulfill({ json: MOCK_GAMES });
-    }
   });
 
   // Venues

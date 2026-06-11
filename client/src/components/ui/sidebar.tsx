@@ -61,17 +61,18 @@ export const Sidebar = ({
           positioned relative to the bar (56px) instead of the viewport. */}
 
       {/* 1. The visible header bar (no children that need viewport-fixed positioning) */}
-      <div className="flex md:hidden h-14 w-full flex-shrink-0 bg-black/60 backdrop-blur-md px-4 items-center justify-between z-20">
+      <header className="flex md:hidden h-14 w-full flex-shrink-0 bg-black/60 backdrop-blur-md px-4 items-center justify-between z-20">
         <div className="flex items-center gap-2">
           <span className="text-white font-bold text-lg">Menu</span>
           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 tracking-widest">BETA</span>
         </div>
         {/* Always show ≡ — tapping it toggles the panel open/closed */}
         <IconMenu2
+          aria-label="Open menu"
           className="text-white cursor-pointer"
           onClick={() => _setOpen(v => !v)}
         />
-      </div>
+      </header>
 
       {/* 2. The drawer — sibling of the bar so fixed positioning is viewport-relative */}
       <div className="md:hidden">

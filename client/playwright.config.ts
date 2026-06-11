@@ -17,6 +17,10 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     headless: true,
+    // Canvas scenes render a single static frame under reduced motion — keeps
+    // headless CPU free so actions don't time out (and matches WCAG behaviour).
+    // Passed via contextOptions: the top-level shorthand did not apply in 1.56.
+    contextOptions: { reducedMotion: 'reduce' },
     viewport: { width: 1280, height: 800 },
     screenshot: 'only-on-failure',
     video: 'off',
@@ -34,7 +38,11 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'Desktop Chrome', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'Desktop Chrome',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /mobile\.spec\.ts/,   // mobile-viewport assertions only make sense on the mobile project
+    },
     {
       name: 'Mobile Safari (iPhone 14)',
       use: { ...devices['iPhone 14'] },

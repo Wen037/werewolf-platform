@@ -13,6 +13,9 @@ test.describe('Auth Modal', () => {
     await page.getByText(/Login \/ Register/i).dispatchEvent('click');
     // Use getByRole to uniquely identify the LOGIN tab inside the modal
     await expect(page.getByRole('button', { name: 'LOGIN', exact: true })).toBeVisible();
+    // The modal may open on the REGISTER tab — switch to LOGIN explicitly so
+    // login tests always start from the login form
+    await page.getByRole('button', { name: 'LOGIN', exact: true }).dispatchEvent('click');
     // Wait for Framer Motion modal entrance animation to settle (~300ms)
     await page.waitForTimeout(600);
   });

@@ -433,8 +433,15 @@ export default function MyProfilePage() {
 
   useEffect(() => {
     GameService.getMyFullProfile().then(data => {
-      setProfile(data);
-      setTempBio(data.bio || ""); 
+      // Normalize: a missing array in the API response must not blank the whole page
+      setProfile({
+        ...data,
+        pastEvents: data.pastEvents ?? [],
+        followedUsers: data.followedUsers ?? [],
+        followedVenues: data.followedVenues ?? [],
+        likedGamesCount: data.likedGamesCount ?? 0,
+      });
+      setTempBio(data.bio || "");
     });
   }, []);
 

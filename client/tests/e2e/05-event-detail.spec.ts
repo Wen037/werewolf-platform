@@ -20,8 +20,9 @@ test.describe('Event Detail — Guest', () => {
     const joinBtn = page.getByRole('button', { name: /join/i }).first();
     if (await joinBtn.isVisible({ timeout: 3000 })) {
       await joinBtn.click();
+      // Multiple "log in" affordances may exist (auth modal + "Log in to comment") — assert any one
       await expect(
-        page.locator('button', { hasText: 'LOGIN' }).or(page.locator('text=/log in|sign in/i').first())
+        page.locator('button', { hasText: 'LOGIN' }).or(page.locator('text=/log in|sign in/i')).first()
       ).toBeVisible({ timeout: 3000 });
     }
   });

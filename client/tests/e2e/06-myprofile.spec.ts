@@ -63,14 +63,16 @@ test.describe('My Profile', () => {
   });
 
   test('PROF-6: follower / following counts are visible', async ({ page }) => {
+    // Count value and "Followers" label both match — assert any one (strict mode)
     await expect(
       page.locator(`text=${MOCK_USER.followersCount}`).or(
-        page.locator('text=/follower/i').first()
-      )
+        page.locator('text=/follower/i')
+      ).first()
     ).toBeVisible({ timeout: 5000 });
   });
 
-  test('PROF-7: notification preferences section visible', async ({ page }) => {
-    await expect(page.locator('text=/notification|Notification/i').first()).toBeVisible({ timeout: 5000 });
+  test('PROF-7: Following / Saved Places / Match History sections visible', async ({ page }) => {
+    await expect(page.locator('text=/Saved Places/i').first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=/Match History/i').first()).toBeVisible({ timeout: 5000 });
   });
 });
