@@ -37,6 +37,7 @@ export interface IMatchDocument extends Document {
   recurrence?: 'none' | 'weekly' | 'biweekly' | 'monthly';
   recap?: { text?: string };
   commentsLocked: boolean;
+  reminderSentAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -105,6 +106,9 @@ const MatchSchema = new Schema<IMatchDocument>(
       text: { type: String, maxlength: 2000 },
     },
     commentsLocked: { type: Boolean, default: false },
+    // Set once the 24h reminder email has gone out — prevents the hourly cron
+    // from re-sending while the match is still inside the 23-25h window
+    reminderSentAt: { type: Date },
   },
   { timestamps: true }
 );

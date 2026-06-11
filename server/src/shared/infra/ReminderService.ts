@@ -23,7 +23,7 @@ export class ReminderService {
     console.log('⏰ ReminderService started (hourly)');
   }
 
-  private async sendReminders(): Promise<void> {
+  async sendReminders(): Promise<void> {
     const resend = getResend();
     if (!resend) return; // Resend not configured — skip silently
 
@@ -31,14 +31,20 @@ export class ReminderService {
     const from = new Date(now.getTime() + 23 * 60 * 60 * 1000);
     const to   = new Date(now.getTime() + 25 * 60 * 60 * 1000);
 
+    // reminderSentAt guard: the 2h window is wider than the hourly cron interval,
+    // so without it every match would be picked up by two consecutive runs and
+    // players would receive the reminder twice.
     const matches = await MatchModel.find({
       status: { $in: ['Open', 'Full'] },
       scheduledAt: { $gte: from, $lte: to },
+      reminderSentAt: { $exists: false },
     }).lean();
 
     if (matches.length === 0) return;
 
     for (const match of matches) {
+      await MatchModel.findByIdAndUpdate(match._id, { $set: { reminderSentAt: now } });
+
       const playerIds = (match.players as { toString(): string }[]).map(p => p.toString());
       if (playerIds.length === 0) continue;
 

@@ -118,4 +118,13 @@
 - **`map/__tests__/MapService.unit.test.ts`**: removed `.catch(() => [])` swallows; MAP-1 asserts radius filtering (near in, far out); MAP-2 asserts visible-then-hidden with hideFull
 - Suite: **519 passed | 4 skipped (523)** — unchanged count, strictly stronger assertions
 
+## 2026-06-11 — Session 46: Session 43 feature tests (25 new) + fix reminder double-send bug
+- **Bug fixed**: `ReminderService` 23-25h window is wider than the hourly cron interval — every match was matched by two consecutive runs, so players received the 24h reminder email TWICE
+- **`MatchSchema.ts`**: added `reminderSentAt?: Date` — stamped after a reminder goes out
+- **`ReminderService.ts`**: query excludes matches with `reminderSentAt`; stamps before sending; `sendReminders()` made public for direct testing (cron just wraps it)
+- **New** `src/modules/matches/__tests__/matchService.social.integ.test.ts`: 20 tests — comments CRUD + BOLA (author/host/admin delete matrix), comment locking (BFLA, host-exempt lock, unlock), recap (host/admin-only, Completed-only, overwrite), recurrence (weekly/biweekly/monthly +7/14/30d, roster reset to host, `none` → no follow-up, Completed→Completed blocked by state machine = no double occurrence)
+- **New** `src/shared/__tests__/ReminderService.integ.test.ts`: 5 tests — mocked Resend; recipients, 23-25h window boundaries, Cancelled skipped, double-send guard (REM-4 fails without the fix), `reminderSentAt` stamped
+- Closes `docs/test-standards.md` gap backlog items 1 (ASVS V4 for Session 43 endpoints) and 2 (ISO 25010 reliability — recurrence/reminder)
+- Suite: **544 passed | 4 skipped (548)** across 35 files
+
 
