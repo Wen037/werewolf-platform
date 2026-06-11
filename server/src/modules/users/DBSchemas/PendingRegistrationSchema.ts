@@ -6,6 +6,7 @@ export interface IPendingRegistrationDocument extends Document {
   passwordHash: string;
   otp: string;
   expiresAt: Date;
+  attempts: number;
 }
 
 const PendingRegistrationSchema = new Schema<IPendingRegistrationDocument>({
@@ -14,6 +15,8 @@ const PendingRegistrationSchema = new Schema<IPendingRegistrationDocument>({
   passwordHash: { type: String, required: true },
   otp: { type: String, required: true },
   expiresAt: { type: Date, required: true },
+  // Wrong-guess counter — pending registration is invalidated after 5 failures
+  attempts: { type: Number, default: 0 },
 });
 
 // MongoDB TTL: auto-delete documents when expiresAt is reached

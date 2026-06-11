@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { Result } from '../../../shared/core/Result';
 import { isAdminRole } from '../../../shared/middleware/auth';
@@ -62,8 +63,13 @@ function signToken(userId: string, email: string, role: string): string {
 }
 
 function generateOtp(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // crypto.randomInt — Math.random() is a predictable PRNG and must not be
+  // used for security codes (OWASP ASVS 2.5.1 / 6.3.1)
+  return crypto.randomInt(100000, 1000000).toString();
 }
+
+// Max wrong guesses before the pending registration is invalidated (ASVS 2.5)
+const MAX_OTP_ATTEMPTS = 5;
 
 // Escapes regex metacharacters so a username can be safely used in a $regex match.
 function escapeRegex(s: string): string {
@@ -130,7 +136,7 @@ export class UserService {
 
     await PendingRegistrationModel.findOneAndUpdate(
       { email: dto.email },
-      { email: dto.email, username: dto.username, passwordHash, otp, expiresAt },
+      { email: dto.email, username: dto.username, passwordHash, otp, expiresAt, attempts: 0 },
       { upsert: true, new: true }
     );
 
@@ -147,8 +153,15 @@ export class UserService {
   async verifyOtp(dto: VerifyOtpDTO): Promise<Result<AuthResponseDTO>> {
     const pending = await PendingRegistrationModel.findOne({ email: dto.email });
     if (!pending) return Result.fail('No pending registration found. Please register again.');
-    if (pending.otp !== dto.otp) return Result.fail('Invalid verification code.');
     if (new Date() > pending.expiresAt) return Result.fail('Verification code has expired.');
+    if ((pending.attempts ?? 0) >= MAX_OTP_ATTEMPTS) {
+      await PendingRegistrationModel.deleteOne({ email: dto.email });
+      return Result.fail('Too many incorrect attempts. Please register again.');
+    }
+    if (pending.otp !== dto.otp) {
+      await PendingRegistrationModel.updateOne({ email: dto.email }, { $inc: { attempts: 1 } });
+      return Result.fail('Invalid verification code.');
+    }
 
     // Re-check right before creation — closes the race window where two people
     // start registering the same name within the same OTP window (initiateRegister

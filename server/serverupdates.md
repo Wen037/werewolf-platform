@@ -127,4 +127,13 @@
 - Closes `docs/test-standards.md` gap backlog items 1 (ASVS V4 for Session 43 endpoints) and 2 (ISO 25010 reliability — recurrence/reminder)
 - Suite: **544 passed | 4 skipped (548)** across 35 files
 
+## 2026-06-11 — Session 47: OTP hardening + SSRF/log-content security tests + CI workflow
+- **Bugs fixed (ASVS V2.5)**: OTP generated with `Math.random()` (predictable PRNG) → `crypto.randomInt`; no attempt cap on `verifyOtp` → 5-attempt limit (`attempts` counter on `PendingRegistrationSchema`, pending registration deleted on lockout, counter reset on fresh OTP request)
+- **New** `src/__tests__/security/V2.5-otp-bruteforce.sec.test.ts`: 6 tests — wrong/correct codes, lockout after 5 fails (correct code rejected after), expiry, single-use replay, counter reset, 6-digit format
+- **New** `src/__tests__/security/A10-ssrf.sec.test.ts`: 4 tests — geocode/reverse-geocode request target is always the fixed OneMap/Nominatim host; metadata-endpoint/file:///userinfo-trick payloads only travel as query params; graceful fallback
+- **New** `src/__tests__/security/V7.1-log-content.sec.test.ts`: 3 tests — stdout/stderr captured during register/login/JWT flows; no passwords, OTPs, password hashes, or tokens in logs
+- **New** `.github/workflows/ci.yml`: backend Vitest job + `npm audit --audit-level=high` gate for client and server (no CI workflow existed before — testplan.md's claim was stale)
+- Gap backlog item 6 (axe scan) blocked: local TLS-intercepting proxy breaks `npm install`
+- Suite: **557 passed | 4 skipped (561)** across 38 files
+
 
