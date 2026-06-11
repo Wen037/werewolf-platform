@@ -19,15 +19,11 @@
 #
 # ── Session History ────────────────────────────────────────────────────────────
 
-## 2026-06-11 — Playwright suite repair: 22 failures → 0; reduced-motion; mock-api overhaul
-- **Root cause**: `USE_MOCK` is now `false` — network mocks in `tests/e2e/helpers/mock-api.ts` became load-bearing and had latent gaps
-- **`tests/e2e/helpers/mock-api.ts`**: `MOCK_USER` gets FullUserProfileDTO fields (`pastEvents`, `followedUsers`, `followedVenues`, `likedGamesCount`); generic `**/games/*` + `**/games` routes registered FIRST (Playwright matches last-registered first — wildcard was swallowing `/games/active` and returning an object instead of an array, crashing lobby/map); `MOCK_GAMES` get `location`, `MOCK_VENUES` get `coordinates`
-- **`pages/MyProfilePage.tsx`**: profile load normalizes missing arrays (`?? []`) — a missing field in the API response no longer blanks the whole page
-- **`pages/HomePage.tsx`**: forest canvas respects `prefers-reduced-motion` — renders one static frame instead of continuous rAF loop (WCAG 2.3.3; in headless software rendering each frame took ~500ms, saturating the main thread and timing out all fill/click actions)
-- **`components/ui/sidebar.tsx`**: mobile top bar `<div>` → semantic `<header>`; menu icon gets `aria-label` (WCAG 4.1.2)
-- **`playwright.config.ts`**: `contextOptions: { reducedMotion: 'reduce' }` (the `use.reducedMotion` shorthand silently did not apply in 1.56); `mobile.spec.ts` excluded from Desktop Chrome project
-- **Spec fixes**: 02-auth (modal now opens on REGISTER tab — beforeEach selects LOGIN explicitly), 03-sidebar (hover to expand sidebar before clicking labels), 05-event-detail + 06-myprofile + 07-myevents (strict-mode `.or()` chains get `.first()` on the combined locator; Max Players is a select; date input type-aware fill; PROF-7 asserts Saved Places/Match History instead of nonexistent notification section)
-- **Result**: 77/77 passing expected (was 65/87 incl. duplicated mobile runs); suite runtime 23.7m → ~5m
+## 2026-06-12 — Venue fixes: approval persisted, rating avg refreshed, amber tabs
+- **`services/game.service.real.ts`**: added `approveVenueSession` → `PATCH /games/:id/venue-approve`; `rejectVenueSession` → `PATCH /games/:id/venue-reject`
+- **`services/game.service.mock.ts`**: matching stubs
+- **`pages/VenueDetailPage.tsx`**: `handleApprove`/`handleReject` now call the API before updating local state — pending item no longer reappears after page refresh; `handleRate` re-fetches venue after success so `averageRating` reflects multi-user average (was only updating `myRating` locally); About/Comments active tab colour changed from red → amber
+
 
 ## 2026-06-11 — Space comments tab in VenueDetailPage; venue-approval badge now correct for cafés
 - **`types/index.ts`**: added `SpaceComment` interface; `GameVenueDTO` gets `commentsLocked?: boolean`
