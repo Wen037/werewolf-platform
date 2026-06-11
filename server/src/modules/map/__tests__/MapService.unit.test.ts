@@ -21,19 +21,16 @@ const SG_LAT = 1.3521;
 const SG_LNG = 103.8198;
 
 describe('MapService — getNearbyVenues', () => {
-  it('MAP-1: returns venues within radius sorted by distance (flat-field fallback when no geoLocation)', async () => {
+  it('MAP-1: returns only venues within radius, nearest first', async () => {
     const owner = await createTestUser();
     // Create venues at different distances from SG centre
-    await createTestVenue(owner._id.toString(), { lat: SG_LAT + 0.01, lng: SG_LNG + 0.01 }); // ~1.5 km
-    await createTestVenue(owner._id.toString(), { lat: SG_LAT + 0.1, lng: SG_LNG + 0.1 });   // ~15 km
+    const near = await createTestVenue(owner._id.toString(), { lat: SG_LAT + 0.01, lng: SG_LNG + 0.01 }); // ~1.5 km
+    const far = await createTestVenue(owner._id.toString(), { lat: SG_LAT + 0.1, lng: SG_LNG + 0.1 });    // ~15 km
 
-    // Without 2dsphere index (in-memory mongod standalone) $near won't work.
-    // MapService falls back to flat-field scan for venues without geoLocation.
-    // We test that the service handles the DB query gracefully.
-    // In production (Atlas with 2dsphere index) $near works natively.
-    const result = await mapService.getNearbyVenues(SG_LAT, SG_LNG, 5).catch(() => []);
-    // At minimum we verify the method doesn't throw
-    expect(Array.isArray(result)).toBe(true);
+    const result = await mapService.getNearbyVenues(SG_LAT, SG_LNG, 5);
+    const ids = result.map(v => v.venueId);
+    expect(ids).toContain(near._id.toString());
+    expect(ids).not.toContain(far._id.toString());
   });
 
   it('MAP-2: getNearbyEvents excludes Full matches when hideFull=true', async () => {
@@ -48,11 +45,12 @@ describe('MapService — getNearbyVenues', () => {
       status: 'Full',
     });
 
-    // Without geoIndex, $near throws — service returns [] which is correct behaviour
-    const resultHideFull = await mapService.getNearbyEvents(SG_LAT, SG_LNG, 50, { hideFull: true }).catch(() => []);
-    // Any Full matches should not appear
-    const fullMatch = resultHideFull.find(e => e.matchId === match._id.toString());
-    expect(fullMatch).toBeUndefined();
+    // Full match is visible without the filter, hidden with hideFull=true
+    const resultAll = await mapService.getNearbyEvents(SG_LAT, SG_LNG, 50);
+    expect(resultAll.find(e => e.matchId === match._id.toString())).toBeDefined();
+
+    const resultHideFull = await mapService.getNearbyEvents(SG_LAT, SG_LNG, 50, { hideFull: true });
+    expect(resultHideFull.find(e => e.matchId === match._id.toString())).toBeUndefined();
   });
 
   it('MAP-3: getNearbyEvents excludes past events', async () => {
@@ -64,13 +62,13 @@ describe('MapService — getNearbyVenues', () => {
       scheduledAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     });
 
-    const result = await mapService.getNearbyEvents(SG_LAT, SG_LNG, 50).catch(() => []);
+    const result = await mapService.getNearbyEvents(SG_LAT, SG_LNG, 50);
     const found = result.find(e => e.matchId === pastMatch._id.toString());
     expect(found).toBeUndefined();
   });
 
   it('MAP-4: returns empty array when no venues exist within radius', async () => {
-    const result = await mapService.getNearbyVenues(0, 0, 1).catch(() => []);
+    const result = await mapService.getNearbyVenues(0, 0, 1);
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBe(0);
   });

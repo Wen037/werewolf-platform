@@ -50,6 +50,8 @@ const SG_LNG = 103.8198;
 beforeAll(async () => {
   mongod = await MongoMemoryServer.create();
   await mongoose.connect(mongod.getUri());
+  // Wait for index builds (incl. 2dsphere) — $near queries fail until the geo index exists
+  await Promise.all(Object.values(mongoose.connection.models).map((m) => m.init()));
 });
 
 // ─── Seed helpers ─────────────────────────────────────────────────────────────
@@ -116,19 +118,17 @@ async function seedMatchNear(lat = SG_LAT, lng = SG_LNG) {
 }
 
 // ─── GET /api/map/venues/nearby ───────────────────────────────────────────────
-// Note: MongoMemoryServer does not support $near / 2dsphere indexes.
-// Tests that hit the DB layer accept 200 OR 500 (service error due to no index).
-// Validation-only tests (400 for bad input) work regardless.
+// setupMongoMemory awaits Model.init() so the 2dsphere index exists — $near
+// queries work exactly as in production and must return 200.
 
 describe('GET /api/map/venues/nearby', () => {
-  it('MAP-ROUTE-1: returns 200 or 500 for valid coordinates (no 2dsphere in test env)', async () => {
+  it('MAP-ROUTE-1: returns 200 with an array for valid coordinates', async () => {
     const res = await request(app)
       .get('/api/map/venues/nearby')
       .query({ lat: SG_LAT, lng: SG_LNG });
 
-    // 200 in prod (has 2dsphere index); 500 in test env (no $near support)
-    expect([200, 500]).toContain(res.status);
-    if (res.status === 200) expect(Array.isArray(res.body)).toBe(true);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
   });
 
   it('MAP-ROUTE-2: returns 400 when lat is missing', async () => {
@@ -147,22 +147,23 @@ describe('GET /api/map/venues/nearby', () => {
     expect(res.status).toBe(400);
   });
 
-  it('MAP-ROUTE-4: radiusKm param passes validation (200 or 500)', async () => {
-    await seedVenueNear();
+  it('MAP-ROUTE-4: returns the seeded venue within radiusKm', async () => {
+    const venue = await seedVenueNear();
 
     const res = await request(app)
       .get('/api/map/venues/nearby')
       .query({ lat: SG_LAT, lng: SG_LNG, radiusKm: 10 });
 
-    expect([200, 500]).toContain(res.status);
+    expect(res.status).toBe(200);
+    expect(res.body.some((v: { venueId: string }) => v.venueId === venue._id.toString())).toBe(true);
   });
 
-  it('MAP-ROUTE-5: verifiedOnly param passes validation (200 or 500)', async () => {
+  it('MAP-ROUTE-5: verifiedOnly param returns 200', async () => {
     const res = await request(app)
       .get('/api/map/venues/nearby')
       .query({ lat: SG_LAT, lng: SG_LNG, verifiedOnly: true });
 
-    expect([200, 500]).toContain(res.status);
+    expect(res.status).toBe(200);
   });
 
   it('MAP-ROUTE-6: no auth required (not 401)', async () => {
@@ -177,13 +178,15 @@ describe('GET /api/map/venues/nearby', () => {
 // ─── GET /api/map/events/nearby ───────────────────────────────────────────────
 
 describe('GET /api/map/events/nearby', () => {
-  it('MAP-ROUTE-7: returns 200 or 500 for valid coordinates (no 2dsphere in test env)', async () => {
+  it('MAP-ROUTE-7: returns the seeded upcoming event for valid coordinates', async () => {
+    const match = await seedMatchNear();
+
     const res = await request(app)
       .get('/api/map/events/nearby')
       .query({ lat: SG_LAT, lng: SG_LNG });
 
-    expect([200, 500]).toContain(res.status);
-    if (res.status === 200) expect(Array.isArray(res.body)).toBe(true);
+    expect(res.status).toBe(200);
+    expect(res.body.some((e: { matchId: string }) => e.matchId === match._id.toString())).toBe(true);
   });
 
   it('MAP-ROUTE-8: returns 400 when both lat and lng are missing', async () => {
@@ -192,30 +195,37 @@ describe('GET /api/map/events/nearby', () => {
     expect(res.status).toBe(400);
   });
 
-  it('MAP-ROUTE-9: hideFull param passes validation (200 or 500)', async () => {
+  it('MAP-ROUTE-9: hideFull=true returns 200 and excludes nothing for a non-full event', async () => {
+    const match = await seedMatchNear();
+
     const res = await request(app)
       .get('/api/map/events/nearby')
       .query({ lat: SG_LAT, lng: SG_LNG, hideFull: true });
 
-    expect([200, 500]).toContain(res.status);
+    expect(res.status).toBe(200);
+    expect(res.body.some((e: { matchId: string }) => e.matchId === match._id.toString())).toBe(true);
   });
 
-  it('MAP-ROUTE-10: date filter passes validation (200 or 500)', async () => {
-    await seedMatchNear();
+  it('MAP-ROUTE-10: date=today excludes an event scheduled tomorrow', async () => {
+    const match = await seedMatchNear(); // scheduledAt = now + 24h
 
     const res = await request(app)
       .get('/api/map/events/nearby')
       .query({ lat: SG_LAT, lng: SG_LNG, date: 'today' });
 
-    expect([200, 500]).toContain(res.status);
+    expect(res.status).toBe(200);
+    expect(res.body.some((e: { matchId: string }) => e.matchId === match._id.toString())).toBe(false);
   });
 
-  it('MAP-ROUTE-11: proficiency filter passes validation (200 or 500)', async () => {
+  it('MAP-ROUTE-11: proficiency filter returns events open to all levels', async () => {
+    const match = await seedMatchNear(); // proficiency_required: 0 (open to all)
+
     const res = await request(app)
       .get('/api/map/events/nearby')
       .query({ lat: SG_LAT, lng: SG_LNG, proficiency: 1 });
 
-    expect([200, 500]).toContain(res.status);
+    expect(res.status).toBe(200);
+    expect(res.body.some((e: { matchId: string }) => e.matchId === match._id.toString())).toBe(true);
   });
 });
 

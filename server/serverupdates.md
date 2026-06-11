@@ -71,10 +71,6 @@
 - **`PlayerSpaceDTOs.ts`**: added `wechatQrUrl` to create/update schemas + `GameVenueResponseDTO`
 - **`PlayerSpaceService.ts`**: `createVenue` passes `wechatQrUrl`; `updateVenue` sets or `$unset`s it (empty string = removal)
 
-## 2026-06-09 — Session 30: Auto-approve venueApprovalStatus for own-space and public venues
-- **`MatchService.ts` `createMatch()`**: added `PUBLIC_VENUE_TYPES = ['school', 'boardgame_store']` constant; when host is the venue owner OR venue type is in that list, `venueApprovalStatus` is set to `'confirmed'` immediately on create — owner never needs to self-approve their own space, and school/store venues are treated as public
-- Added `IPlayerSpaceDocument` to the import from `PlayerSpaceSchema.ts` for type-safe comparison
-
 ## 2026-06-10 — 5 Meetup-gap features: comments, recap, recurrence, 24h reminder
 - **`MatchSchema.ts`**: added `recurrence?: 'none'|'weekly'|'biweekly'|'monthly'` and `recap?: { text?: string }` fields
 - **`EventCommentSchema.ts`** (new): `matchId`, `userId`, `text`; index on `(matchId, createdAt)`
@@ -113,5 +109,13 @@
 - **New** `src/modules/map/__tests__/mapRoutes.integ.test.ts`: 17 HTTP-layer tests — nearby venues/events, geocode, reverse-geocode, validation guards
 - **Fixed** `src/modules/matches/__tests__/joinLeaveFlow.integ.test.ts`: 4 tests corrected (host can leave, waitlist Full status, error message regex, kick error regex)
 - Final test count: **434/434 passing** across 28 test files, 0 failures
+
+## 2026-06-11 — Session 45: fix 2dsphere index race ($near 500s on fresh DB); strict map test assertions
+- **Root cause found**: Mongoose builds schema indexes asynchronously after connect; `$near` queries on `matches`/`playerspaces` returned 500 ("unable to find index for $geoNear query") until the 2dsphere build finished — on any FRESH database (new deploy, new cluster) the map nearby endpoints could 500. Map tests masked it with `expect([200, 500])` and false "MongoMemoryServer does not support $near" comments (it does — it runs real mongod)
+- **`server.ts`**: after connect, awaits `Model.init()` for all registered models before `app.listen` — indexes guaranteed before serving traffic
+- **`__tests__/helpers/setupMongoMemory.ts`**: same `Model.init()` await in beforeAll
+- **`map/__tests__/mapRoutes.integ.test.ts`**: own beforeAll also awaits init; all `[200, 500]` assertions tightened to `200` + seeded-data presence asserted (MAP-ROUTE-1/4/5/7/9/10/11 now real tests)
+- **`map/__tests__/MapService.unit.test.ts`**: removed `.catch(() => [])` swallows; MAP-1 asserts radius filtering (near in, far out); MAP-2 asserts visible-then-hidden with hideFull
+- Suite: **519 passed | 4 skipped (523)** — unchanged count, strictly stronger assertions
 
 

@@ -8,6 +8,8 @@ export function setupMongoMemory(): void {
   beforeAll(async () => {
     mongod = await MongoMemoryServer.create();
     await mongoose.connect(mongod.getUri());
+    // Wait for index builds (incl. 2dsphere) so $near queries behave like production
+    await Promise.all(Object.values(mongoose.connection.models).map((m) => m.init()));
   });
 
   afterEach(async () => {

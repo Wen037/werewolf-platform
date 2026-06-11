@@ -25,6 +25,11 @@ const start = async () => {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
 
+    // Wait for all schema index builds (incl. 2dsphere for map $near queries) —
+    // on a fresh database, $near queries 500 until the geo index exists
+    await Promise.all(Object.values(mongoose.connection.models).map((m) => m.init()));
+    console.log('✅ Schema indexes ensured');
+
     // 2. Start background services
     new ReminderService().start();
 
