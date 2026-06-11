@@ -2,17 +2,19 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { Result } from '../../../shared/core/Result';
-import { isAdminRole } from '../../../shared/middleware/auth';
+import { ensureAdmin } from '../../../shared/core/adminGuard';
 import { sendOtpEmail, sendPasswordResetEmail } from '../../../shared/infra/email';
 import { eventBus } from '../../../shared/infra/EventBus';
 import { UserModel, IUserDocument } from '../DBSchemas/UserSchema';
 import { UserFollowModel } from '../DBSchemas/UserFollowSchema';
 import { PendingRegistrationModel } from '../DBSchemas/PendingRegistrationSchema';
+import { RefreshTokenModel } from '../DBSchemas/RefreshTokenSchema';
 import { PasswordResetModel } from '../DBSchemas/PasswordResetSchema';
 import { PROFICIENCY_TO_SKILL, SKILL_LEVEL_MAP, SkillLevel } from '../domain/User';
 import { MatchModel } from '../../matches/DBSchemas/MatchSchema';
 import { SessionInteractionModel } from '../../matches/DBSchemas/SessionInteractionSchema';
 import { PlayerSpaceModel } from '../../player-spaces/DBSchemas/PlayerSpaceSchema';
+import { VenueInteractionModel } from '../../player-spaces/DBSchemas/VenueInteractionSchema';
 import { PROFICIENCY_TO_LABEL } from '../../matches/DTOs/MatchDTOs';
 import {
   AuthResponseDTO,
@@ -70,6 +72,27 @@ function generateOtp(): string {
 
 // Max wrong guesses before the pending registration is invalidated (ASVS 2.5)
 const MAX_OTP_ATTEMPTS = 5;
+
+const BCRYPT_ROUNDS = 10;
+const OTP_TTL_MS = 10 * 60 * 1000;
+const ADMIN_RESET_TTL_MS = 60 * 60 * 1000; // admin-sent reset links live longer
+
+// ── Refresh token rotation ────────────────────────────────────────────────────
+const REFRESH_TOKEN_DAYS = Number(process.env.REFRESH_TOKEN_DAYS ?? 30);
+
+function hashToken(raw: string): string {
+  return crypto.createHash('sha256').update(raw).digest('hex');
+}
+
+async function issueRefreshToken(userId: string): Promise<string> {
+  const raw = crypto.randomBytes(48).toString('hex');
+  await RefreshTokenModel.create({
+    userId,
+    tokenHash: hashToken(raw),
+    expiresAt: new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000),
+  });
+  return raw;
+}
 
 // Escapes regex metacharacters so a username can be safely used in a $regex match.
 function escapeRegex(s: string): string {
@@ -130,9 +153,9 @@ export class UserService {
     const existingUsername = await findByUsernameCI(dto.username);
     if (existingUsername) return Result.fail('Username already taken.');
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
     await PendingRegistrationModel.findOneAndUpdate(
       { email: dto.email },
@@ -198,7 +221,8 @@ export class UserService {
     });
 
     const token = signToken(user._id.toString(), user.email, user.role ?? 'player');
-    return Result.ok({ token, user: toUserResponseDTO(user) });
+    const refreshToken = await issueRefreshToken(user._id.toString());
+    return Result.ok({ token, refreshToken, user: toUserResponseDTO(user) });
   }
 
   async login(dto: LoginDTO): Promise<Result<AuthResponseDTO>> {
@@ -213,7 +237,51 @@ export class UserService {
     if (!valid) return Result.fail('Invalid email or password.');
 
     const token = signToken(user._id.toString(), user.email, user.role ?? 'player');
-    return Result.ok({ token, user: toUserResponseDTO(user) });
+    const refreshToken = await issueRefreshToken(user._id.toString());
+    return Result.ok({ token, refreshToken, user: toUserResponseDTO(user) });
+  }
+
+  /**
+   * Rotating refresh: validates the presented token, revokes it, and issues a
+   * fresh access JWT + refresh token. Presenting an ALREADY-REVOKED token is
+   * treated as theft/replay — the user's entire token family is revoked
+   * (OWASP refresh-token-rotation reuse detection).
+   */
+  async refreshSession(rawToken: string): Promise<Result<AuthResponseDTO>> {
+    const tokenHash = hashToken(rawToken);
+    const stored = await RefreshTokenModel.findOne({ tokenHash });
+    if (!stored) return Result.fail('Invalid refresh token.');
+
+    if (stored.revokedAt) {
+      // Reuse detected — revoke everything for this user and force re-login
+      await RefreshTokenModel.updateMany(
+        { userId: stored.userId, revokedAt: { $exists: false } },
+        { $set: { revokedAt: new Date() } }
+      );
+      return Result.fail('Refresh token reuse detected. Please log in again.');
+    }
+
+    if (new Date() > stored.expiresAt) return Result.fail('Refresh token expired. Please log in again.');
+
+    const user = await UserModel.findById(stored.userId);
+    if (!user) return Result.fail('User not found.');
+
+    const newRaw = await issueRefreshToken(user._id.toString());
+    stored.revokedAt = new Date();
+    stored.replacedByHash = hashToken(newRaw);
+    await stored.save();
+
+    const token = signToken(user._id.toString(), user.email, user.role ?? 'player');
+    return Result.ok({ token, refreshToken: newRaw, user: toUserResponseDTO(user) });
+  }
+
+  /** Logout: revoke the presented refresh token. Idempotent — unknown tokens are ignored. */
+  async revokeRefreshToken(rawToken: string): Promise<Result<void>> {
+    await RefreshTokenModel.updateOne(
+      { tokenHash: hashToken(rawToken), revokedAt: { $exists: false } },
+      { $set: { revokedAt: new Date() } }
+    );
+    return Result.ok();
   }
 
   async getMyProfile(userId: string): Promise<Result<FullUserProfileResponseDTO>> {
@@ -224,10 +292,6 @@ export class UserService {
     const followedUserIds = follows.map(f => f.followingId);
     const followedUsers = await UserModel.find({ _id: { $in: followedUserIds } });
 
-    // Lazy import to avoid circular deps at module load time
-    const { SessionInteractionModel } = await import('../../matches/DBSchemas/SessionInteractionSchema');
-    const { MatchModel } = await import('../../matches/DBSchemas/MatchSchema');
-
     const attendedInteractions = await SessionInteractionModel.find({ userId, status: 'attended' });
     const attendedMatchIds = attendedInteractions.map(i => i.sessionId);
     const pastMatchDocs = await MatchModel.find({ _id: { $in: attendedMatchIds } })
@@ -235,9 +299,6 @@ export class UserService {
       .limit(20);
 
     const likedGamesCount = await SessionInteractionModel.countDocuments({ userId, isLiked: true });
-
-    const { VenueInteractionModel } = await import('../../player-spaces/DBSchemas/VenueInteractionSchema');
-    const { PlayerSpaceModel } = await import('../../player-spaces/DBSchemas/PlayerSpaceSchema');
 
     const venueInteractions = await VenueInteractionModel.find({ userId, isSubscribed: true });
     const subscribedVenueIds = venueInteractions.map(v => v.venueId);
@@ -360,7 +421,7 @@ export class UserService {
     if (!user) return Result.ok({ message: MSG });
 
     const token = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
     await PasswordResetModel.findOneAndUpdate(
       { email: dto.email },
@@ -382,9 +443,18 @@ export class UserService {
     if (!reset || reset.token !== dto.token) return Result.fail('Invalid or expired reset code.');
     if (new Date() > reset.expiresAt) return Result.fail('Reset code has expired. Please request a new one.');
 
-    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    await UserModel.findOneAndUpdate({ email: dto.email }, { $set: { passwordHash } });
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    const user = await UserModel.findOneAndUpdate({ email: dto.email }, { $set: { passwordHash } });
     await PasswordResetModel.deleteOne({ email: dto.email });
+
+    // Account recovery invalidates every outstanding session — a stolen
+    // refresh token must not survive a password reset (OWASP ASVS 3.3.1)
+    if (user) {
+      await RefreshTokenModel.updateMany(
+        { userId: user._id, revokedAt: { $exists: false } },
+        { $set: { revokedAt: new Date() } }
+      );
+    }
 
     return Result.ok({ message: 'Password reset successfully. You can now log in.' });
   }
@@ -392,16 +462,14 @@ export class UserService {
   // ── Password reset (admin-triggered) ────────────────────────────────────
 
   async adminResetPassword(adminId: string, targetUserId: string): Promise<Result<{ message: string }>> {
-    const admin = await UserModel.findById(adminId);
-    if (!admin || !isAdminRole(admin.role)) {
-      return Result.fail('Forbidden.');
-    }
+    const adminCheck = await ensureAdmin(adminId, 'Forbidden.');
+    if (adminCheck.isFailure) return Result.fail(adminCheck.getError());
 
     const target = await UserModel.findById(targetUserId);
     if (!target) return Result.fail('User not found.');
 
     const token = generateOtp();
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour for admin-sent reset
+    const expiresAt = new Date(Date.now() + ADMIN_RESET_TTL_MS);
 
     await PasswordResetModel.findOneAndUpdate(
       { email: target.email },

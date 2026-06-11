@@ -59,18 +59,6 @@
 - **`playerSpaceRoutes.ts`**: added `PATCH /admin/venues/:id/pin`
 - **`matchRoutes.ts`**: added `PATCH /admin/games/:id/pin`
 
-## 2026-06-09 — Session 37: Google OAuth FRONTEND_URL fix, OTP startup validation, WeChat QR for spaces, password reset
-- **`server/fly.toml`**: added `FRONTEND_URL = 'https://werewolf.sg'` to `[env]` — root cause of Google OAuth redirect going to `localhost:5173` after successful auth on production
-- **`server/src/server.ts`**: added startup env validation — fails on missing `JWT_SECRET`/`MONGO_URI`; warns on missing `RESEND_API_KEY`, `FROM_EMAIL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONTEND_URL` (root cause of silent OTP email failures)
-- **`PasswordResetSchema.ts`** (new): `email`, `token` (6-digit OTP), `expiresAt`; TTL index auto-deletes expired records
-- **`UserDTOs.ts`**: added `ForgotPasswordSchema` (email), `ResetPasswordSchema` (email + token + newPassword)
-- **`email.ts`**: added `sendPasswordResetEmail()` (same Resend pattern as OTP email, `NODE_ENV=test` skip)
-- **`UserService.ts`**: added `forgotPassword()` (anti-enumeration — always returns same message), `resetPassword()`, `adminResetPassword()` (admin sends reset email to target user)
-- **`userRoutes.ts`**: added `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /admin/users/:id/reset-password`
-- **`PlayerSpaceSchema.ts`**: added `wechatQrUrl?: string` field
-- **`PlayerSpaceDTOs.ts`**: added `wechatQrUrl` to create/update schemas + `GameVenueResponseDTO`
-- **`PlayerSpaceService.ts`**: `createVenue` passes `wechatQrUrl`; `updateVenue` sets or `$unset`s it (empty string = removal)
-
 ## 2026-06-10 — 5 Meetup-gap features: comments, recap, recurrence, 24h reminder
 - **`MatchSchema.ts`**: added `recurrence?: 'none'|'weekly'|'biweekly'|'monthly'` and `recap?: { text?: string }` fields
 - **`EventCommentSchema.ts`** (new): `matchId`, `userId`, `text`; index on `(matchId, createdAt)`
@@ -135,5 +123,14 @@
 - **New** `.github/workflows/ci.yml`: backend Vitest job + `npm audit --audit-level=high` gate for client and server (no CI workflow existed before — testplan.md's claim was stale)
 - Gap backlog item 6 (axe scan) blocked: local TLS-intercepting proxy breaks `npm install`
 - Suite: **557 passed | 4 skipped (561)** across 38 files
+
+## 2026-06-11 — Session 48: Code-smell refactor of backend services (behavior-preserving)
+- **`shared/core/adminGuard.ts`** (new): `ensureAdmin(userId, forbiddenMessage?)` — single shared BFLA guard; replaces 4 copy-pasted admin-role checks in `MatchService.pinMatch`, `PlayerSpaceService.verifyVenue/transferOwnership/pinVenue`, `UserService.adminResetPassword` (each keeps its original error wording)
+- **`MatchService.ts`**: extracted `findMatch` / `findHostedMatch` guards — removed 15 repeated "load match + host check" blocks; merged `approveVenueSession`/`rejectVenueSession` twins into private `setVenueApproval`; `isHostOrAdmin` helper dedupes comment/recap permission checks; `notifyInApp` helper dedupes 5 in-app NotificationModel.create blocks; `enrichOne` dedupes single-doc enrich pattern (×3); `toCommentDTO` mapper dedupes comment DTO building; removed dead average-rating computation in `rateMatch`; magic numbers → named constants (`MS_PER_HOUR`, `MAX_EVENTS_PER_WINDOW`, `PLAYER_PREVIEW_COUNT`, `LATE_LEAVE_*`, `KICK_CREDIT_PENALTY`, `CANCEL_PENALTY_TIERS`, `RECURRENCE_DAYS`, `PUBLIC_VENUE_TYPES`)
+- **`PlayerSpaceService.ts`**: `toggleLike`/`toggleSubscribe` deduped via private `toggleInteractionFlag`; interaction-view mapping deduped (`toInteractionView` + `DEFAULT_INTERACTION`); `MAX_SPACES_PER_USER` constant
+- **`UserService.ts`**: removed redundant lazy `await import()`s in `getMyProfile` (models already top-level imports); `BCRYPT_ROUNDS` / `OTP_TTL_MS` / `ADMIN_RESET_TTL_MS` constants
+- No routes, DTOs, schemas, or error messages changed — all responses byte-identical
+- **Refresh-token rotation completed**: `resetPassword` now revokes ALL outstanding refresh tokens for the user (ASVS 3.3.1 — stolen refresh token must not survive account recovery); new test RT-7 in `refreshToken.integ.test.ts` exercises the full forgot→reset→replay flow
+- Suite: **564 passed | 4 skipped (568)** across 39 files; `tsc --noEmit` clean
 
 

@@ -12,6 +12,7 @@ import {
   UpdateProfileSchema,
   ForgotPasswordSchema,
   ResetPasswordSchema,
+  RefreshTokenBodySchema,
 } from '../DTOs/UserDTOs';
 
 const router = Router();
@@ -47,6 +48,21 @@ router.post('/auth/login', authLimiter, validate(LoginSchema), async (req: Reque
   const result = await userService.login(req.body as Parameters<UserService['login']>[0]);
   if (result.isFailure) { res.status(401).json({ message: result.getError() }); return; }
   res.status(200).json(result.getValue());
+});
+
+// Rotating refresh — the refresh token itself is the credential (no requireAuth:
+// the access token may already be expired, which is exactly when this is called)
+router.post('/auth/refresh', authLimiter, validate(RefreshTokenBodySchema), async (req: Request, res: Response) => {
+  const { refreshToken } = req.body as { refreshToken: string };
+  const result = await userService.refreshSession(refreshToken);
+  if (result.isFailure) { res.status(401).json({ message: result.getError() }); return; }
+  res.status(200).json(result.getValue());
+});
+
+router.post('/auth/logout', authLimiter, validate(RefreshTokenBodySchema), async (req: Request, res: Response) => {
+  const { refreshToken } = req.body as { refreshToken: string };
+  await userService.revokeRefreshToken(refreshToken);
+  res.status(200).json({ message: 'Logged out.' });
 });
 
 // ─── Profile ──────────────────────────────────────────────────────────────────

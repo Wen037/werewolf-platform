@@ -18,6 +18,10 @@ export const LoginSchema = z.object({
   password: z.string().min(1),
 });
 
+export const RefreshTokenBodySchema = z.object({
+  refreshToken: z.string().min(32).max(256),
+});
+
 export const ForgotPasswordSchema = z.object({
   email: z.string().email(),
 });
@@ -81,6 +85,7 @@ export interface UserResponseDTO {
 
 export interface AuthResponseDTO {
   token: string;
+  refreshToken?: string;   // absent only for flows that don't issue one (e.g. OAuth redirect)
   user: UserResponseDTO;
 }
 

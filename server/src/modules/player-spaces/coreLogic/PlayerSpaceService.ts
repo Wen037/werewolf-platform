@@ -1,4 +1,5 @@
 import { Result } from '../../../shared/core/Result';
+import { ensureAdmin } from '../../../shared/core/adminGuard';
 import { isAdminRole } from '../../../shared/middleware/auth';
 import { PlayerSpaceModel, IPlayerSpaceDocument } from '../DBSchemas/PlayerSpaceSchema';
 import { VenueInteractionModel } from '../DBSchemas/VenueInteractionSchema';
@@ -7,6 +8,17 @@ import { UserModel } from '../../users/DBSchemas/UserSchema';
 import { MatchModel } from '../../matches/DBSchemas/MatchSchema';
 import { CreatePlayerSpaceDTO, UpdatePlayerSpaceDTO, GameVenueResponseDTO } from '../DTOs/PlayerSpaceDTOs';
 import { eventBus } from '../../../shared/infra/EventBus';
+
+// Regular users are capped at this many spaces; admins have no limit
+const MAX_SPACES_PER_USER = 3;
+
+type VenueInteractionView = { isLiked: boolean; isSubscribed: boolean; myRating: number | undefined };
+
+const DEFAULT_INTERACTION: VenueInteractionView = { isLiked: false, isSubscribed: false, myRating: undefined };
+
+function toInteractionView(i: { isLiked: boolean; isSubscribed: boolean; myRating?: number | undefined }): VenueInteractionView {
+  return { isLiked: i.isLiked, isSubscribed: i.isSubscribed, myRating: i.myRating };
+}
 
 function toVenueDTO(
   doc: IPlayerSpaceDocument,
@@ -62,26 +74,20 @@ export class PlayerSpaceService {
     });
 
     const interactionMap = new Map(
-      interactions.map(i => [
-        i.venueId.toString(),
-        { isLiked: i.isLiked, isSubscribed: i.isSubscribed, myRating: i.myRating },
-      ])
+      interactions.map(i => [i.venueId.toString(), toInteractionView(i)])
     );
 
-    const defaultInteraction = { isLiked: false, isSubscribed: false, myRating: undefined };
-    return venues.map(v => toVenueDTO(v, interactionMap.get(v._id.toString()) ?? defaultInteraction));
+    return venues.map(v => toVenueDTO(v, interactionMap.get(v._id.toString()) ?? DEFAULT_INTERACTION));
   }
 
   async getVenueById(venueId: string, requestingUserId?: string): Promise<Result<GameVenueResponseDTO>> {
     const venue = await PlayerSpaceModel.findById(venueId);
     if (!venue) return Result.fail('Venue not found.');
 
-    let interaction: { isLiked: boolean; isSubscribed: boolean; myRating: number | undefined } | undefined;
+    let interaction: VenueInteractionView | undefined;
     if (requestingUserId) {
       const i = await VenueInteractionModel.findOne({ userId: requestingUserId, venueId });
-      interaction = i
-        ? { isLiked: i.isLiked, isSubscribed: i.isSubscribed, myRating: i.myRating }
-        : { isLiked: false, isSubscribed: false, myRating: undefined };
+      interaction = i ? toInteractionView(i) : DEFAULT_INTERACTION;
     }
 
     return Result.ok(toVenueDTO(venue, interaction));
@@ -91,10 +97,11 @@ export class PlayerSpaceService {
     const user = await UserModel.findById(userId, 'role');
     const isAdmin = user && isAdminRole(user.role);
 
-    // Regular users are capped at 3 spaces; admins have no limit
     if (!isAdmin) {
       const count = await PlayerSpaceModel.countDocuments({ owner_id: userId });
-      if (count >= 3) return Result.fail('You can only create up to 3 places.');
+      if (count >= MAX_SPACES_PER_USER) {
+        return Result.fail(`You can only create up to ${MAX_SPACES_PER_USER} places.`);
+      }
     }
 
     // Build document without undefined optional fields
@@ -173,46 +180,47 @@ export class PlayerSpaceService {
     return Result.ok(toVenueDTO(updated!));
   }
 
-  async toggleLike(venueId: string, userId: string): Promise<Result<{ isLiked: boolean }>> {
+  /**
+   * Shared flip logic for per-user venue flags: toggles the flag on the
+   * interaction record and keeps the venue's aggregate counter in sync.
+   */
+  private async toggleInteractionFlag(
+    venueId: string,
+    userId: string,
+    flagField: 'isLiked' | 'isSubscribed',
+    counterField: 'totalLikes' | 'totalSubscribers'
+  ): Promise<Result<{ enabled: boolean; venue: IPlayerSpaceDocument }>> {
     const venue = await PlayerSpaceModel.findById(venueId);
     if (!venue) return Result.fail('Venue not found.');
 
     const interaction = await VenueInteractionModel.findOne({ userId, venueId });
-    const currentlyLiked = interaction?.isLiked ?? false;
-    const newLiked = !currentlyLiked;
-    const delta = newLiked ? 1 : -1;
+    const enabled = !(interaction?.[flagField] ?? false);
 
     await VenueInteractionModel.findOneAndUpdate(
       { userId, venueId },
-      { $set: { isLiked: newLiked } },
+      { $set: { [flagField]: enabled } },
       { upsert: true }
     );
-    await PlayerSpaceModel.findByIdAndUpdate(venueId, { $inc: { totalLikes: delta } });
+    await PlayerSpaceModel.findByIdAndUpdate(venueId, { $inc: { [counterField]: enabled ? 1 : -1 } });
 
-    if (delta > 0) {
+    return Result.ok({ enabled, venue });
+  }
+
+  async toggleLike(venueId: string, userId: string): Promise<Result<{ isLiked: boolean }>> {
+    const toggled = await this.toggleInteractionFlag(venueId, userId, 'isLiked', 'totalLikes');
+    if (toggled.isFailure) return Result.fail(toggled.getError());
+
+    const { enabled, venue } = toggled.getValue();
+    if (enabled) {
       await UserModel.findByIdAndUpdate(venue.owner_id, { $inc: { likesReceived: 1 } });
     }
-
-    return Result.ok({ isLiked: newLiked });
+    return Result.ok({ isLiked: enabled });
   }
 
   async toggleSubscribe(venueId: string, userId: string): Promise<Result<{ isSubscribed: boolean }>> {
-    const venue = await PlayerSpaceModel.findById(venueId);
-    if (!venue) return Result.fail('Venue not found.');
-
-    const interaction = await VenueInteractionModel.findOne({ userId, venueId });
-    const currentlySubscribed = interaction?.isSubscribed ?? false;
-    const newSubscribed = !currentlySubscribed;
-    const delta = newSubscribed ? 1 : -1;
-
-    await VenueInteractionModel.findOneAndUpdate(
-      { userId, venueId },
-      { $set: { isSubscribed: newSubscribed } },
-      { upsert: true }
-    );
-    await PlayerSpaceModel.findByIdAndUpdate(venueId, { $inc: { totalSubscribers: delta } });
-
-    return Result.ok({ isSubscribed: newSubscribed });
+    const toggled = await this.toggleInteractionFlag(venueId, userId, 'isSubscribed', 'totalSubscribers');
+    if (toggled.isFailure) return Result.fail(toggled.getError());
+    return Result.ok({ isSubscribed: toggled.getValue().enabled });
   }
 
   /**
@@ -225,10 +233,8 @@ export class PlayerSpaceService {
     approved: boolean,
     reason?: string
   ): Promise<Result<void>> {
-    const requestingUser = await UserModel.findById(adminId, 'role');
-    if (!requestingUser || !isAdminRole(requestingUser.role)) {
-      return Result.fail('Forbidden: admin access required.');
-    }
+    const adminCheck = await ensureAdmin(adminId);
+    if (adminCheck.isFailure) return Result.fail(adminCheck.getError());
 
     const venue = await PlayerSpaceModel.findById(venueId);
     if (!venue) return Result.fail('Venue not found.');
@@ -269,10 +275,8 @@ export class PlayerSpaceService {
    * Identifies the new owner by email to keep the admin UI simple.
    */
   async transferOwnership(venueId: string, adminId: string, newOwnerEmail: string): Promise<Result<GameVenueResponseDTO>> {
-    const requestingUser = await UserModel.findById(adminId, 'role');
-    if (!requestingUser || !isAdminRole(requestingUser.role)) {
-      return Result.fail('Forbidden: admin access required.');
-    }
+    const adminCheck = await ensureAdmin(adminId);
+    if (adminCheck.isFailure) return Result.fail(adminCheck.getError());
 
     const venue = await PlayerSpaceModel.findById(venueId);
     if (!venue) return Result.fail('Venue not found.');
@@ -319,10 +323,8 @@ export class PlayerSpaceService {
    * Pinned venues always appear first in listings.
    */
   async pinVenue(venueId: string, adminId: string): Promise<Result<{ isPinned: boolean }>> {
-    const requestingUser = await UserModel.findById(adminId, 'role');
-    if (!requestingUser || !isAdminRole(requestingUser.role)) {
-      return Result.fail('Forbidden: admin access required.');
-    }
+    const adminCheck = await ensureAdmin(adminId);
+    if (adminCheck.isFailure) return Result.fail(adminCheck.getError());
 
     const venue = await PlayerSpaceModel.findById(venueId);
     if (!venue) return Result.fail('Venue not found.');

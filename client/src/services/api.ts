@@ -7,7 +7,39 @@
 const API_ORIGIN = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : "https://api.werewolf.sg");
 const BASE = `${API_ORIGIN}/api`;
 
-async function request<T>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
+// Single in-flight refresh shared by all concurrent 401s (prevents a burst of
+// parallel requests from each consuming the rotating refresh token)
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefresh(): Promise<boolean> {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return false;
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const res = await fetch(`${BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (!res.ok) return false;
+        const data = await res.json();
+        localStorage.setItem('token', data.token);
+        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+        return true;
+      } catch {
+        return false;
+      } finally {
+        // allow the next expiry (much later) to trigger a fresh refresh
+        setTimeout(() => { refreshPromise = null; }, 0);
+      }
+    })();
+  }
+  return refreshPromise;
+}
+
+async function request<T>(path: string, opts: { method?: string; body?: unknown } = {}, isRetry = false): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -19,9 +51,14 @@ async function request<T>(path: string, opts: { method?: string; body?: unknown 
   });
 
   if (res.status === 401) {
-    if (localStorage.getItem('token')) {
-      // Existing session expired — clear and force re-login
+    if (localStorage.getItem('token') && !path.startsWith('/auth/')) {
+      // Access token expired — try one silent refresh, then retry the request once
+      if (!isRetry && (await tryRefresh())) {
+        return request<T>(path, opts, true);
+      }
+      // Refresh failed (revoked/expired/reused) — clear and force re-login
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       window.location.href = '/';
       throw new Error('Session expired. Please log in again.');

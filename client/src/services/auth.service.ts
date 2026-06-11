@@ -3,7 +3,14 @@ import type { User } from '../types';
 
 interface AuthResponse {
   token: string;
+  refreshToken?: string;
   user: User;
+}
+
+function storeAuth(data: AuthResponse) {
+  localStorage.setItem('token', data.token);
+  if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+  localStorage.setItem('user', JSON.stringify(data.user));
 }
 
 export const AuthService = {
@@ -13,15 +20,13 @@ export const AuthService = {
 
   async verifyOtp(email: string, otp: string): Promise<AuthResponse> {
     const data = await api.post<AuthResponse>('/auth/verify-otp', { email, otp });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
+    storeAuth(data);
     return data;
   },
 
   async login(email: string, password: string): Promise<AuthResponse> {
     const data = await api.post<AuthResponse>('/auth/login', { email, password });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
+    storeAuth(data);
     return data;
   },
 
@@ -32,7 +37,14 @@ export const AuthService = {
   },
 
   logout() {
+    // Revoke the refresh token server-side (fire-and-forget — local cleanup
+    // proceeds even if the request fails)
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      api.post('/auth/logout', { refreshToken }).catch(() => {});
+    }
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     window.location.href = '/';
   },

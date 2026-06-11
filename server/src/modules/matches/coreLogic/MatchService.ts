@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Result } from '../../../shared/core/Result';
+import { ensureAdmin } from '../../../shared/core/adminGuard';
 import { isAdminRole } from '../../../shared/middleware/auth';
 import { eventBus } from '../../../shared/infra/EventBus';
 import { MatchModel, IMatchDocument } from '../DBSchemas/MatchSchema';
@@ -25,6 +26,50 @@ import {
 import { EventCommentModel } from '../DBSchemas/EventCommentSchema';
 
 type MatchDoc = IMatchDocument & { _id: { toString(): string } };
+
+const MS_PER_HOUR = 3_600_000;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
+
+// Anti-spam: how many events a host may create within the rolling window
+const MAX_EVENTS_PER_WINDOW = 3;
+const EVENT_CREATION_WINDOW_DAYS = 7;
+
+// How many player avatars are shown as a preview on event cards
+const PLAYER_PREVIEW_COUNT = 5;
+
+// Leaving within this many hours of the start time costs credit
+const LATE_LEAVE_WINDOW_HOURS = 24;
+const LATE_LEAVE_CREDIT_PENALTY = -1;
+const KICK_CREDIT_PENALTY = -0.5;
+
+// Host-cancel credit penalty by hours-until-start; first matching tier applies
+const CANCEL_PENALTY_TIERS = [
+  { minHoursUntil: 9, penalty: -1.5 },
+  { minHoursUntil: 5, penalty: -1 },
+  { minHoursUntil: 3, penalty: -0.5 },
+] as const;
+
+const RECURRENCE_DAYS: Record<string, number> = { weekly: 7, biweekly: 14, monthly: 30 };
+
+// Venue approval is auto-confirmed for public/institutional venue types
+const PUBLIC_VENUE_TYPES: IPlayerSpaceDocument['type'][] = ['school', 'boardgame_store'];
+
+function toCommentDTO(
+  comment: { _id: { toString(): string }; text: string; createdAt: Date },
+  matchId: string,
+  userId: string,
+  user: { username?: string; avatarUrl?: string } | null | undefined
+): CommentResponseDTO {
+  return {
+    id: comment._id.toString(),
+    matchId,
+    userId,
+    username: user?.username ?? 'Unknown',
+    avatarUrl: user?.avatarUrl,
+    text: comment.text,
+    createdAt: comment.createdAt.toISOString(),
+  };
+}
 
 function reconstructMatch(doc: MatchDoc): Match {
   return Match.create(
@@ -54,8 +99,8 @@ async function enrichWithNamesAndInteraction(
   const hostIds = [...new Set(docs.map(d => d.host_id.toString()))];
   const venueIds = [...new Set(docs.map(d => d.venue_id.toString()))];
 
-  // Collect up to 5 player IDs per doc for avatar previews
-  const previewPlayerIds = [...new Set(docs.flatMap(d => d.players.slice(0, 5).map(p => p.toString())))];
+  // Collect a handful of player IDs per doc for avatar previews
+  const previewPlayerIds = [...new Set(docs.flatMap(d => d.players.slice(0, PLAYER_PREVIEW_COUNT).map(p => p.toString())))];
 
   const [hosts, venues, playerUsers] = await Promise.all([
     UserModel.find({ _id: { $in: hostIds } }, 'username'),
@@ -120,8 +165,8 @@ async function enrichWithNamesAndInteraction(
       addedBy: g.addedBy.toString(),
       addedAt: g.addedAt.toISOString(),
     })),
-    joinedPlayerIds: d.players.slice(0, 5).map(p => p.toString()),
-    joinedPlayerAvatars: d.players.slice(0, 5).map(p => {
+    joinedPlayerIds: d.players.slice(0, PLAYER_PREVIEW_COUNT).map(p => p.toString()),
+    joinedPlayerAvatars: d.players.slice(0, PLAYER_PREVIEW_COUNT).map(p => {
       const id = p.toString();
       return playerAvatarMap.get(id) || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${id}`;
     }),
@@ -135,6 +180,52 @@ async function enrichWithNamesAndInteraction(
 }
 
 export class MatchService {
+  // ── Shared guards / helpers ───────────────────────────────────────────────
+
+  private async findMatch(sessionId: string): Promise<Result<MatchDoc>> {
+    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
+    return doc ? Result.ok(doc) : Result.fail('Match not found.');
+  }
+
+  /**
+   * Loads a match and verifies the requester is its host (BOLA guard).
+   * `forbiddenMessage` keeps each endpoint's original wording.
+   */
+  private async findHostedMatch(
+    sessionId: string,
+    hostId: string,
+    forbiddenMessage: string
+  ): Promise<Result<MatchDoc>> {
+    const found = await this.findMatch(sessionId);
+    if (found.isFailure) return found;
+    if (found.getValue().host_id.toString() !== hostId) return Result.fail(forbiddenMessage);
+    return found;
+  }
+
+  private async isHostOrAdmin(doc: { host_id: { toString(): string } }, userId: string): Promise<boolean> {
+    if (doc.host_id.toString() === userId) return true;
+    const user = await UserModel.findById(userId, 'role');
+    return isAdminRole(user?.role);
+  }
+
+  private async enrichOne(
+    doc: MatchDoc,
+    requestingUserId: string | undefined,
+    failMessage: string
+  ): Promise<Result<GameSessionResponseDTO>> {
+    const [result] = await enrichWithNamesAndInteraction([doc], requestingUserId);
+    return result ? Result.ok(result) : Result.fail(failMessage);
+  }
+
+  private async notifyInApp(
+    recipientId: string,
+    message: string,
+    payload: Record<string, unknown>,
+    type = 'General'
+  ): Promise<void> {
+    await NotificationModel.create({ recipientId, type, message, channel: 'in-app', payload });
+  }
+
   async getActiveMatches(requestingUserId?: string): Promise<GameSessionResponseDTO[]> {
     const docs = await MatchModel.find({
       status: { $in: ['Open', 'Full', 'Started'] },
@@ -163,29 +254,27 @@ export class MatchService {
   }
 
   async getMatchById(sessionId: string, requestingUserId?: string): Promise<Result<GameSessionResponseDTO>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    const results = await enrichWithNamesAndInteraction([doc], requestingUserId);
-    const result = results[0];
-    if (!result) return Result.fail('Match not found.');
-    return Result.ok(result);
+    const found = await this.findMatch(sessionId);
+    if (found.isFailure) return Result.fail(found.getError());
+    return this.enrichOne(found.getValue(), requestingUserId, 'Match not found.');
   }
 
   async createMatch(hostId: string, dto: CreateMatchDTO): Promise<Result<GameSessionResponseDTO>> {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const windowStart = new Date(Date.now() - EVENT_CREATION_WINDOW_DAYS * MS_PER_DAY);
     const recentCount = await MatchModel.countDocuments({
       host_id: hostId,
-      createdAt: { $gte: sevenDaysAgo },
+      createdAt: { $gte: windowStart },
     });
-    if (recentCount >= 3) return Result.fail('You can only create 3 events per 7 days.');
+    if (recentCount >= MAX_EVENTS_PER_WINDOW) {
+      return Result.fail(`You can only create ${MAX_EVENTS_PER_WINDOW} events per ${EVENT_CREATION_WINDOW_DAYS} days.`);
+    }
 
     const venue = await PlayerSpaceModel.findById(dto.venue_id);
     if (!venue) return Result.fail('Venue not found.');
 
     // Auto-confirm venue approval when:
     //  (a) the host IS the venue owner — hosting in their own space needs no approval
-    //  (b) the venue is a public/institutional type (school, boardgame_store) — open spaces
-    const PUBLIC_VENUE_TYPES: IPlayerSpaceDocument['type'][] = ['school', 'boardgame_store'];
+    //  (b) the venue is a public/institutional type — open spaces
     const isVenueOwner  = venue.owner_id.toString() === hostId;
     const isPublicVenue = PUBLIC_VENUE_TYPES.includes(venue.type);
     const venueApprovalStatus = (isVenueOwner || isPublicVenue) ? 'confirmed' : 'pending';
@@ -216,10 +305,7 @@ export class MatchService {
 
     await SessionInteractionModel.create({ userId: hostId, sessionId: doc._id });
 
-    const results = await enrichWithNamesAndInteraction([doc], hostId);
-    const result = results[0];
-    if (!result) return Result.fail('Failed to create match.');
-    return Result.ok(result);
+    return this.enrichOne(doc, hostId, 'Failed to create match.');
   }
 
   async joinMatch(
@@ -390,11 +476,11 @@ export class MatchService {
       { $set: { status: 'cancelled' } }
     );
 
-    // Deduct 1 credit if quitting within 24 hours of the match
-    const hoursUntilMatch = (doc.scheduledAt.getTime() - Date.now()) / 3_600_000;
-    if (hoursUntilMatch < 24 && hoursUntilMatch > 0) {
+    // Deduct credit when quitting close to the start time
+    const hoursUntilMatch = (doc.scheduledAt.getTime() - Date.now()) / MS_PER_HOUR;
+    if (hoursUntilMatch < LATE_LEAVE_WINDOW_HOURS && hoursUntilMatch > 0) {
       await UserModel.findByIdAndUpdate(userId, {
-        $inc: { creditScore: -1 },
+        $inc: { creditScore: LATE_LEAVE_CREDIT_PENALTY },
       });
     }
 
@@ -402,22 +488,15 @@ export class MatchService {
   }
 
   async rateMatch(sessionId: string, userId: string, dto: RateMatchDTO): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId);
-    if (!doc) return Result.fail('Match not found.');
+    const found = await this.findMatch(sessionId);
+    if (found.isFailure) return Result.fail(found.getError());
 
+    // Ratings live on interactions only — MatchModel has no averageRating field
     await SessionInteractionModel.findOneAndUpdate(
       { userId, sessionId },
       { $set: { myRating: dto.rating } },
       { upsert: true }
     );
-
-    const allRatings = await SessionInteractionModel.find({
-      sessionId,
-      myRating: { $exists: true },
-    });
-    const avg = allRatings.reduce((s, i) => s + (i.myRating ?? 0), 0) / (allRatings.length || 1);
-    // MatchModel doesn't have averageRating in schema — store on interactions only
-    void avg; // calculated for future use
 
     return Result.ok();
   }
@@ -445,9 +524,8 @@ export class MatchService {
   }
 
   async setExternalPax(sessionId: string, hostId: string, count: number): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId);
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can update this.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can update this.');
+    if (found.isFailure) return Result.fail(found.getError());
 
     await MatchModel.findByIdAndUpdate(sessionId, { $set: { 'config.external_pax': count } });
     return Result.ok();
@@ -458,9 +536,9 @@ export class MatchService {
     hostId: string,
     newStatus: MatchStatus
   ): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can change the status.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can change the status.');
+    if (found.isFailure) return Result.fail(found.getError());
+    const doc = found.getValue();
 
     const match = reconstructMatch(doc);
     const transitionResult = match.transitionTo(newStatus);
@@ -499,9 +577,9 @@ export class MatchService {
     hostId: string,
     dto: LogAttendanceDTO
   ): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId);
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can log attendance.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can log attendance.');
+    if (found.isFailure) return Result.fail(found.getError());
+    const doc = found.getValue();
     if (doc.status !== 'Started' && doc.status !== 'Completed') {
       return Result.fail('Can only log attendance for started or completed matches.');
     }
@@ -539,9 +617,8 @@ export class MatchService {
     hostId: string,
     dto: InviteUsersDTO
   ): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId);
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can send invites.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can send invites.');
+    if (found.isFailure) return Result.fail(found.getError());
 
     for (const userId of dto.userIds) {
       try {
@@ -565,9 +642,9 @@ export class MatchService {
   }
 
   async getRoster(sessionId: string, requesterId: string): Promise<Result<unknown>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== requesterId) return Result.fail('Only the host can view the roster.');
+    const found = await this.findHostedMatch(sessionId, requesterId, 'Only the host can view the roster.');
+    if (found.isFailure) return Result.fail(found.getError());
+    const doc = found.getValue();
 
     const allUserIds = [
       ...doc.players.map(p => p.toString()),
@@ -625,9 +702,8 @@ export class MatchService {
   }
 
   async kickPlayer(sessionId: string, hostId: string, targetUserId: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can kick players.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can kick players.');
+    if (found.isFailure) return Result.fail(found.getError());
     if (targetUserId === hostId) return Result.fail('Host cannot kick themselves.');
 
     await MatchModel.findByIdAndUpdate(sessionId, {
@@ -637,15 +713,14 @@ export class MatchService {
       { userId: targetUserId, sessionId },
       { $set: { status: 'cancelled' } }
     );
-    await UserModel.findByIdAndUpdate(targetUserId, { $inc: { creditScore: -0.5 } });
+    await UserModel.findByIdAndUpdate(targetUserId, { $inc: { creditScore: KICK_CREDIT_PENALTY } });
 
     return Result.ok();
   }
 
   async addGuest(sessionId: string, hostId: string, name: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId);
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can add guests.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can add guests.');
+    if (found.isFailure) return Result.fail(found.getError());
 
     await MatchModel.findByIdAndUpdate(sessionId, {
       $push: { guests: { name, addedBy: hostId, addedAt: new Date() } },
@@ -654,10 +729,9 @@ export class MatchService {
   }
 
   async removeGuest(sessionId: string, hostId: string, index: number): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can remove guests.');
-    if (index < 0 || index >= doc.guests.length) return Result.fail('Invalid guest index.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can remove guests.');
+    if (found.isFailure) return Result.fail(found.getError());
+    if (index < 0 || index >= found.getValue().guests.length) return Result.fail('Invalid guest index.');
 
     // Remove by index: unset then pull null
     const unsetKey = `guests.${index}`;
@@ -672,26 +746,18 @@ export class MatchService {
     targetUserId: string,
     message: string
   ): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId);
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can message players.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can message players.');
+    if (found.isFailure) return Result.fail(found.getError());
 
-    await NotificationModel.create({
-      recipientId: targetUserId,
-      type: 'General',
-      message,
-      channel: 'in-app',
-      payload: { matchId: sessionId, fromHostId: hostId },
-    });
+    await this.notifyInApp(targetUserId, message, { matchId: sessionId, fromHostId: hostId });
     return Result.ok();
   }
 
   async notifyAll(sessionId: string, hostId: string, message: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can send notifications.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can send notifications.');
+    if (found.isFailure) return Result.fail(found.getError());
 
-    const recipientIds = doc.players
+    const recipientIds = found.getValue().players
       .map(p => p.toString())
       .filter(id => id !== hostId);
 
@@ -712,9 +778,8 @@ export class MatchService {
     hostId: string,
     dto: UpdateSessionDTO
   ): Promise<Result<GameSessionResponseDTO>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can update this session.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can update this session.');
+    if (found.isFailure) return Result.fail(found.getError());
 
     const update: Record<string, unknown> = {};
     if (dto.title !== undefined) update['title'] = dto.title;
@@ -736,16 +801,13 @@ export class MatchService {
     ) as MatchDoc | null;
     if (!updated) return Result.fail('Match not found after update.');
 
-    const results = await enrichWithNamesAndInteraction([updated], hostId);
-    const result = results[0];
-    if (!result) return Result.fail('Failed to fetch updated match.');
-    return Result.ok(result);
+    return this.enrichOne(updated, hostId, 'Failed to fetch updated match.');
   }
 
   async approveApplicant(sessionId: string, hostId: string, userId: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can approve applicants.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can approve applicants.');
+    if (found.isFailure) return Result.fail(found.getError());
+    const doc = found.getValue();
 
     const interaction = await SessionInteractionModel.findOne({ userId, sessionId });
     if (!interaction || interaction.status !== 'pending') {
@@ -768,52 +830,45 @@ export class MatchService {
       );
     }
 
-    await NotificationModel.create({
-      recipientId: userId,
-      type: 'MatchJoined',
-      message: `Your request to join "${doc.title}" has been approved.`,
-      channel: 'in-app',
-      payload: { matchId: sessionId },
-    });
+    await this.notifyInApp(
+      userId,
+      `Your request to join "${doc.title}" has been approved.`,
+      { matchId: sessionId },
+      'MatchJoined'
+    );
 
     return Result.ok();
   }
 
   async rejectApplicant(sessionId: string, hostId: string, userId: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId);
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can reject applicants.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can reject applicants.');
+    if (found.isFailure) return Result.fail(found.getError());
 
     await SessionInteractionModel.findOneAndUpdate(
       { userId, sessionId },
       { $set: { status: 'cancelled' } }
     );
 
-    await NotificationModel.create({
-      recipientId: userId,
-      type: 'General',
-      message: `Your request to join "${doc.title}" was not accepted.`,
-      channel: 'in-app',
-      payload: { matchId: sessionId },
-    });
+    await this.notifyInApp(
+      userId,
+      `Your request to join "${found.getValue().title}" was not accepted.`,
+      { matchId: sessionId }
+    );
 
     return Result.ok();
   }
 
   async cancelWithPenalty(sessionId: string, hostId: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== hostId) return Result.fail('Only the host can cancel this session.');
+    const found = await this.findHostedMatch(sessionId, hostId, 'Only the host can cancel this session.');
+    if (found.isFailure) return Result.fail(found.getError());
+    const doc = found.getValue();
     if (doc.status === 'Cancelled' || doc.status === 'Completed') {
       return Result.fail('Session is already finished.');
     }
 
-    const hoursUntil = (doc.scheduledAt.getTime() - Date.now()) / 3_600_000;
-    let penalty = 0;
-    if (hoursUntil >= 9) penalty = -1.5;
-    else if (hoursUntil >= 5) penalty = -1;
-    else if (hoursUntil >= 3) penalty = -0.5;
-    // 0-2 hours: no penalty
+    const hoursUntil = (doc.scheduledAt.getTime() - Date.now()) / MS_PER_HOUR;
+    const tier = CANCEL_PENALTY_TIERS.find(t => hoursUntil >= t.minHoursUntil);
+    const penalty = tier?.penalty ?? 0;
 
     if (penalty < 0) {
       await UserModel.findByIdAndUpdate(hostId, { $inc: { creditScore: penalty } });
@@ -833,29 +888,47 @@ export class MatchService {
     return Result.ok();
   }
 
-  async approveVenueSession(sessionId: string, venueOwnerId: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
+  /**
+   * Shared flow for the venue owner confirming or rejecting a session held
+   * at their space. Only the wording and the resulting status differ.
+   */
+  private async setVenueApproval(
+    sessionId: string,
+    venueOwnerId: string,
+    status: 'confirmed' | 'rejected'
+  ): Promise<Result<void>> {
+    const found = await this.findMatch(sessionId);
+    if (found.isFailure) return Result.fail(found.getError());
+    const doc = found.getValue();
 
+    const verb = status === 'confirmed' ? 'approve' : 'reject';
     const venue = await PlayerSpaceModel.findById(doc.venue_id);
     if (!venue) return Result.fail('Venue not found.');
     if (venue.owner_id.toString() !== venueOwnerId) {
-      return Result.fail('Only the venue owner can approve sessions.');
+      return Result.fail(`Only the venue owner can ${verb} sessions.`);
     }
 
     await MatchModel.findByIdAndUpdate(sessionId, {
-      $set: { venueApprovalStatus: 'confirmed' },
+      $set: { venueApprovalStatus: status },
     });
 
-    await NotificationModel.create({
-      recipientId: doc.host_id.toString(),
-      type: 'General',
-      message: `Your session "${doc.title}" has been approved by the venue.`,
-      channel: 'in-app',
-      payload: { matchId: sessionId },
-    });
+    await this.notifyInApp(
+      doc.host_id.toString(),
+      status === 'confirmed'
+        ? `Your session "${doc.title}" has been approved by the venue.`
+        : `Your session "${doc.title}" was not approved by the venue.`,
+      { matchId: sessionId }
+    );
 
     return Result.ok();
+  }
+
+  async approveVenueSession(sessionId: string, venueOwnerId: string): Promise<Result<void>> {
+    return this.setVenueApproval(sessionId, venueOwnerId, 'confirmed');
+  }
+
+  async rejectVenueSession(sessionId: string, venueOwnerId: string): Promise<Result<void>> {
+    return this.setVenueApproval(sessionId, venueOwnerId, 'rejected');
   }
 
   /**
@@ -863,9 +936,9 @@ export class MatchService {
    * Can only be deleted when status is 'Open' or 'Cancelled'.
    */
   async deleteMatch(sessionId: string, requesterId: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-    if (doc.host_id.toString() !== requesterId) return Result.fail('Only the host can delete this event.');
+    const found = await this.findHostedMatch(sessionId, requesterId, 'Only the host can delete this event.');
+    if (found.isFailure) return Result.fail(found.getError());
+    const doc = found.getValue();
     if (doc.status !== 'Open' && doc.status !== 'Cancelled') {
       return Result.fail(`Cannot delete a match with status: ${doc.status}. Only Open or Cancelled matches can be deleted.`);
     }
@@ -876,45 +949,18 @@ export class MatchService {
     return Result.ok();
   }
 
-  async rejectVenueSession(sessionId: string, venueOwnerId: string): Promise<Result<void>> {
-    const doc = await MatchModel.findById(sessionId) as MatchDoc | null;
-    if (!doc) return Result.fail('Match not found.');
-
-    const venue = await PlayerSpaceModel.findById(doc.venue_id);
-    if (!venue) return Result.fail('Venue not found.');
-    if (venue.owner_id.toString() !== venueOwnerId) {
-      return Result.fail('Only the venue owner can reject sessions.');
-    }
-
-    await MatchModel.findByIdAndUpdate(sessionId, {
-      $set: { venueApprovalStatus: 'rejected' },
-    });
-
-    await NotificationModel.create({
-      recipientId: doc.host_id.toString(),
-      type: 'General',
-      message: `Your session "${doc.title}" was not approved by the venue.`,
-      channel: 'in-app',
-      payload: { matchId: sessionId },
-    });
-
-    return Result.ok();
-  }
-
   /**
    * Admin-only: toggle the pin status of a match.
    * Pinned matches always appear first in the active matches listing.
    */
   async pinMatch(sessionId: string, adminId: string): Promise<Result<{ isPinned: boolean }>> {
-    const requestingUser = await UserModel.findById(adminId, 'role');
-    if (!requestingUser || !isAdminRole(requestingUser.role)) {
-      return Result.fail('Forbidden: admin access required.');
-    }
+    const adminCheck = await ensureAdmin(adminId);
+    if (adminCheck.isFailure) return Result.fail(adminCheck.getError());
 
-    const doc = await MatchModel.findById(sessionId);
-    if (!doc) return Result.fail('Match not found.');
+    const found = await this.findMatch(sessionId);
+    if (found.isFailure) return Result.fail(found.getError());
 
-    const newPinned = !doc.isPinned;
+    const newPinned = !found.getValue().isPinned;
     await MatchModel.findByIdAndUpdate(sessionId, { $set: { isPinned: newPinned } });
     return Result.ok({ isPinned: newPinned });
   }
@@ -928,57 +974,44 @@ export class MatchService {
     const userMap = new Map(users.map(u => [u._id.toString(), u]));
     return comments.map(c => {
       const user = userMap.get(c.userId.toString());
-      return {
-        id: (c._id as { toString(): string }).toString(),
+      return toCommentDTO(
+        c as unknown as { _id: { toString(): string }; text: string; createdAt: Date },
         matchId,
-        userId: c.userId.toString(),
-        username: user?.username ?? 'Unknown',
-        avatarUrl: user?.avatarUrl,
-        text: c.text,
-        createdAt: (c as unknown as { createdAt: Date }).createdAt.toISOString(),
-      };
+        c.userId.toString(),
+        user
+      );
     });
   }
 
   async addComment(matchId: string, userId: string, text: string): Promise<Result<CommentResponseDTO>> {
-    const match = await MatchModel.findById(matchId);
-    if (!match) return Result.fail('Match not found.');
+    const found = await this.findMatch(matchId);
+    if (found.isFailure) return Result.fail(found.getError());
+    const match = found.getValue();
     const isHost = match.host_id.toString() === userId;
     if (match.commentsLocked && !isHost) return Result.fail('Comments are locked by the host.');
     const raw = await EventCommentModel.create({ matchId, userId, text });
     const comment = raw as unknown as { _id: { toString(): string }; text: string; createdAt: Date };
     const user = await UserModel.findById(userId, 'username avatarUrl');
-    return Result.ok({
-      id: comment._id.toString(),
-      matchId,
-      userId,
-      username: user?.username ?? 'Unknown',
-      avatarUrl: user?.avatarUrl,
-      text: comment.text,
-      createdAt: comment.createdAt.toISOString(),
-    });
+    return Result.ok(toCommentDTO(comment, matchId, userId, user));
   }
 
   async deleteComment(matchId: string, commentId: string, userId: string): Promise<Result<void>> {
     const comment = await EventCommentModel.findById(commentId);
     if (!comment) return Result.fail('Comment not found.');
     const match = await MatchModel.findById(matchId);
-    const requestingUser = await UserModel.findById(userId, 'role');
-    const isAdmin = isAdminRole(requestingUser?.role);
     const isAuthor = comment.userId.toString() === userId;
-    const isHost = match?.host_id.toString() === userId;
-    if (!isAuthor && !isHost && !isAdmin) return Result.fail('Cannot delete another user\'s comment.');
+    const mayModerate = match ? await this.isHostOrAdmin(match, userId) : false;
+    if (!isAuthor && !mayModerate) return Result.fail('Cannot delete another user\'s comment.');
     await EventCommentModel.findByIdAndDelete(commentId);
     return Result.ok();
   }
 
   async lockComments(matchId: string, userId: string, locked: boolean): Promise<Result<void>> {
-    const match = await MatchModel.findById(matchId);
-    if (!match) return Result.fail('Match not found.');
-    const requestingUser = await UserModel.findById(userId, 'role');
-    const isAdmin = isAdminRole(requestingUser?.role);
-    const isHost = match.host_id.toString() === userId;
-    if (!isHost && !isAdmin) return Result.fail('Only the host or admin can lock comments.');
+    const found = await this.findMatch(matchId);
+    if (found.isFailure) return Result.fail(found.getError());
+    if (!await this.isHostOrAdmin(found.getValue(), userId)) {
+      return Result.fail('Only the host or admin can lock comments.');
+    }
     await MatchModel.findByIdAndUpdate(matchId, { $set: { commentsLocked: locked } });
     return Result.ok();
   }
@@ -986,12 +1019,12 @@ export class MatchService {
   // ── Post-event recap ──────────────────────────────────────────────────────
 
   async updateRecap(matchId: string, userId: string, text: string): Promise<Result<void>> {
-    const match = await MatchModel.findById(matchId);
-    if (!match) return Result.fail('Match not found.');
-    const requestingUser = await UserModel.findById(userId, 'role');
-    const isAdmin = isAdminRole(requestingUser?.role);
-    const isHost = match.host_id.toString() === userId;
-    if (!isHost && !isAdmin) return Result.fail('Only the host can update the recap.');
+    const found = await this.findMatch(matchId);
+    if (found.isFailure) return Result.fail(found.getError());
+    const match = found.getValue();
+    if (!await this.isHostOrAdmin(match, userId)) {
+      return Result.fail('Only the host can update the recap.');
+    }
     if (match.status !== 'Completed') return Result.fail('Recap can only be added to completed events.');
     await MatchModel.findByIdAndUpdate(matchId, { $set: { 'recap.text': text } });
     return Result.ok();
@@ -1003,8 +1036,7 @@ export class MatchService {
     const recurrence = doc.recurrence;
     if (!recurrence || recurrence === 'none') return;
 
-    const daysMap: Record<string, number> = { weekly: 7, biweekly: 14, monthly: 30 };
-    const daysToAdd = daysMap[recurrence] ?? 7;
+    const daysToAdd = RECURRENCE_DAYS[recurrence] ?? 7;
     const nextDate = new Date(doc.scheduledAt);
     nextDate.setDate(nextDate.getDate() + daysToAdd);
 

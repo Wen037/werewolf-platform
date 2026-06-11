@@ -97,6 +97,14 @@ export async function interceptApi(page: Page) {
     await route.fulfill({ json: { message: 'OTP sent to your email.' } });
   });
 
+  await page.route(`${base}/auth/refresh`, async route => {
+    await route.fulfill({ json: { token: 'pw-test-token-2', refreshToken: 'pw-refresh-2', user: MOCK_USER } });
+  });
+
+  await page.route(`${base}/auth/logout`, async route => {
+    await route.fulfill({ json: { message: 'Logged out.' } });
+  });
+
   await page.route(`${base}/auth/verify-otp`, async route => {
     const body = route.request().postDataJSON();
     if (body?.otp === '123456') {
