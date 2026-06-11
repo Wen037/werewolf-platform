@@ -23,10 +23,6 @@
 #   - `ReportModal.tsx` exists on frontend but has no backend — needs ReportSchema (reporterId, targetType: 'user'|'venue'|'match', targetId, reason, status, createdAt)
 #   - New routes: POST /reports (any user), GET /admin/reports, PATCH /admin/reports/:id { status, action }
 #   - ReportService: create/list/resolve (resolve action can trigger ban/removal via existing services)
-# - Admin: force-remove/cancel any event or venue
-#   - Beyond normal host/owner permissions and beyond the existing venue-verification flow
-#   - New routes: DELETE /admin/matches/:id, DELETE /admin/venues/:id (admin/web_admin only, BFLA-guarded)
-#   - MatchService/PlayerSpaceService: add adminForceCancel/adminRemove methods — should publish notification events to affected users
 #
 # ── Session History ────────────────────────────────────────────────────────────
 
@@ -58,15 +54,6 @@
 - **`MatchService.ts`**: `enrichWithNamesAndInteraction` includes `isPinned`; `getActiveMatches()` sort changed to `{ isPinned: -1, scheduledAt: 1 }`; added `pinMatch(sessionId, adminId)` — admin-only toggle
 - **`playerSpaceRoutes.ts`**: added `PATCH /admin/venues/:id/pin`
 - **`matchRoutes.ts`**: added `PATCH /admin/games/:id/pin`
-
-## 2026-06-10 — 5 Meetup-gap features: comments, recap, recurrence, 24h reminder
-- **`MatchSchema.ts`**: added `recurrence?: 'none'|'weekly'|'biweekly'|'monthly'` and `recap?: { text?: string }` fields
-- **`EventCommentSchema.ts`** (new): `matchId`, `userId`, `text`; index on `(matchId, createdAt)`
-- **`MatchDTOs.ts`**: added `AddCommentSchema`, `UpdateRecapSchema` (Zod); `CommentResponseDTO` type; `recurrence` + `recap` in `GameSessionResponseDTO`; `recurrence` added to `CreateMatchSchema`
-- **`MatchService.ts`**: `enrichWithNamesAndInteraction` includes `recurrence` + `recap`; added `getComments`, `addComment`, `deleteComment`, `updateRecap` methods; `createNextOccurrence` private helper auto-creates next event when status → Completed + recurrence set; `updateMatchStatus` calls `createNextOccurrence`; `createMatch` persists `recurrence`
-- **`matchRoutes.ts`**: added `GET/POST /games/:id/comments`, `DELETE /games/:id/comments/:commentId`, `PATCH /games/:id/recap`
-- **`shared/infra/ReminderService.ts`** (new): `node-cron` hourly job; finds Open/Full matches in 23–25h window; sends HTML reminder email via Resend to all registered players
-- **`server.ts`**: starts `ReminderService` after MongoDB connects
 
 ## 2026-06-10 — Contact form email endpoint
 - **`shared/infra/email.ts`**: added `sendContactEmail(fromEmail, message)` — sends to `ADMIN_EMAIL` env var (fallback `becky.fuwen@gmail.com`); sets `replyTo` to sender so admin can reply directly; `NODE_ENV=test` logs and skips
@@ -132,5 +119,25 @@
 - No routes, DTOs, schemas, or error messages changed — all responses byte-identical
 - **Refresh-token rotation completed**: `resetPassword` now revokes ALL outstanding refresh tokens for the user (ASVS 3.3.1 — stolen refresh token must not survive account recovery); new test RT-7 in `refreshToken.integ.test.ts` exercises the full forgot→reset→replay flow
 - Suite: **564 passed | 4 skipped (568)** across 39 files; `tsc --noEmit` clean
+
+## 2026-06-11 — Session 49: venue-approval bug fix + space comments + npm-audit CI workaround
+- **Bug fixed**: `createMatch` treated `boardgame_store` as a public venue type and auto-confirmed `venueApprovalStatus` — but cafés have real owners who must approve. `PUBLIC_VENUE_TYPES` now only `['school']`; host-owns-venue auto-confirm unchanged
+- **`SpaceCommentSchema.ts`** (new): `venueId`, `userId`, `text` (max 500); index on `(venueId, createdAt)`
+- **`PlayerSpaceSchema.ts`**: added `commentsLocked: boolean` (default false); also in `GameVenueResponseDTO` + `toVenueDTO`
+- **`PlayerSpaceDTOs.ts`**: added `AddVenueCommentSchema` (Zod), `VenueCommentResponseDTO`
+- **`PlayerSpaceService.ts`**: added `getComments` / `addComment` / `deleteComment` / `lockComments` + `isOwnerOrAdmin` helper — permissions mirror event comments (author deletes own; owner/admin delete any + lock; owner exempt from lock); `deleteVenue` cascades comment deletion
+- **`playerSpaceRoutes.ts`**: added `GET/POST /venues/:id/comments` (GET public), `DELETE /venues/:id/comments/:commentId`, `PATCH /venues/:id/comments/lock`
+- **New** `spaceComments.integ.test.ts`: 10 tests — post/read, BOLA delete matrix (author/owner/admin/stranger), lock BFLA + owner exemption, VA-FIX regression tests for the approval bug
+- **`.github/workflows/audit-fix.yml`** (new): manual `workflow_dispatch` job that runs `npm audit fix` for server+client on GitHub's network and opens a PR — local TLS proxy's registry mirror is stale (newest visible axios = installed 1.13.4) so the 8 npm-audit findings (axios/mongoose/express-rate-limit/qs/uuid/ip-address/svix/resend) CANNOT be patched from this machine; package.json caret ranges already admit all fixed versions, only the lockfile pins them
+- Verified: matches + player-spaces suites 277 passed; server `tsc --noEmit` clean
+
+## 2026-06-11 — Session 50: moderation — admin/owner delete + venue-owner cancel (closes pending "force-remove" item)
+- **`MatchService.deleteMatch`**: now host OR venue owner (Open/Cancelled only) OR admin (ANY status — force-remove; registered players get in-app notification); also cascades `EventCommentModel.deleteMany`
+- **`MatchService.cancelByVenueOwner`** (new): venue owner or admin cancels an event at the space — Cancelled + interactions cancelled + host notified + `MatchStatusChanged` published; NO host credit penalty
+- **`PlayerSpaceService.deleteVenue`**: owner path unchanged (blocked while active matches); NEW admin force path — cancels all non-finished matches at the venue, notifies their hosts, then deletes
+- **`matchRoutes.ts`**: added `DELETE /games/:sessionId`, `PATCH /games/:sessionId/venue-cancel`
+- **`playerSpaceRoutes.ts`**: added `DELETE /venues/:id`
+- **New** `adminModeration.integ.test.ts`: 7 tests — admin force-delete Started event w/ player notification, stranger denied, host status-rule regression, venue-owner cancel + delete, admin venue force-delete w/ cascade, owner blocked w/ active matches
+- Suite: modules 452 passed; server + client `tsc --noEmit` clean; Playwright 04+05 18/18
 
 

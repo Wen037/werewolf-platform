@@ -19,22 +19,6 @@
 #
 # ── Session History ────────────────────────────────────────────────────────────
 
-## 2026-06-10 — 5 Meetup-gap features: share, calendar, comments, recap, recurrence
-- **`types/index.ts`**: added `EventComment` interface; `GameSessionDTO` gets `recurrence` + `recap` fields; `GameSession` gets `recurrence`
-- **`services/game.service.real.ts`**: added `getComments`, `addComment`, `deleteComment`, `updateRecap`; `CreateSessionInput` gets `recurrence` field passed to backend
-- **`services/game.service.mock.ts`**: added matching stub methods for the 4 new service calls
-- **`pages/EventDetailPage.tsx`**: right panel — Add to Calendar (Google + .ics download) + Share (copy link, Telegram, WhatsApp); left column — Event Recap (host edit after Completed, viewer read) + Comments/Q&A (post, delete own/host, auth gate for guest)
-- **`components/CreateEventModal.tsx`**: added Repeat selector (none / weekly / biweekly / monthly); value passed to `createSession`
-- **`i18n/index.ts`**: added 18 ZH keys for all new strings (calendar, share, comments, recap)
-
-## 2026-06-10 — Comment permissions: host lock/unlock; admin delete; gitignore Playwright artifacts
-- **`types/index.ts`**: added `commentsLocked?: boolean` to `GameSessionDTO`
-- **`services/game.service.real.ts`**: added `lockComments(sessionId, locked)` → `PATCH /games/:id/comments/lock`
-- **`services/game.service.mock.ts`**: added `lockComments` stub
-- **`pages/EventDetailPage.tsx`**: host sees lock/unlock toggle in Comments header; when locked, non-host sees amber "Comments locked by host" banner and post input is hidden; host can still post when locked; `commentsLocked` state initialised from event data; added `IconLock`/`IconLockOpen` imports
-- **`i18n/index.ts`**: added ZH keys for lock/unlock/locked strings
-- **`client/.gitignore`**: added `test-results/`, `playwright-report/`, `tests/e2e/playwright-report/`, `blob-report/`, `playwright/.cache/`; existing artifacts removed from git tracking
-
 ## 2026-06-11 — Playwright suite repair: 22 failures → 0; reduced-motion; mock-api overhaul
 - **Root cause**: `USE_MOCK` is now `false` — network mocks in `tests/e2e/helpers/mock-api.ts` became load-bearing and had latent gaps
 - **`tests/e2e/helpers/mock-api.ts`**: `MOCK_USER` gets FullUserProfileDTO fields (`pastEvents`, `followedUsers`, `followedVenues`, `likedGamesCount`); generic `**/games/*` + `**/games` routes registered FIRST (Playwright matches last-registered first — wildcard was swallowing `/games/active` and returning an object instead of an array, crashing lobby/map); `MOCK_GAMES` get `location`, `MOCK_VENUES` get `coordinates`
@@ -44,5 +28,24 @@
 - **`playwright.config.ts`**: `contextOptions: { reducedMotion: 'reduce' }` (the `use.reducedMotion` shorthand silently did not apply in 1.56); `mobile.spec.ts` excluded from Desktop Chrome project
 - **Spec fixes**: 02-auth (modal now opens on REGISTER tab — beforeEach selects LOGIN explicitly), 03-sidebar (hover to expand sidebar before clicking labels), 05-event-detail + 06-myprofile + 07-myevents (strict-mode `.or()` chains get `.first()` on the combined locator; Max Players is a select; date input type-aware fill; PROF-7 asserts Saved Places/Match History instead of nonexistent notification section)
 - **Result**: 77/77 passing expected (was 65/87 incl. duplicated mobile runs); suite runtime 23.7m → ~5m
+
+## 2026-06-11 — Space comments tab in VenueDetailPage; venue-approval badge now correct for cafés
+- **`types/index.ts`**: added `SpaceComment` interface; `GameVenueDTO` gets `commentsLocked?: boolean`
+- **`services/game.service.real.ts`**: added `getVenueComments`, `addVenueComment`, `deleteVenueComment`, `lockVenueComments` → `/venues/:id/comments[...]`
+- **`services/game.service.mock.ts`**: matching stubs for the 4 new calls
+- **`pages/VenueDetailPage.tsx`**: tab bar at top of left column (About | Comments with count); Comments card mirrors EventDetailPage permissions — any logged-in user posts, author deletes own, owner/admin delete any + lock/unlock toggle, guests see "Log in to comment" auth gate, lock banner "Comments locked by owner"
+- **`i18n/index.ts`**: added `About`, `Comments locked by owner` ZH keys (rest reused from event comments)
+- **`tests/e2e/helpers/mock-api.ts`**: added `/venues/*/comments` + `/venues/*/comments/*` routes
+- Backend fix (see serverupdates): events created by a non-owner on a `boardgame_store` space now start `venueApprovalStatus: 'pending'` — the existing amber "Pending Space Approval" badge now shows instead of "Venue Confirmed"
+- Verified: client `tsc --noEmit` clean; Playwright 04-gamespace 9/9 passed
+
+## 2026-06-11 — Moderation buttons: delete space/event (admin/owner), venue-owner event cancel
+- **`services/game.service.real.ts`**: added `deleteSession(sessionId)` → `DELETE /games/:id`; `venueCancelSession(sessionId)` → `PATCH /games/:id/venue-cancel`; `deleteVenue(venueId)` → `DELETE /venues/:id`
+- **`services/game.service.mock.ts`**: matching stubs
+- **`pages/VenueDetailPage.tsx`**: "Delete Space" header button for `permissions.canDelete` (owner/admin) with confirm → navigates to `/gamespace`; per-event Cancel (X) button in Coming Events for owner/admin → `venueCancelSession`, row moves to history
+- **`pages/EventDetailPage.tsx`**: "Delete Event" button in right action card — host (open events only; backend enforces Open/Cancelled) or admin (any status, labelled "Delete Event (Admin)") → navigates to `/lobby`
+- **`i18n/index.ts`**: 8 ZH keys for delete/cancel confirms and labels
+- **`tests/e2e/helpers/mock-api.ts`**: added `/games/*/venue-cancel` route
+- Verified: client `tsc --noEmit` clean; Playwright 04+05 18/18 passed
 
 

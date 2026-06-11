@@ -4,7 +4,7 @@ import { useLang } from "../context/LanguageContext";
 import { GameService } from "../services/game.service";
 import { AuthService } from "../services/auth.service";
 import { uploadImages } from "../services/upload.service";
-import type { GameVenueDTO, GameSessionDTO, VenueSpaceType, VenuePrivacy } from "../types";
+import type { GameVenueDTO, GameSessionDTO, SpaceComment, VenueSpaceType, VenuePrivacy } from "../types";
 import { VENUE_TYPE_LABELS, DEFAULT_PRIVACY, getVenuePermissions, getDisplayAddress } from "../types";
 import { AppLayout } from "../components/layout/AppLayout";
 import { ReportModal } from "../components/ReportModal";
@@ -35,6 +35,11 @@ import {
   IconCheck,
   IconLoader2,
   IconAddressBook,
+  IconMessageCircle,
+  IconLock,
+  IconLockOpen,
+  IconTrash,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 
 // ── Venue Image Carousel ───────────────────────────────────────────────────
@@ -1234,6 +1239,16 @@ export default function VenueDetailPage() {
   const [showToast, setShowToast]         = useState(false);
   const [drawer, setDrawer]               = useState<"upcoming" | "past" | null>(null);
   const [hoverRating, setHoverRating]     = useState(0);
+  const [activeTab, setActiveTab]         = useState<"about" | "comments">("about");
+  const [deletingVenue, setDeletingVenue] = useState(false);
+  const [cancellingId, setCancellingId]   = useState<string | null>(null);
+
+  // Comments (permissions mirror event comments)
+  const [comments, setComments]                   = useState<SpaceComment[]>([]);
+  const [commentText, setCommentText]             = useState("");
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [commentsLocked, setCommentsLocked]       = useState(false);
+  const [lockingComments, setLockingComments]     = useState(false);
 
   const currentUser = AuthService.getCurrentUser();
   // Guests can view a space's details freely, but liking/subscribing/rating
@@ -1263,10 +1278,77 @@ export default function VenueDetailPage() {
   useEffect(() => {
     if (!id) return;
     GameService.getVenueById(id).then(data => {
-      if (data) setVenue(data);
+      if (data) {
+        setVenue(data);
+        setCommentsLocked(data.commentsLocked ?? false);
+      }
     });
     GameService.getSessionsByVenue(id).then(setSessions);
+    GameService.getVenueComments(id).then(setComments).catch(() => {});
   }, [id]);
+
+  const handleAddComment = async () => {
+    if (!id || !commentText.trim()) return;
+    setCommentSubmitting(true);
+    try {
+      const newComment = await GameService.addVenueComment(id, commentText.trim());
+      setComments(prev => [...prev, newComment]);
+      setCommentText("");
+    } catch {
+      triggerToast();
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!id) return;
+    try {
+      await GameService.deleteVenueComment(id, commentId);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+    } catch {
+      triggerToast();
+    }
+  };
+
+  const handleDeleteVenue = async () => {
+    if (!id || !venue) return;
+    if (!window.confirm(t('Delete this space permanently? This cannot be undone.'))) return;
+    setDeletingVenue(true);
+    try {
+      await GameService.deleteVenue(id);
+      navigate('/gamespace');
+    } catch {
+      triggerToast();
+      setDeletingVenue(false);
+    }
+  };
+
+  const handleVenueCancelEvent = async (sessionId: string) => {
+    if (!window.confirm(t('Cancel this event? All registered players will be notified.'))) return;
+    setCancellingId(sessionId);
+    try {
+      await GameService.venueCancelSession(sessionId);
+      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: 'finished' as const } : s));
+    } catch {
+      triggerToast();
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleLockComments = async (lock: boolean) => {
+    if (!id) return;
+    setLockingComments(true);
+    try {
+      await GameService.lockVenueComments(id, lock);
+      setCommentsLocked(lock);
+    } catch {
+      triggerToast();
+    } finally {
+      setLockingComments(false);
+    }
+  };
 
   useEffect(() => {
     if (!hash) return;
@@ -1469,6 +1551,15 @@ export default function VenueDetailPage() {
                 <IconEdit size={16} /><span>{t('Edit Space')}</span>
               </button>
             )}
+            {permissions.canDelete && (
+              <button
+                onClick={handleDeleteVenue}
+                disabled={deletingVenue}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-600/10 border border-red-600/30 text-red-400 hover:bg-red-600/25 transition-all text-sm font-bold disabled:opacity-50"
+              >
+                <IconTrash size={16} /><span>{t('Delete Space')}</span>
+              </button>
+            )}
             <button onClick={() => setIsReportOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-sm font-bold">
               <IconAlertTriangle size={16} /><span>{t('Report Space')}</span>
             </button>
@@ -1576,6 +1667,120 @@ export default function VenueDetailPage() {
               </div>
             )}
 
+            {/* ── Tab bar: About | Comments ── */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab("about")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  activeTab === "about"
+                    ? "bg-red-600/15 border-red-500/30 text-red-400"
+                    : "bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:border-white/20"
+                }`}
+              >
+                <IconInfoCircle size={15} /> {t('About')}
+              </button>
+              <button
+                onClick={() => setActiveTab("comments")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  activeTab === "comments"
+                    ? "bg-red-600/15 border-red-500/30 text-red-400"
+                    : "bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:border-white/20"
+                }`}
+              >
+                <IconMessageCircle size={15} /> {t('Comments')}{comments.length > 0 && ` (${comments.length})`}
+              </button>
+            </div>
+
+            {activeTab === "comments" && (
+            <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
+              <div className="text-xs text-neutral-300 uppercase tracking-wider flex items-center gap-1.5 mb-4">
+                <IconMessageCircle size={13} /> {t("Comments")} {comments.length > 0 && `(${comments.length})`}
+                {permissions.canEdit && (
+                  <button
+                    onClick={() => handleLockComments(!commentsLocked)}
+                    disabled={lockingComments}
+                    title={commentsLocked ? t("Unlock comments") : t("Lock comments")}
+                    className={`ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                      commentsLocked
+                        ? "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                        : "border-white/10 text-neutral-500 hover:text-white hover:border-white/20"
+                    }`}
+                  >
+                    {commentsLocked ? <IconLock size={10} /> : <IconLockOpen size={10} />}
+                    {commentsLocked ? t("Locked") : t("Lock")}
+                  </button>
+                )}
+              </div>
+
+              {commentsLocked && !permissions.canEdit && (
+                <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-4">
+                  <IconLock size={12} /> {t("Comments locked by owner")}
+                </div>
+              )}
+
+              {comments.length > 0 ? (
+                <div className="space-y-3 mb-4 max-h-96 overflow-y-auto custom-scrollbar pr-1">
+                  {comments.map(c => (
+                    <div key={c.id} className="flex gap-3 group">
+                      <img
+                        src={c.avatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${c.userId}`}
+                        alt=""
+                        className="w-7 h-7 rounded-full flex-shrink-0 mt-0.5 bg-neutral-700"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-white">{c.username}</span>
+                          <span className="text-[10px] text-neutral-600">
+                            {new Date(c.createdAt).toLocaleDateString("en-SG", { day: "numeric", month: "short" })}
+                          </span>
+                          {(currentUser?.id === c.userId || permissions.canEdit) && (
+                            <button
+                              onClick={() => handleDeleteComment(c.id)}
+                              className="opacity-0 group-hover:opacity-100 ml-auto text-neutral-600 hover:text-red-400 transition-all flex-shrink-0"
+                            >
+                              <IconTrash size={12} />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-sm text-neutral-300 mt-0.5 leading-snug">{c.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-600 italic mb-4">{t("No comments yet. Be the first!")}</p>
+              )}
+
+              {currentUser && (!commentsLocked || permissions.canEdit) ? (
+                <div className="flex gap-2">
+                  <input
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void handleAddComment(); } }}
+                    placeholder={t("Add a comment...")}
+                    maxLength={500}
+                    className="flex-1 bg-black border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500/50 placeholder:text-neutral-600"
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={commentSubmitting || !commentText.trim()}
+                    className="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded-xl disabled:opacity-40 transition-colors flex-shrink-0"
+                  >
+                    {t("Post")}
+                  </button>
+                </div>
+              ) : !currentUser ? (
+                <button
+                  onClick={() => setAuthOpen(true)}
+                  className="text-sm text-neutral-500 hover:text-white transition-colors"
+                >
+                  {t("Log in to comment")}
+                </button>
+              ) : null}
+            </div>
+            )}
+
+            {activeTab === "about" && (<>
             {/* About */}
             <div className="bg-neutral-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
               <h2 className="text-xl font-bold text-white mb-4">{t('About this Place')}</h2>
@@ -1681,6 +1886,16 @@ export default function VenueDetailPage() {
                           >
                             {isFull ? t("FULL") : t("Join")}
                           </button>
+                          {permissions.canEdit && (
+                            <button
+                              onClick={() => handleVenueCancelEvent(event.id)}
+                              disabled={cancellingId === event.id}
+                              title={t('Cancel this event')}
+                              className="p-1.5 rounded-lg border border-red-500/25 text-red-400 hover:bg-red-500/15 transition-all disabled:opacity-50"
+                            >
+                              {cancellingId === event.id ? <IconLoader2 size={14} className="animate-spin" /> : <IconX size={14} />}
+                            </button>
+                          )}
                         </div>
                       </motion.div>
                     );
@@ -1743,6 +1958,7 @@ export default function VenueDetailPage() {
                 </div>
               )}
             </div>
+            </>)}
 
           </div>
 

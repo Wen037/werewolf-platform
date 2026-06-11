@@ -480,6 +480,20 @@ export const zh: Record<string, string> = {
   'Comments unlocked.':        '评论已解锁。',
   'Failed to update comment settings.': '更新评论设置失败。',
   "Cannot delete another user's comment.": '无法删除其他用户的评论。',
+
+  // ── Space detail — tabs + comments ─────────────────────────────────
+  'About':                     '关于',
+  'Comments locked by owner':  '场地主人已关闭评论',
+
+  // ── Moderation: delete / cancel (admin, host, space owner) ─────────
+  'Delete Space':              '删除场地',
+  'Delete this space permanently? This cannot be undone.': '确定永久删除此场地？此操作无法撤销。',
+  'Cancel this event':         '取消此活动',
+  'Cancel this event? All registered players will be notified.': '确定取消此活动？所有已报名玩家将收到通知。',
+  'Delete Event':              '删除活动',
+  'Delete Event (Admin)':      '删除活动（管理员）',
+  'Delete this event permanently? This cannot be undone.': '确定永久删除此活动？此操作无法撤销。',
+  'Failed to delete event.':   '删除活动失败。',
 };
 
 export function t(key: string, lang: Lang): string {

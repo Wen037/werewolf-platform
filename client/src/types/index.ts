@@ -183,6 +183,17 @@ export interface GameVenueDTO extends GameVenue {
   myInteraction?: VenueInteraction;
   // Count of event applications awaiting approval from the venue owner
   pendingApplicationsCount?: number;
+  commentsLocked?: boolean;
+}
+
+export interface SpaceComment {
+  id: string;
+  venueId: string;
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface EventComment {

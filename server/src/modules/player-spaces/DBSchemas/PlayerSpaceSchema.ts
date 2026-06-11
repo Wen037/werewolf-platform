@@ -30,6 +30,7 @@ export interface IPlayerSpaceDocument extends Document {
   totalLikes: number;
   totalSubscribers: number;
   isPinned: boolean;
+  commentsLocked: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -79,6 +80,7 @@ const PlayerSpaceSchema = new Schema<IPlayerSpaceDocument>(
     totalLikes: { type: Number, default: 0 },
     totalSubscribers: { type: Number, default: 0 },
     isPinned: { type: Boolean, default: false },
+    commentsLocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -100,6 +100,9 @@ export default function EventDetailPage() {
   const [commentsLocked, setCommentsLocked] = useState(false);
   const [lockingComments, setLockingComments] = useState(false);
 
+  // Delete (host: open events only; admin: any)
+  const [deleting, setDeleting] = useState(false);
+
   // Recap editor (host only, after event Completed)
   const [recapText, setRecapText] = useState("");
   const [recapEditing, setRecapEditing] = useState(false);
@@ -159,6 +162,9 @@ export default function EventDetailPage() {
   const currentUser = AuthService.getCurrentUser();
   const isHost = !!(event && currentUser && event.hostId === currentUser.id);
   const isLoggedIn = !!currentUser;
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "web_admin";
+  // Host may delete only non-started events (backend enforces Open/Cancelled); admin always
+  const canDelete = isAdmin || (isHost && event?.status === "open");
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href).catch(() => {});
@@ -214,6 +220,19 @@ export default function EventDetailPage() {
       triggerToast(t("Failed to update comment settings."));
     } finally {
       setLockingComments(false);
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!id) return;
+    if (!window.confirm(t("Delete this event permanently? This cannot be undone."))) return;
+    setDeleting(true);
+    try {
+      await GameService.deleteSession(id);
+      navigate("/lobby");
+    } catch {
+      triggerToast(t("Failed to delete event."));
+      setDeleting(false);
     }
   };
 
@@ -603,6 +622,16 @@ export default function EventDetailPage() {
               >
                 <IconMapPin size={16} /> {t("View Venue")}
               </button>
+
+              {canDelete && (
+                <button
+                  onClick={handleDeleteEvent}
+                  disabled={deleting}
+                  className="w-full py-3 bg-red-950/40 hover:bg-red-900/40 text-red-400 font-bold rounded-2xl border border-red-500/25 flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50"
+                >
+                  <IconTrash size={16} /> {isAdmin && !isHost ? t("Delete Event (Admin)") : t("Delete Event")}
+                </button>
+              )}
 
               {/* Add to Calendar */}
               <div className="pt-1">

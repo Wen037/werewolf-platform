@@ -1,5 +1,5 @@
 import { MOCK_GAMES, MOCK_VENUES, MOCK_SESSION_INTERACTIONS, MOCK_USERS, MOCK_USER_SUBSCRIPTIONS, MOCK_VENUE_INTERACTIONS } from "../data/mockDB";
-import type { EventComment, GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from "../types";
+import type { EventComment, SpaceComment, GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from "../types";
 import type { CreateSessionInput } from "./game.service.real";
 
 // ── Current user resolved from localStorage (follows debug panel switches) ─
@@ -453,6 +453,43 @@ export const MockGameService = {
   },
 
   updateRecap: async (_sessionId: string, _text: string): Promise<void> => {
+    await delay(200);
+  },
+
+  getVenueComments: async (_venueId: string): Promise<SpaceComment[]> => {
+    await delay(200);
+    return [];
+  },
+
+  addVenueComment: async (venueId: string, text: string): Promise<SpaceComment> => {
+    await delay(200);
+    return {
+      id: Math.random().toString(36).slice(2),
+      venueId,
+      userId: 'mock-user',
+      username: 'MockUser',
+      text,
+      createdAt: new Date().toISOString(),
+    };
+  },
+
+  deleteVenueComment: async (_venueId: string, _commentId: string): Promise<void> => {
+    await delay(200);
+  },
+
+  lockVenueComments: async (_venueId: string, _locked: boolean): Promise<void> => {
+    await delay(200);
+  },
+
+  venueCancelSession: async (_sessionId: string): Promise<void> => {
+    await delay(200);
+  },
+
+  deleteSession: async (_sessionId: string): Promise<void> => {
+    await delay(200);
+  },
+
+  deleteVenue: async (_venueId: string): Promise<void> => {
     await delay(200);
   },
 };

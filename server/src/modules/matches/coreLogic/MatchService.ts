@@ -51,8 +51,10 @@ const CANCEL_PENALTY_TIERS = [
 
 const RECURRENCE_DAYS: Record<string, number> = { weekly: 7, biweekly: 14, monthly: 30 };
 
-// Venue approval is auto-confirmed for public/institutional venue types
-const PUBLIC_VENUE_TYPES: IPlayerSpaceDocument['type'][] = ['school', 'boardgame_store'];
+// Venue approval is auto-confirmed only for ownerless institutional types.
+// boardgame_store deliberately NOT here: a café has a real owner who must
+// approve sessions held at their space.
+const PUBLIC_VENUE_TYPES: IPlayerSpaceDocument['type'][] = ['school'];
 
 function toCommentDTO(
   comment: { _id: { toString(): string }; text: string; createdAt: Date },
@@ -932,19 +934,86 @@ export class MatchService {
   }
 
   /**
-   * Permanently delete a match. Only the host may delete it.
-   * Can only be deleted when status is 'Open' or 'Cancelled'.
+   * Permanently delete a match.
+   * - Host and venue owner: only when status is 'Open' or 'Cancelled'.
+   * - Admin: any status (force-remove); registered players are notified.
    */
   async deleteMatch(sessionId: string, requesterId: string): Promise<Result<void>> {
-    const found = await this.findHostedMatch(sessionId, requesterId, 'Only the host can delete this event.');
+    const found = await this.findMatch(sessionId);
     if (found.isFailure) return Result.fail(found.getError());
     const doc = found.getValue();
-    if (doc.status !== 'Open' && doc.status !== 'Cancelled') {
+
+    const isHost = doc.host_id.toString() === requesterId;
+    const requestingUser = await UserModel.findById(requesterId, 'role');
+    const isAdmin = isAdminRole(requestingUser?.role);
+    const venue = await PlayerSpaceModel.findById(doc.venue_id);
+    const isVenueOwner = venue?.owner_id.toString() === requesterId;
+
+    if (!isHost && !isVenueOwner && !isAdmin) {
+      return Result.fail('Only the host can delete this event.');
+    }
+    if (!isAdmin && doc.status !== 'Open' && doc.status !== 'Cancelled') {
       return Result.fail(`Cannot delete a match with status: ${doc.status}. Only Open or Cancelled matches can be deleted.`);
+    }
+
+    // Admin force-removing a live event: tell the players it is gone
+    if (isAdmin && !isHost && doc.status !== 'Cancelled' && doc.status !== 'Completed') {
+      const recipientIds = [...new Set(doc.players.map(p => p.toString()))];
+      await NotificationModel.insertMany(
+        recipientIds.map(recipientId => ({
+          recipientId,
+          type: 'General',
+          message: `The event "${doc.title}" has been removed by an administrator.`,
+          channel: 'in-app',
+          payload: { matchId: sessionId },
+        }))
+      );
     }
 
     await MatchModel.findByIdAndDelete(sessionId);
     await SessionInteractionModel.deleteMany({ sessionId });
+    await EventCommentModel.deleteMany({ matchId: sessionId });
+
+    return Result.ok();
+  }
+
+  /**
+   * Venue owner (or admin) cancels an event held at their space — e.g. the
+   * space becomes unavailable. No credit penalty for the host.
+   */
+  async cancelByVenueOwner(sessionId: string, requesterId: string): Promise<Result<void>> {
+    const found = await this.findMatch(sessionId);
+    if (found.isFailure) return Result.fail(found.getError());
+    const doc = found.getValue();
+    if (doc.status === 'Cancelled' || doc.status === 'Completed') {
+      return Result.fail('Session is already finished.');
+    }
+
+    const venue = await PlayerSpaceModel.findById(doc.venue_id);
+    const isVenueOwner = venue?.owner_id.toString() === requesterId;
+    if (!isVenueOwner) {
+      const requestingUser = await UserModel.findById(requesterId, 'role');
+      if (!isAdminRole(requestingUser?.role)) {
+        return Result.fail('Only the venue owner can cancel sessions at this space.');
+      }
+    }
+
+    await MatchModel.findByIdAndUpdate(sessionId, {
+      $set: { status: 'Cancelled', cancelledAt: new Date() },
+    });
+    await SessionInteractionModel.updateMany({ sessionId }, { $set: { status: 'cancelled' } });
+
+    await this.notifyInApp(
+      doc.host_id.toString(),
+      `Your session "${doc.title}" was cancelled by the venue.`,
+      { matchId: sessionId }
+    );
+
+    eventBus.publish({
+      eventName: 'MatchStatusChanged',
+      occurredOn: new Date(),
+      payload: { matchId: sessionId, newStatus: 'Cancelled', hostId: doc.host_id.toString() },
+    });
 
     return Result.ok();
   }

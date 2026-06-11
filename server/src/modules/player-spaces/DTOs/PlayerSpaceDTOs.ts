@@ -57,6 +57,10 @@ export const RateVenueSchema = z.object({
   rating: z.number().int().min(1).max(5),
 });
 
+export const AddVenueCommentSchema = z.object({
+  text: z.string().min(1).max(500),
+});
+
 export type CreatePlayerSpaceDTO = z.infer<typeof CreatePlayerSpaceSchema>;
 export type UpdatePlayerSpaceDTO = z.infer<typeof UpdatePlayerSpaceSchema>;
 export type RateVenueDTO = z.infer<typeof RateVenueSchema>;
@@ -80,6 +84,7 @@ export interface GameVenueResponseDTO {
   images: string[];
   wechatQrUrl: string | undefined;
   isPinned: boolean;
+  commentsLocked: boolean;
   amenities: string[];
   rules: string | undefined;
   averageRating: number;
@@ -96,4 +101,14 @@ export interface GameVenueResponseDTO {
     isSubscribed: boolean;
     myRating: number | undefined;
   } | undefined;
+}
+
+export interface VenueCommentResponseDTO {
+  id: string;
+  venueId: string;
+  userId: string;
+  username: string;
+  avatarUrl: string | undefined;
+  text: string;
+  createdAt: string;
 }

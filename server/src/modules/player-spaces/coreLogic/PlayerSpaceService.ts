@@ -4,9 +4,12 @@ import { isAdminRole } from '../../../shared/middleware/auth';
 import { PlayerSpaceModel, IPlayerSpaceDocument } from '../DBSchemas/PlayerSpaceSchema';
 import { VenueInteractionModel } from '../DBSchemas/VenueInteractionSchema';
 import { SpaceMessageModel } from '../DBSchemas/SpaceMessageSchema';
+import { SpaceCommentModel } from '../DBSchemas/SpaceCommentSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
 import { MatchModel } from '../../matches/DBSchemas/MatchSchema';
-import { CreatePlayerSpaceDTO, UpdatePlayerSpaceDTO, GameVenueResponseDTO } from '../DTOs/PlayerSpaceDTOs';
+import { SessionInteractionModel } from '../../matches/DBSchemas/SessionInteractionSchema';
+import { NotificationModel } from '../../notifications/DBSchemas/NotificationSchema';
+import { CreatePlayerSpaceDTO, UpdatePlayerSpaceDTO, GameVenueResponseDTO, VenueCommentResponseDTO } from '../DTOs/PlayerSpaceDTOs';
 import { eventBus } from '../../../shared/infra/EventBus';
 
 // Regular users are capped at this many spaces; admins have no limit
@@ -18,6 +21,23 @@ const DEFAULT_INTERACTION: VenueInteractionView = { isLiked: false, isSubscribed
 
 function toInteractionView(i: { isLiked: boolean; isSubscribed: boolean; myRating?: number | undefined }): VenueInteractionView {
   return { isLiked: i.isLiked, isSubscribed: i.isSubscribed, myRating: i.myRating };
+}
+
+function toVenueCommentDTO(
+  comment: { _id: { toString(): string }; text: string; createdAt: Date },
+  venueId: string,
+  userId: string,
+  user: { username?: string; avatarUrl?: string } | null | undefined
+): VenueCommentResponseDTO {
+  return {
+    id: comment._id.toString(),
+    venueId,
+    userId,
+    username: user?.username ?? 'Unknown',
+    avatarUrl: user?.avatarUrl,
+    text: comment.text,
+    createdAt: comment.createdAt.toISOString(),
+  };
 }
 
 function toVenueDTO(
@@ -50,6 +70,7 @@ function toVenueDTO(
         }}
       : {}),
     isPinned: doc.isPinned ?? false,
+    commentsLocked: doc.commentsLocked ?? false,
     amenities: doc.amenities,
     rules: doc.rules,
     averageRating: doc.averageRating,
@@ -348,25 +369,109 @@ export class PlayerSpaceService {
     }
   }
 
+  // ── Comments (permissions mirror event comments) ──────────────────────────
+
+  private async isOwnerOrAdmin(venue: { owner_id: { toString(): string } }, userId: string): Promise<boolean> {
+    if (venue.owner_id.toString() === userId) return true;
+    const user = await UserModel.findById(userId, 'role');
+    return isAdminRole(user?.role);
+  }
+
+  async getComments(venueId: string): Promise<VenueCommentResponseDTO[]> {
+    const comments = await SpaceCommentModel.find({ venueId }).sort({ createdAt: 1 }).lean();
+    const userIds = [...new Set(comments.map(c => c.userId.toString()))];
+    const users = await UserModel.find({ _id: { $in: userIds } }, 'username avatarUrl');
+    const userMap = new Map(users.map(u => [u._id.toString(), u]));
+    return comments.map(c =>
+      toVenueCommentDTO(
+        c as unknown as { _id: { toString(): string }; text: string; createdAt: Date },
+        venueId,
+        c.userId.toString(),
+        userMap.get(c.userId.toString())
+      )
+    );
+  }
+
+  async addComment(venueId: string, userId: string, text: string): Promise<Result<VenueCommentResponseDTO>> {
+    const venue = await PlayerSpaceModel.findById(venueId);
+    if (!venue) return Result.fail('Venue not found.');
+    const isOwner = venue.owner_id.toString() === userId;
+    if (venue.commentsLocked && !isOwner) return Result.fail('Comments are locked by the owner.');
+    const raw = await SpaceCommentModel.create({ venueId, userId, text });
+    const comment = raw as unknown as { _id: { toString(): string }; text: string; createdAt: Date };
+    const user = await UserModel.findById(userId, 'username avatarUrl');
+    return Result.ok(toVenueCommentDTO(comment, venueId, userId, user));
+  }
+
+  async deleteComment(venueId: string, commentId: string, userId: string): Promise<Result<void>> {
+    const comment = await SpaceCommentModel.findById(commentId);
+    if (!comment || comment.venueId.toString() !== venueId) return Result.fail('Comment not found.');
+    const venue = await PlayerSpaceModel.findById(venueId);
+    const isAuthor = comment.userId.toString() === userId;
+    const mayModerate = venue ? await this.isOwnerOrAdmin(venue, userId) : false;
+    if (!isAuthor && !mayModerate) return Result.fail('Cannot delete another user\'s comment.');
+    await SpaceCommentModel.findByIdAndDelete(commentId);
+    return Result.ok();
+  }
+
+  async lockComments(venueId: string, userId: string, locked: boolean): Promise<Result<void>> {
+    const venue = await PlayerSpaceModel.findById(venueId);
+    if (!venue) return Result.fail('Venue not found.');
+    if (!await this.isOwnerOrAdmin(venue, userId)) {
+      return Result.fail('Only the owner or admin can lock comments.');
+    }
+    await PlayerSpaceModel.findByIdAndUpdate(venueId, { $set: { commentsLocked: locked } });
+    return Result.ok();
+  }
+
   /**
-   * Delete a venue. Only the owner may delete their own venue.
-   * Deletion is blocked if the venue has any active (non-cancelled) matches.
+   * Delete a venue.
+   * - Owner: blocked while the venue has active (non-cancelled) matches.
+   * - Admin (force-remove): active matches are cancelled first and their
+   *   hosts notified, then the venue is deleted.
    */
   async deleteVenue(venueId: string, userId: string): Promise<Result<void>> {
     const venue = await PlayerSpaceModel.findById(venueId);
     if (!venue) return Result.fail('Venue not found.');
-    if (venue.owner_id.toString() !== userId) return Result.fail('Forbidden: only the space owner can delete this venue.');
 
-    // Block deletion if there are any non-cancelled matches at this venue
-    const activeMatchCount = await MatchModel.countDocuments({
-      venue_id: venueId,
-      status: { $nin: ['Cancelled', 'Completed'] },
-    });
-    if (activeMatchCount > 0) {
-      return Result.fail('Cannot delete a venue that has active matches. Cancel all matches first.');
+    const isOwner = venue.owner_id.toString() === userId;
+    const isAdmin = await this.isOwnerOrAdmin(venue, userId) && !isOwner;
+    if (!isOwner && !isAdmin) {
+      return Result.fail('Forbidden: only the space owner can delete this venue.');
+    }
+
+    const activeMatches = await MatchModel.find(
+      { venue_id: venueId, status: { $nin: ['Cancelled', 'Completed'] } },
+      'host_id title'
+    );
+
+    if (activeMatches.length > 0) {
+      if (!isAdmin) {
+        return Result.fail('Cannot delete a venue that has active matches. Cancel all matches first.');
+      }
+      // Admin force path: cancel every live match and tell its host
+      const matchIds = activeMatches.map(m => m._id);
+      await MatchModel.updateMany(
+        { _id: { $in: matchIds } },
+        { $set: { status: 'Cancelled', cancelledAt: new Date() } }
+      );
+      await SessionInteractionModel.updateMany(
+        { sessionId: { $in: matchIds } },
+        { $set: { status: 'cancelled' } }
+      );
+      await NotificationModel.insertMany(
+        activeMatches.map(m => ({
+          recipientId: m.host_id.toString(),
+          type: 'General',
+          message: `Your session "${m.title}" was cancelled because the venue was removed by an administrator.`,
+          channel: 'in-app',
+          payload: { matchId: m._id.toString() },
+        }))
+      );
     }
 
     await PlayerSpaceModel.findByIdAndDelete(venueId);
+    await SpaceCommentModel.deleteMany({ venueId });
     return Result.ok();
   }
 }

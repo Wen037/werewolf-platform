@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { EventComment, GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from '../types';
+import type { EventComment, SpaceComment, GameSessionDTO, GameVenueDTO, FullUserProfileDTO, GameVenue, UserProfileDTO } from '../types';
 
 /**
  * The frontend's `GameVenue` shape uses `pricePerHour`/`priceType` (matching the
@@ -207,6 +207,18 @@ export const RealGameService = {
   cancelSession: (sessionId: string) =>
     api.patch(`/games/${sessionId}/status`, { status: "cancelled" }),
 
+  // Venue owner or admin cancels an event held at the space (no host penalty)
+  venueCancelSession: (sessionId: string): Promise<void> =>
+    api.patch(`/games/${sessionId}/venue-cancel`, {}),
+
+  // Host (Open/Cancelled) / venue owner / admin
+  deleteSession: (sessionId: string): Promise<void> =>
+    api.delete(`/games/${sessionId}`),
+
+  // Space owner or admin
+  deleteVenue: (venueId: string): Promise<void> =>
+    api.delete(`/venues/${venueId}`),
+
   updateSession: (sessionId: string, fields: object) =>
     api.patch(`/games/${sessionId}`, fields),
 
@@ -248,6 +260,20 @@ export const RealGameService = {
 
   lockComments: (sessionId: string, locked: boolean): Promise<void> =>
     api.patch(`/games/${sessionId}/comments/lock`, { locked }),
+
+  // ── Space comments (permissions mirror event comments) ────────────────────
+
+  getVenueComments: (venueId: string): Promise<SpaceComment[]> =>
+    api.get(`/venues/${venueId}/comments`),
+
+  addVenueComment: (venueId: string, text: string): Promise<SpaceComment> =>
+    api.post(`/venues/${venueId}/comments`, { text }),
+
+  deleteVenueComment: (venueId: string, commentId: string): Promise<void> =>
+    api.delete(`/venues/${venueId}/comments/${commentId}`),
+
+  lockVenueComments: (venueId: string, locked: boolean): Promise<void> =>
+    api.patch(`/venues/${venueId}/comments/lock`, { locked }),
 
   // ── Post-event recap ──────────────────────────────────────────────────────
 

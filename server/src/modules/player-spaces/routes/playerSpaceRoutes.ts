@@ -3,7 +3,7 @@ import { PlayerSpaceService } from '../coreLogic/PlayerSpaceService';
 import { MatchService } from '../../matches/coreLogic/MatchService';
 import { requireAuth, requireAdmin, optionalAuth } from '../../../shared/middleware/auth';
 import { validate } from '../../../shared/middleware/validate';
-import { CreatePlayerSpaceSchema, UpdatePlayerSpaceSchema, RateVenueSchema, LeaveOwnerMessageSchema } from '../DTOs/PlayerSpaceDTOs';
+import { CreatePlayerSpaceSchema, UpdatePlayerSpaceSchema, RateVenueSchema, LeaveOwnerMessageSchema, AddVenueCommentSchema } from '../DTOs/PlayerSpaceDTOs';
 import { PlayerSpaceModel } from '../DBSchemas/PlayerSpaceSchema';
 import { UserModel } from '../../users/DBSchemas/UserSchema';
 import { sendBookingInquiryEmail } from '../../../shared/infra/email';
@@ -50,6 +50,52 @@ router.post('/venues', requireAuth, validate(CreatePlayerSpaceSchema), async (re
   const result = await playerSpaceService.createVenue(req.user!.userId, req.body as Parameters<PlayerSpaceService['createVenue']>[1]);
   if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
   res.status(201).json(result.getValue());
+});
+
+// Owner or admin: delete a space (admin force-cancels active matches first)
+router.delete('/venues/:id', requireAuth, async (req: Request, res: Response) => {
+  const result = await playerSpaceService.deleteVenue(String(req.params['id']), req.user!.userId);
+  if (result.isFailure) {
+    const status = result.getError()?.includes('Forbidden') ? 403
+      : result.getError()?.includes('not found') ? 404 : 400;
+    res.status(status).json({ message: result.getError() });
+    return;
+  }
+  res.status(200).json({ message: 'Venue deleted.' });
+});
+
+// ── Comments (permissions mirror event comments) ──────────────────────────────
+
+router.get('/venues/:id/comments', optionalAuth, async (req: Request, res: Response) => {
+  const comments = await playerSpaceService.getComments(String(req.params['id']));
+  res.status(200).json(comments);
+});
+
+router.post('/venues/:id/comments', requireAuth, validate(AddVenueCommentSchema), async (req: Request, res: Response) => {
+  const result = await playerSpaceService.addComment(
+    String(req.params['id']),
+    req.user!.userId,
+    (req.body as { text: string }).text
+  );
+  if (result.isFailure) { res.status(400).json({ message: result.getError() }); return; }
+  res.status(201).json(result.getValue());
+});
+
+router.delete('/venues/:id/comments/:commentId', requireAuth, async (req: Request, res: Response) => {
+  const result = await playerSpaceService.deleteComment(
+    String(req.params['id']),
+    String(req.params['commentId']),
+    req.user!.userId
+  );
+  if (result.isFailure) { res.status(403).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Comment deleted.' });
+});
+
+router.patch('/venues/:id/comments/lock', requireAuth, async (req: Request, res: Response) => {
+  const locked = Boolean((req.body as { locked?: boolean }).locked);
+  const result = await playerSpaceService.lockComments(String(req.params['id']), req.user!.userId, locked);
+  if (result.isFailure) { res.status(403).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: locked ? 'Comments locked.' : 'Comments unlocked.' });
 });
 
 router.post('/venues/:id/like', requireAuth, async (req: Request, res: Response) => {

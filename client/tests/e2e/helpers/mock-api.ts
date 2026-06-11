@@ -217,6 +217,32 @@ export async function interceptApi(page: Page) {
     await route.fulfill({ json: { success: true } });
   });
 
+  // Venue-owner cancel of an event at the space
+  await page.route(`${base}/games/*/venue-cancel`, async route => {
+    await route.fulfill({ json: { message: 'Session cancelled by venue.' } });
+  });
+
+  // Space comments: DELETE /comments/:id and PATCH /comments/lock both match the
+  // two-segment pattern; GET/POST list matches the one-segment pattern
+  await page.route(`${base}/venues/*/comments/*`, async route => {
+    await route.fulfill({ json: { message: 'OK.' } });
+  });
+
+  await page.route(`${base}/venues/*/comments`, async route => {
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON();
+      await route.fulfill({
+        status: 201,
+        json: {
+          id: 'sc-1', venueId: 'v1', userId: MOCK_USER.id, username: MOCK_USER.username,
+          avatarUrl: MOCK_USER.avatarUrl, text: body?.text ?? '', createdAt: new Date().toISOString(),
+        },
+      });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+
   await page.route(`${base}/venues/*`, async route => {
     await route.fulfill({ json: { ...MOCK_VENUES[0], pendingSessions: [] } });
   });

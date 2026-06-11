@@ -163,6 +163,25 @@ router.patch('/games/:sessionId/cancel', requireAuth, async (req: Request, res: 
   res.status(200).json({ message: 'Session cancelled.' });
 });
 
+// Venue owner or admin: cancel an event held at the space (no host credit penalty)
+router.patch('/games/:sessionId/venue-cancel', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.cancelByVenueOwner(id(req), req.user!.userId);
+  if (result.isFailure) { res.status(403).json({ message: result.getError() }); return; }
+  res.status(200).json({ message: 'Session cancelled by venue.' });
+});
+
+// Host / venue owner (Open or Cancelled only) or admin (any status): delete event
+router.delete('/games/:sessionId', requireAuth, async (req: Request, res: Response) => {
+  const result = await matchService.deleteMatch(id(req), req.user!.userId);
+  if (result.isFailure) {
+    const status = result.getError()?.includes('not found') ? 404
+      : result.getError()?.includes('Only the host') ? 403 : 400;
+    res.status(status).json({ message: result.getError() });
+    return;
+  }
+  res.status(200).json({ message: 'Event deleted.' });
+});
+
 // ── Comments ──────────────────────────────────────────────────────────────────
 
 router.get('/games/:sessionId/comments', optionalAuth, async (req: Request, res: Response) => {
