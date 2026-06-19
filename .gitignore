@@ -38,6 +38,7 @@ CLAUDE.md
 
 # --- Markdown Files ---
 *.md
+!README.md
 *.swp
 *.swo
 .DS_Store
