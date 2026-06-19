@@ -19,6 +19,9 @@
 #
 # ── Session History ────────────────────────────────────────────────────────────
 
+## 2026-06-12 — Public profile hero band: flat grey block → rank-colored gradient glow
+- **`pages/PublicProfilePage.tsx`**: hero band was `${ci.barColor} opacity-70` — a solid flat bar that renders as plain grey for default "Recruit" rank (white at 70% opacity); replaced with `RANK_GLOW_RGB` map + inline `linear-gradient` fading from the rank's accent color (22% opacity) to transparent — same visual language as the rank badges, no flat block
+
 ## 2026-06-12 — Venue fixes: approval persisted, rating avg refreshed, amber tabs
 - **`services/game.service.real.ts`**: added `approveVenueSession` → `PATCH /games/:id/venue-approve`; `rejectVenueSession` → `PATCH /games/:id/venue-reject`
 - **`services/game.service.mock.ts`**: matching stubs
@@ -34,14 +37,4 @@
 - **`tests/e2e/helpers/mock-api.ts`**: added `/venues/*/comments` + `/venues/*/comments/*` routes
 - Backend fix (see serverupdates): events created by a non-owner on a `boardgame_store` space now start `venueApprovalStatus: 'pending'` — the existing amber "Pending Space Approval" badge now shows instead of "Venue Confirmed"
 - Verified: client `tsc --noEmit` clean; Playwright 04-gamespace 9/9 passed
-
-## 2026-06-11 — Moderation buttons: delete space/event (admin/owner), venue-owner event cancel
-- **`services/game.service.real.ts`**: added `deleteSession(sessionId)` → `DELETE /games/:id`; `venueCancelSession(sessionId)` → `PATCH /games/:id/venue-cancel`; `deleteVenue(venueId)` → `DELETE /venues/:id`
-- **`services/game.service.mock.ts`**: matching stubs
-- **`pages/VenueDetailPage.tsx`**: "Delete Space" header button for `permissions.canDelete` (owner/admin) with confirm → navigates to `/gamespace`; per-event Cancel (X) button in Coming Events for owner/admin → `venueCancelSession`, row moves to history
-- **`pages/EventDetailPage.tsx`**: "Delete Event" button in right action card — host (open events only; backend enforces Open/Cancelled) or admin (any status, labelled "Delete Event (Admin)") → navigates to `/lobby`
-- **`i18n/index.ts`**: 8 ZH keys for delete/cancel confirms and labels
-- **`tests/e2e/helpers/mock-api.ts`**: added `/games/*/venue-cancel` route
-- Verified: client `tsc --noEmit` clean; Playwright 04+05 18/18 passed
-
 
