@@ -19,8 +19,8 @@
 #
 # ── Session History ────────────────────────────────────────────────────────────
 
-## 2026-06-12 — Public profile hero band: flat grey block → rank-colored gradient glow
-- **`pages/PublicProfilePage.tsx`**: hero band was `${ci.barColor} opacity-70` — a solid flat bar that renders as plain grey for default "Recruit" rank (white at 70% opacity); replaced with `RANK_GLOW_RGB` map + inline `linear-gradient` fading from the rank's accent color (22% opacity) to transparent — same visual language as the rank badges, no flat block
+## 2026-06-12 — Public profile hero band removed entirely (was tried as gradient glow, user preferred plain)
+- **`pages/PublicProfilePage.tsx`**: gradient-glow hero band (added same day to replace a flat grey bar) removed per user feedback — still didn't look good; layout simplified to a plain page with `pt-6` top padding instead of `-mt-16` overlap; removed unused `RANK_GLOW_RGB` map
 
 ## 2026-06-12 — Venue fixes: approval persisted, rating avg refreshed, amber tabs
 - **`services/game.service.real.ts`**: added `approveVenueSession` → `PATCH /games/:id/venue-approve`; `rejectVenueSession` → `PATCH /games/:id/venue-reject`
