@@ -15,17 +15,6 @@ import { ReportModal } from "../components/ReportModal";
 import { AuthModal } from "../components/AuthModal";
 import { IconAlertTriangle } from "@tabler/icons-react";
 
-// rgb triplets matching each rank's accent color, used for the profile hero glow
-const RANK_GLOW_RGB: Record<string, string> = {
-  Flagged:     "100,116,139", // slate-400
-  Recruit:     "248,113,113", // red-400 (brand accent — avoids flat-white/grey block)
-  Trusted:     "96,165,250",  // blue-400
-  Reliable:    "74,222,128",  // green-400
-  Tactician:   "192,132,252", // purple-400
-  Elite:       "244,114,182", // pink-400
-  Grandmaster: "251,146,60",  // orange-400
-};
-
 const PROFICIENCY_STYLES: Record<string, string> = {
   "All Welcome":  "bg-green-500/15 text-green-400 border-green-500/25",
   "Newbie":       "bg-sky-500/15 text-sky-400 border-sky-500/25",
@@ -141,19 +130,11 @@ export default function PublicProfilePage() {
           targetName={profile.username}
         />
 
-        {/* Hero band — soft gradient glow in the rank's accent color, fades into the page */}
-        <div
-          className="w-full h-40"
-          style={{
-            background: `linear-gradient(180deg, rgba(${RANK_GLOW_RGB[ci.rank] ?? RANK_GLOW_RGB["Recruit"]},0.22) 0%, rgba(${RANK_GLOW_RGB[ci.rank] ?? RANK_GLOW_RGB["Recruit"]},0) 100%)`,
-          }}
-        />
-
-        <div className="max-w-2xl mx-auto px-6 pb-20 -mt-16 relative">
+        <div className="max-w-2xl mx-auto px-6 pt-6 pb-20 relative">
           {/* Back button */}
           <button
             onClick={() => navigate(-1)}
-            className="absolute top-0 left-6 flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition-colors bg-neutral-900/80 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-sm"
+            className="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition-colors bg-neutral-900/80 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-sm"
           >
             <ArrowLeft size={14} /> {t("Back")}
           </button>
