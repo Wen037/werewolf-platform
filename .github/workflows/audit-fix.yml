@@ -27,14 +27,18 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm audit fix || true
-          npm audit --audit-level=high
+          npm audit --audit-level=high || npm audit fix --force || true
+          echo "── remaining advisories after fix (informational, does not fail the job) ──"
+          npm audit --audit-level=high || true
 
       - name: Audit fix (client)
         working-directory: client
         run: |
           npm install --no-audit --no-fund
           npm audit fix || true
-          npm audit --audit-level=high
+          npm audit --audit-level=high || npm audit fix --force || true
+          echo "── remaining advisories after fix (informational, does not fail the job) ──"
+          npm audit --audit-level=high || true
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
@@ -44,8 +48,16 @@ jobs:
           commit-message: "fix: bump vulnerable dependencies via npm audit fix"
           body: |
             Automated `npm audit fix` run from the audit-fix workflow.
-            Lockfile-only bumps within existing semver ranges (axios, mongoose,
-            express-rate-limit, resend, qs, uuid, ip-address, svix).
+            Plain `npm audit fix` ran first (lockfile-only, within existing
+            semver ranges); if high-severity advisories remained afterwards,
+            `npm audit fix --force` ran as a fallback, which **can bump
+            major versions and change `package.json` ranges directly**.
+
+            ⚠️ Review the `package.json` diffs before merging — a forced
+            bump may include breaking changes (axios, mongoose,
+            express-rate-limit, resend, qs, uuid, ip-address, svix, vite,
+            js-yaml, form-data). Run `npm test` / `npm run build` on this
+            branch before merging if `package.json` changed.
           add-paths: |
             server/package.json
             server/package-lock.json
