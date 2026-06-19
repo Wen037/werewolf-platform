@@ -202,7 +202,7 @@ describe('OWASP A01 — BFLA (Vertical Privilege Escalation)', () => {
 // ── BOLA — Horizontal Privilege Escalation (User A → User B resources) ─────────
 
 describe('OWASP A01 — BOLA (Horizontal Privilege Escalation)', () => {
-  it('SEC-A01-BOLA-1: player cannot delete another player game (non-host) → 400 or 404', async () => {
+  it('SEC-A01-BOLA-1: player cannot delete another player game (non-host) → 403', async () => {
     const { user: host } = await seedUser('player');
     const { token: attackerToken } = await seedUser('player');
     const match = await seedMatch(host._id);
@@ -211,10 +211,9 @@ describe('OWASP A01 — BOLA (Horizontal Privilege Escalation)', () => {
       .delete(`/api/games/${match._id.toString()}`)
       .set('Authorization', `Bearer ${attackerToken}`);
 
-    // The DELETE /games/:id endpoint does not exist (no bulk-delete route implemented).
-    // Either 400 (service-layer rejection) or 404 (route not found) prevents deletion.
+    // DELETE /games/:id requires host or admin — a non-host attacker is rejected with 403.
     // The critical assertion is that the match still exists in the DB.
-    expect([400, 404]).toContain(res.status);
+    expect(res.status).toBe(403);
     // Verify the event still exists in DB — it must NOT have been deleted
     const stillExists = await MatchModel.findById(match._id);
     expect(stillExists).not.toBeNull();
