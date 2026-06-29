@@ -784,9 +784,13 @@ export class MatchService {
     if (found.isFailure) return Result.fail(found.getError());
 
     const update: Record<string, unknown> = {};
+    const unset: Record<string, 1> = {};
     if (dto.title !== undefined) update['title'] = dto.title;
     if (dto.description !== undefined) update['description'] = dto.description;
-    if (dto.scheduledAt !== undefined) update['scheduledAt'] = new Date(dto.scheduledAt);
+    if (dto.scheduledAt !== undefined) {
+      update['scheduledAt'] = new Date(dto.scheduledAt);
+      unset['reminderSentAt'] = 1;
+    }
     if (dto.max_pax !== undefined) update['config.max_pax'] = dto.max_pax;
     if (dto.min_pax !== undefined) update['config.min_pax'] = dto.min_pax;
     if (dto.proficiency_required !== undefined) update['config.proficiency_required'] = dto.proficiency_required;
@@ -796,9 +800,12 @@ export class MatchService {
     if (dto.groupLink !== undefined) update['groupLink'] = dto.groupLink;
     if (dto.groupType !== undefined) update['groupType'] = dto.groupType;
 
+    const op: Record<string, unknown> = { $set: update };
+    if (Object.keys(unset).length > 0) op['$unset'] = unset;
+
     const updated = await MatchModel.findByIdAndUpdate(
       sessionId,
-      { $set: update },
+      op,
       { new: true }
     ) as MatchDoc | null;
     if (!updated) return Result.fail('Match not found after update.');
@@ -1121,6 +1128,7 @@ export class MatchService {
       venueApprovalStatus: doc.venueApprovalStatus,
       recurrence,
       players: [doc.host_id],
+      reminderSentAt: new Date(),
     };
     if (doc.description !== undefined) createPayload['description'] = doc.description;
     if (doc.groupLink  !== undefined) createPayload['groupLink']    = doc.groupLink;
